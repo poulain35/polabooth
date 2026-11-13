@@ -4,8 +4,18 @@ La borne de Polabooth est une application Windows, PolaKiosk. Elle prend les pho
 design de l'événement, imprime et envoie les photos au SaaS. Elle ne fonctionne qu'avec un SaaS
 installé : faites d'abord [installation-instance.md](installation-instance.md).
 
-Ce guide explique le matériel à prévoir, comment construire l'installeur à votre nom et comment
-mettre une borne en service.
+Ce guide explique le matériel à prévoir, comment obtenir l'installeur et comment mettre une borne
+en service.
+
+> **Le plus simple : l'installeur prêt à l'emploi.** L'onglet **Releases** du dépôt Polabooth sur
+> GitHub propose `setup-polakiosk-<version>.exe`. Il contient le kit Canon EDSDK : la borne
+> fonctionne directement avec un appareil Canon, sans compte développeur Canon. Il ne porte le nom
+> d'aucune entreprise : la borne demande l'adresse de votre SaaS au premier démarrage. Téléchargez-le
+> et passez directement à l'étape 5. Les sections 2 à 4 servent à construire votre propre
+> installeur (à votre nom, ou avec du code modifié).
+>
+> Les fichiers Canon de l'installeur appartiennent à Canon et ne servent qu'avec PolaKiosk : voir
+> `THIRD-PARTY-NOTICES.txt`, installé avec l'application.
 
 ---
 
@@ -15,7 +25,7 @@ mettre une borne en service.
 |---|---|---|
 | PC | Windows 10 ou 11 (64 bits), 8 Go de RAM, SSD | Mini-PC ou portable. Un seul compte Windows, avec ouverture de session automatique (la borne démarre à la connexion de l'utilisateur). |
 | Écran | Écran tactile | L'interface est faite pour le tactile (gros boutons, clavier à l'écran). Testée sur un 12 pouces. |
-| Appareil photo | Canon compatible EDSDK, en USB (testé : EOS R100) | Sans Canon, la borne prend la première webcam. Il faut le kit EDSDK de Canon (voir 3.2). |
+| Appareil photo | Canon compatible EDSDK, en USB (testé : EOS R100) | Sans Canon, la borne prend la première webcam. Le kit EDSDK de Canon est inclus dans l'installeur prêt à l'emploi ; pour construire le vôtre, voir 3.2. |
 | Imprimante | Imprimante photo avec pilote Windows (testé : DNP DS620, RX1-HS) | Formats 10×15 et bandes 5×15. Tout pilote Windows fonctionne. |
 | Réseau | Wi-Fi, Ethernet ou clé 4G | Pas obligatoire pendant l'événement : les photos partent dès le retour du réseau. Il faut du réseau pour associer la borne et charger un événement (ou un fichier `.pola`, voir 6). |
 
@@ -25,6 +35,8 @@ alimenté sur secteur si possible (adaptateur secteur Canon) : une batterie vide
 ---
 
 ## 2. Ce qu'il faut pour construire l'installeur
+
+Inutile avec l'installeur prêt à l'emploi (voir le début du guide).
 
 Sur un PC Windows de développement (pas forcément la borne) :
 
@@ -93,7 +105,9 @@ l'installeur. Sans lui, la borne lit l'adresse et la clé publique dans
 
 ### 3.2 Le kit Canon EDSDK (pour un appareil Canon)
 
-Canon ne permet pas de redistribuer ce kit : chacun doit le demander.
+L'installeur prêt à l'emploi contient déjà ce kit. Le code source, lui, ne le contient pas :
+Canon permet de distribuer ses fichiers seulement dans un logiciel, pas seuls. Pour construire
+votre propre installeur avec Canon, demandez votre accès :
 
 1. Créez un compte sur le Canon Developer Programme (recherchez « Canon EDSDK developer » ; la
    demande se fait depuis le site Canon de votre région).
@@ -103,7 +117,7 @@ Canon ne permet pas de redistribuer ce kit : chacun doit le demander.
 4. Copiez-les dans `kiosk\PolaKiosk\EDSDK\native\`.
 
 Git ignore ce dossier : les DLL ne partent jamais dans le dépôt. Elles sont intégrées à
-l'installeur si elles sont présentes.
+l'installeur si elles sont présentes, avec `THIRD-PARTY-NOTICES.txt` (mentions demandées par Canon).
 
 Sans ces DLL, la borne fonctionne avec une webcam (1920×1080 si la webcam le permet). Utile pour
 tester, moins bon pour un vrai événement.
@@ -182,7 +196,8 @@ Contenu du fichier et règles de lecture : [format-pola.md](format-pola.md).
 
 ## 7. Mettre à jour les bornes
 
-1. Construisez la nouvelle version (étape 4, avec un numéro plus grand).
+1. Téléchargez la nouvelle version prête à l'emploi (onglet Releases), ou construisez la vôtre
+   (étape 4, avec un numéro plus grand).
 2. Dans le SaaS, « Parc kiosk » > « Versions kiosk » : indiquez le numéro, envoyez
    `setup-polakiosk.exe`, ajoutez des notes. L'installeur part dans votre stockage S3 (le bucket
    des photos, dossier `releases/`), pas dans Supabase.
@@ -203,7 +218,7 @@ Détails techniques (watchdog, journaux, rollback) : `kiosk/installer/README.md`
 | « Adresse de votre SaaS » refusée | Ouvrez `https://<votre SaaS>/kiosk-config.json` dans un navigateur : il doit s'afficher. Sinon, voir l'étape 6 de [installation-instance.md](installation-instance.md). |
 | Les QR codes ou l'association mènent au site d'une autre entreprise | `appsettings.Instance.json` contient encore les adresses d'une autre entreprise (3.1). Corrigez-le ou supprimez-le, puis reconstruisez l'installeur. |
 | « Problème technique » sur l'accueil | L'appareil photo n'est pas détecté : vérifiez le câble USB, l'alimentation, le mode photo. Le SaaS est prévenu (carte de la borne). |
-| La borne prend la webcam au lieu du Canon | DLL EDSDK absentes de l'installeur (3.2), ou caméra forcée sur webcam dans l'administration. |
+| La borne prend la webcam au lieu du Canon | Installeur construit sans les DLL EDSDK (3.2 ; l'installeur prêt à l'emploi les contient), ou caméra forcée sur webcam dans l'administration. |
 | Administration fermée | Définissez et envoyez le PIN depuis le SaaS (5.2, point 3). La borne doit avoir du réseau pour le recevoir. |
 | Rien ne s'imprime | Imprimante choisie dans l'administration ? Papier et ruban chargés ? Testez une impression depuis Windows. |
 | Photos absentes de la galerie en ligne | La borne était hors ligne : elles partent au retour du réseau. Le nombre d'envois en attente s'affiche sur la carte de la borne dans le SaaS. |

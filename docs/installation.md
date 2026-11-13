@@ -11,7 +11,7 @@ La borne ne fonctionne qu'avec un SaaS : installez le SaaS d'abord.
 | Étape | Guide | Durée |
 |---|---|---|
 | 1. Le SaaS | [installation-instance.md](installation-instance.md) | environ 1 h |
-| 2. La borne | [installation-borne.md](installation-borne.md) | 1 h, plus quelques jours d'attente pour le kit Canon |
+| 2. La borne | [installation-borne.md](installation-borne.md) | 1 h avec l'installeur prêt à l'emploi (kit Canon inclus) |
 
 ---
 
@@ -63,7 +63,7 @@ Prix indicatifs relevés en novembre 2026, à vérifier chez chaque fournisseur.
 | Stockage Cloudflare R2 | Gratuit jusqu'à 10 Go | environ 0,015 $ par Go et par mois au-delà | Pas de frais de sortie. Un événement de 400 photos pèse environ 200 Mo. Scaleway, OVHcloud et Backblaze sont du même ordre, avec des frais de sortie variables. |
 | SMTP | Inclus avec votre messagerie | Inclus | Port 465 obligatoire. Gmail limite le nombre d'envois par jour. |
 | Nom de domaine | environ 10 à 15 € par an | | Vous en avez sans doute déjà un : un sous-domaine suffit (`photobooth.…`). |
-| Kit Canon EDSDK | Gratuit | | Sur demande auprès de Canon. |
+| Kit Canon EDSDK | Gratuit | | Inclus dans l'installeur prêt à l'emploi. Pour construire le vôtre : sur demande auprès de Canon. |
 | Inno Setup, .NET | Gratuits | | Pour construire l'installeur de la borne. |
 
 Les services facultatifs (images par IA, assistant, agenda Google) se paient chez leur fournisseur

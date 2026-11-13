@@ -64,6 +64,8 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 ; Scripts watchdog + mise à jour
 Source: "{#ScriptsDir}\watchdog.ps1";     DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "{#ScriptsDir}\apply-update.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
+; Mentions des composants de tiers (DLL Canon EDSDK, Independent JPEG Group), exigées par Canon
+Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\{#AppName}";        Filename: "{app}\{#ExeName}"

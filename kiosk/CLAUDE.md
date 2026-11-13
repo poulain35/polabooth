@@ -98,8 +98,10 @@ séance impossible ; l'état part au heartbeat.
 
 ### DLL Canon
 `PolaKiosk/EDSDK/native/EDSDK.dll` et `EdsImage.dll`, copiées à la racine de la sortie.
-**Non versionnées** : chaque utilisateur les obtient auprès de Canon. Ne jamais les committer ni
-les modifier.
+**Jamais dans le dépôt** : ne jamais les committer ni les modifier. L'installeur prêt à l'emploi
+(onglet Releases) les contient, avec `installer/THIRD-PARTY-NOTICES.txt` (mentions demandées par
+Canon : fichiers de Canon, utilisables seulement avec PolaKiosk). Pour construire un installeur
+avec Canon, chacun demande son accès au programme développeur de Canon.
 
 ### Prise de vue (`EdsdkCameraService`)
 Toutes les opérations EDSDK passent par **un thread STA dédié** (file d'attente bloquante).

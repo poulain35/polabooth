@@ -1,0 +1,24 @@
+PolaKiosk - Composants de tiers / Third-party components
+=========================================================
+
+Canon EOS Digital SDK (EDSDK)
+-----------------------------
+
+Les fichiers EDSDK.dll et EdsImage.dll, quand l'installeur les contient, appartiennent à Canon Inc.
+Ils sont distribués uniquement comme partie de PolaKiosk, sous les conditions du programme
+développeur de Canon, et ne sont pas couverts par la licence de Polabooth (LICENSE.md).
+Ils ne servent qu'à piloter un appareil photo Canon depuis PolaKiosk. Il est interdit de les
+extraire pour les utiliser ou les redistribuer séparément. Pour développer avec ce kit, demandez
+votre propre accès au programme développeur de Canon.
+
+The files EDSDK.dll and EdsImage.dll, when included in this installer, are the property of
+Canon Inc. They are distributed only as part of PolaKiosk, under the terms of Canon's developer
+programme, and are not covered by the Polabooth license (LICENSE.md). They are only used to control
+a Canon camera from PolaKiosk. Extracting them to use or redistribute them separately is not
+permitted. To develop with this kit, request your own access to Canon's developer programme.
+
+Independent JPEG Group
+----------------------
+
+Le kit Canon EDSDK est basé en partie sur le travail de l'Independent JPEG Group.
+This software is based in part on the work of the Independent JPEG Group.

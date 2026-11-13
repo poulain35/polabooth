@@ -58,7 +58,8 @@ partie de Polabooth.
 **Pour chaque borne**
 
 - un PC Windows 10 ou 11 (64 bits), idéalement avec un écran tactile ;
-- un appareil Canon compatible EDSDK (le kit Canon se demande à Canon), ou une webcam ;
+- un appareil Canon compatible EDSDK (le kit Canon est inclus dans l'installeur prêt à l'emploi),
+  ou une webcam ;
 - une imprimante photo avec pilote Windows.
 
 ---
@@ -69,8 +70,8 @@ Commencez par [docs/installation.md](docs/installation.md) : composants, coûts,
 
 1. Le SaaS : [docs/installation-instance.md](docs/installation-instance.md). Un script
    (`npm run install-instance`) crée la base, déploie les fonctions et construit le site.
-2. La borne : [docs/installation-borne.md](docs/installation-borne.md). Matériel, kit Canon,
-   construction de l'installeur, mise en service.
+2. La borne : [docs/installation-borne.md](docs/installation-borne.md). Matériel, installeur prêt
+   à l'emploi (onglet **Releases**, kit Canon inclus) ou construit par vous, mise en service.
 
 Le format du fichier `.pola`, qui emporte un événement sur une borne sans réseau, est décrit dans
 [docs/format-pola.md](docs/format-pola.md).
@@ -113,7 +114,9 @@ supplémentaire.
   la clause « Noncompete » de la licence.
 - **Non couverts** : les noms, logos et marques « La Boîte à Pola » et « PolaKiosk ». Les
   composants de tiers gardent leur licence (polices sous SIL Open Font License, dépendances npm et
-  NuGet). Le kit Canon EDSDK n'est pas fourni.
+  NuGet). Le kit Canon EDSDK n'est pas dans le code source. L'installeur prêt à l'emploi de la borne
+  (onglet Releases) contient ses fichiers, qui restent la propriété de Canon et ne servent qu'avec
+  PolaKiosk (voir `kiosk/installer/THIRD-PARTY-NOTICES.txt`).
 - Si vous redistribuez le logiciel, transmettez les termes de la licence et la mention suivante :
 
   ```

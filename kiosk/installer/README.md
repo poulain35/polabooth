@@ -2,7 +2,8 @@
 
 > Vous installez la borne pour votre propre instance ? Suivez d'abord
 > [docs/installation-borne.md](../../docs/installation-borne.md) (matériel, kit Canon, fichiers à
-> remplacer). Ce fichier détaille la mécanique de l'installeur et des mises à jour.
+> remplacer). Un installeur prêt à l'emploi, kit Canon inclus, est publié dans l'onglet Releases
+> du dépôt. Ce fichier détaille la mécanique de l'installeur et des mises à jour.
 
 `setup-polakiosk.exe` installe l'app **par utilisateur** (`%LocalAppData%\Programs\PolaKiosk`),
 sans droits admin. Ça permet aux **mises à jour automatiques de se faire en silence**, sans UAC.
@@ -38,6 +39,11 @@ Sortie : `PolaKiosk\bin\Release\net10.0-windows\win-x64\publish\`
 
 Résultat : `installer\Output\setup-polakiosk.exe`. Sans publication préalable (étape 2), la
 compilation s'arrête sur « PolaKiosk.dll introuvable ».
+
+L'installeur contient toujours `THIRD-PARTY-NOTICES.txt` : si les DLL Canon
+(`PolaKiosk\EDSDK\native\`) étaient présentes au moment de la publication, elles sont dans
+l'installeur, et ce fichier rappelle qu'elles appartiennent à Canon et ne servent qu'avec PolaKiosk.
+Ne les mettez jamais dans le dépôt git.
 
 ## Première installation sur un PC kiosk
 
