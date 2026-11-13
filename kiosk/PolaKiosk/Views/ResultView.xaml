@@ -1,0 +1,544 @@
+<UserControl x:Class="PolaKiosk.Views.ResultView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PolaKiosk.Controls"
+             Background="{StaticResource KioskCreamBrush}"
+             FontFamily="{StaticResource KioskTextFont}">
+
+    <!-- Écran résultat (LAB-252) : partage (3), QR code (3a), e-mail (3b) et « C'est envoyé ! ».
+         Chaque écran est dessiné à la taille de la maquette (1280 × 800) puis mis à l'échelle de l'écran. -->
+    <UserControl.Resources>
+        <!-- Contour des boutons − / + sur le bloc vert forêt -->
+        <SolidColorBrush x:Key="ResultCreamLineBrush" Color="{StaticResource KioskCreamColor}" Opacity="0.5"/>
+
+        <!-- Ombre du tirage et de la carte QR -->
+        <DropShadowEffect x:Key="ResultPrintShadow" Color="{StaticResource KioskForestColor}" Opacity="0.22"
+                          BlurRadius="48" ShadowDepth="24" Direction="270"/>
+        <DropShadowEffect x:Key="ResultCardShadow" Color="{StaticResource KioskForestColor}" Opacity="0.18"
+                          BlurRadius="48" ShadowDepth="24" Direction="270"/>
+
+        <!-- Icônes (24 × 24) -->
+        <Geometry x:Key="IconClock">M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z</Geometry>
+        <Geometry x:Key="IconPrint">M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z</Geometry>
+        <Geometry x:Key="IconMail">M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z</Geometry>
+        <Geometry x:Key="IconQr">M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-2 8h-2v2h2v-2zm-4 0h-2v2h2v-2zm6 0h-2v2h2v-2zm-2 2h-2v2h2v-2zm-4 0h-2v2h2v-2zm6 0h-2v2h2v-2zm-4 2h-2v2h2v-2zm4 0h-2v2h2v-2zM22 7h-2V4h-3V2h5v5zm0 15v-5h-2v3h-3v2h5zM2 22h5v-2H4v-3H2v5zM2 2v5h2V4h3V2H2z</Geometry>
+        <Geometry x:Key="IconRefresh">M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</Geometry>
+        <Geometry x:Key="IconArrow">M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z</Geometry>
+        <Geometry x:Key="IconCheck">M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</Geometry>
+
+        <!-- Gros titre en Fraunces -->
+        <Style x:Key="ResultTitle" TargetType="TextBlock" BasedOn="{StaticResource KioskTitleText}">
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+        </Style>
+
+        <!-- Bouton sans habillage : le contenu dessine tout -->
+        <Style x:Key="ResultBareButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Tag" Value="{StaticResource KioskButtonRadius}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.82"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Bouton plein vert forêt (« Envoyer », « C'est bon, merci ! », « Terminer ») -->
+        <Style x:Key="ResultForestButton" TargetType="Button" BasedOn="{StaticResource ResultBareButton}">
+            <Setter Property="Foreground" Value="{StaticResource KioskCreamBrush}"/>
+            <Setter Property="Background" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="Padding" Value="40,0"/>
+            <Setter Property="Tag" Value="22"/>
+        </Style>
+
+        <!-- « Retour » des écrans 3a et 3b : mêmes mesures que « Refaire les photos » (LAB-256) -->
+        <Style x:Key="ResultBackPill" TargetType="Button" BasedOn="{StaticResource KioskBackButton}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="Padding" Value="18,0,22,0"/>
+            <Setter Property="Tag" Value="26"/>
+            <Setter Property="FontSize" Value="17"/>
+        </Style>
+
+        <!-- Bouton rond − / + du bloc d'impression -->
+        <Style x:Key="ResultStepperButton" TargetType="Button" BasedOn="{StaticResource ResultBareButton}">
+            <Setter Property="Width" Value="52"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskCreamBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ResultCreamLineBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="Tag" Value="26"/>
+        </Style>
+
+        <!-- Tuile Email / QR code -->
+        <Style x:Key="ResultTile" TargetType="Button" BasedOn="{StaticResource ResultBareButton}">
+            <Setter Property="Height" Value="124"/>
+            <Setter Property="Padding" Value="22,20"/>
+            <Setter Property="Margin" Value="9,0"/>
+            <Setter Property="Tag" Value="26"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Style.Triggers>
+                <!-- Numérique seulement : tuiles plus hautes pour garder l'écran équilibré -->
+                <DataTrigger Binding="{Binding ShowPrintBlock}" Value="False">
+                    <Setter Property="Height" Value="180"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Raccourci de domaine (@gmail.com…) -->
+        <Style x:Key="ResultDomainPill" TargetType="Button" BasedOn="{StaticResource ResultBareButton}">
+            <Setter Property="Background" Value="{StaticResource KioskMintBrush}"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Tag" Value="24"/>
+        </Style>
+
+        <!-- Case d'accord : 28 px, contour vert forêt, coche crème sur fond vert forêt -->
+        <Style x:Key="ResultConsentBox" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="box" Width="28" Height="28" CornerRadius="7" VerticalAlignment="Top"
+                                    Margin="0,2,0,0" BorderThickness="2"
+                                    BorderBrush="{StaticResource KioskForestBrush}" Background="{StaticResource KioskPaperBrush}">
+                                <Path x:Name="tick" Data="{StaticResource IconCheck}" Fill="{StaticResource KioskCreamBrush}"
+                                      Stretch="Uniform" Width="16" Height="16" Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="box" Property="Background" Value="{StaticResource KioskForestBrush}"/>
+                                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Étape numérotée de l'écran QR -->
+        <Style x:Key="ResultStepNumber" TargetType="Border">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="CornerRadius" Value="22"/>
+            <Setter Property="Background" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ResultStepDigit" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource KioskTitleFont}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskCreamBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="ResultStepText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="21"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="18,0,0,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Viewbox Stretch="Uniform">
+        <Grid Width="1280" Height="800" ClipToBounds="True" Background="{StaticResource KioskCreamBrush}">
+
+            <!-- ══ 3 · Partage ═════════════════════════════════════════════════ -->
+            <Grid Visibility="{Binding IsShareScreen, Converter={StaticResource BoolToVisibility}}">
+                <Canvas IsHitTestVisible="False">
+                    <Border Canvas.Left="-120" Canvas.Top="90" Width="600" Height="760"
+                            CornerRadius="300,300,0,0" Background="{StaticResource KioskMintBrush}"/>
+                </Canvas>
+
+                <Grid Margin="72,48">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="440"/>
+                        <ColumnDefinition Width="72"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Aperçu du tirage, légèrement penché -->
+                    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Border Background="{StaticResource KioskPaperBrush}" CornerRadius="6"
+                                Effect="{StaticResource ResultPrintShadow}" HorizontalAlignment="Center"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <RotateTransform Angle="-2"/>
+                            </Border.RenderTransform>
+                            <Image Source="{Binding CompositeImage}" Stretch="Uniform" MaxWidth="440" MaxHeight="600"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                    </Grid>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <!-- Retour automatique à l'accueil -->
+                        <Border Background="{StaticResource KioskCreamDarkBrush}" CornerRadius="20" Padding="16,8"
+                                HorizontalAlignment="Left" Margin="0,0,0,22"
+                                Visibility="{Binding ShowCountdown, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconClock}" Fill="{StaticResource KioskBrownBrush}"
+                                      Stretch="Uniform" Width="17" Height="17" Margin="0,0,8,0"/>
+                                <TextBlock FontSize="15" FontWeight="Medium" Foreground="{StaticResource KioskBrownBrush}">
+                                    <Run Text="Retour à l'accueil dans"/>
+                                    <Run Text="{Binding AutoHomeSecondsLeft, Mode=OneWay}"/><Run Text=" s"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Magnifique !" Style="{StaticResource ResultTitle}" FontSize="72" LineHeight="76"/>
+                        <TextBlock Text="{Binding Subtitle}" FontSize="21" Foreground="{StaticResource KioskBrownBrush}"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
+
+                        <!-- Bloc d'impression : nombre d'exemplaires dans la limite des quotas -->
+                        <Border Background="{StaticResource KioskForestBrush}" CornerRadius="28" Padding="26,24"
+                                Margin="0,22,0,0"
+                                Visibility="{Binding ShowPrintBlock, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path Data="{StaticResource IconPrint}" Fill="{StaticResource KioskCreamBrush}"
+                                          Stretch="Uniform" Width="40" Height="40" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Margin="18,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Imprimer" Style="{StaticResource ResultTitle}" FontSize="32"
+                                                   LineHeight="36" Foreground="{StaticResource KioskCreamBrush}"/>
+                                        <TextBlock Text="{Binding PrintSubtitle}" FontSize="15" TextWrapping="Wrap"
+                                                   Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource KioskMintBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasPrintError}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource KioskErrorOnDarkBrush}"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource ResultStepperButton}" Content="−"
+                                                Command="{Binding DecrementCopiesCommand}"
+                                                AutomationProperties.Name="Un exemplaire de moins"/>
+                                        <TextBlock Text="{Binding PrintCopies}" MinWidth="40" Margin="12,0"
+                                                   FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold"
+                                                   FontSize="34" Foreground="{StaticResource KioskCreamBrush}"
+                                                   TextAlignment="Center" VerticalAlignment="Center"/>
+                                        <Button Style="{StaticResource ResultStepperButton}" Content="+"
+                                                Command="{Binding IncrementCopiesCommand}"
+                                                AutomationProperties.Name="Un exemplaire de plus"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Button Style="{StaticResource ResultBareButton}" Margin="0,18,0,0" Height="64" Tag="20"
+                                        Background="{StaticResource KioskCreamBrush}" Foreground="{StaticResource KioskForestBrush}"
+                                        FontSize="21" FontWeight="Bold" HorizontalAlignment="Stretch"
+                                        Content="{Binding PrintButtonText}" Command="{Binding PrintCommand}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tuiles Email et QR code : une seule tuile prend toute la largeur -->
+                        <UniformGrid Rows="1" Margin="-9,18,-9,0"
+                                     Visibility="{Binding ShowShareTiles, Converter={StaticResource BoolToVisibility}}">
+                            <Button Style="{StaticResource ResultTile}" Background="{StaticResource KioskMintBrush}"
+                                    Command="{Binding OpenEmailCommand}"
+                                    Visibility="{Binding ShowEmailTile, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconMail}" Fill="{StaticResource KioskForestBrush}"
+                                          Stretch="Uniform" Width="40" Height="40" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Email" Style="{StaticResource ResultTitle}" FontSize="28" LineHeight="32"/>
+                                        <TextBlock Text="Dans votre boîte mail" FontSize="15" Foreground="{StaticResource KioskForestBrush}"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource ResultTile}" Background="{StaticResource KioskBlushBrush}"
+                                    Command="{Binding OpenQrCommand}"
+                                    Visibility="{Binding ShowQrTile, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconQr}" Fill="{StaticResource KioskForestBrush}"
+                                          Stretch="Uniform" Width="40" Height="40" VerticalAlignment="Center"/>
+                                    <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="QR code" Style="{StaticResource ResultTitle}" FontSize="28" LineHeight="32"/>
+                                        <TextBlock Text="Sur votre téléphone" FontSize="15" Foreground="{StaticResource KioskForestBrush}"
+                                                   Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
+                        </UniformGrid>
+
+                        <!-- Photo pas encore en ligne (envoi en cours, hors ligne) -->
+                        <TextBlock Text="{Binding ShareStatus}" FontSize="15" Foreground="{StaticResource KioskBrownBrush}"
+                                   TextWrapping="Wrap" Margin="0,10,0,0"
+                                   Visibility="{Binding ShowShareStatus, Converter={StaticResource BoolToVisibility}}"/>
+
+                        <Grid Margin="0,22,0,0"
+                              Visibility="{Binding ShowBottomRow, Converter={StaticResource BoolToVisibility}}">
+                            <Button Style="{StaticResource ResultBareButton}" HorizontalAlignment="Left" Height="52"
+                                    Padding="22,0" Tag="26" BorderBrush="{StaticResource KioskSageBrush}" BorderThickness="2"
+                                    FontSize="17" FontWeight="SemiBold" Command="{Binding RetakeCommand}"
+                                    Visibility="{Binding ShowRetake, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconRefresh}" Fill="{StaticResource KioskForestBrush}"
+                                          Stretch="Uniform" Width="20" Height="20" Margin="0,0,10,0"/>
+                                    <TextBlock Text="{Binding RetakeText}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <!-- « Terminer » : même style contour que « Refaire les photos » -->
+                            <Button Style="{StaticResource ResultBareButton}" HorizontalAlignment="Right" Height="52"
+                                    Padding="22,0" Tag="26" BorderBrush="{StaticResource KioskSageBrush}" BorderThickness="2"
+                                    FontSize="17" FontWeight="SemiBold" Content="Terminer" Command="{Binding GoHomeCommand}"
+                                    Visibility="{Binding ShowFinish, Converter={StaticResource BoolToVisibility}}"/>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- ══ 3a · QR code ════════════════════════════════════════════════ -->
+            <Grid Visibility="{Binding IsQrScreen, Converter={StaticResource BoolToVisibility}}">
+                <Canvas IsHitTestVisible="False">
+                    <Border Canvas.Left="60" Canvas.Top="110" Width="560" Height="720"
+                            CornerRadius="280,280,0,0" Background="{StaticResource KioskBlushBrush}"/>
+                </Canvas>
+
+                <Grid Margin="96,56">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="460"/>
+                        <ColumnDefinition Width="88"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <!-- Le QR reste noir sur blanc pur pour être lu par tous les téléphones -->
+                        <Border Width="460" Height="460" Padding="40" CornerRadius="36"
+                                Background="{StaticResource KioskPaperBrush}" Effect="{StaticResource ResultCardShadow}">
+                            <Border Background="White" CornerRadius="12">
+                                <Image Source="{Binding QrCodeImage}" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                            </Border>
+                        </Border>
+                        <TextBlock FontSize="15" FontWeight="Medium" Foreground="{StaticResource KioskBrownBrush}"
+                                   HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                                   Margin="0,24,0,0">
+                            <Run Text="Galerie de l'événement ·"/>
+                            <Run Text="{Binding EventName, Mode=OneWay}"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <Button Style="{StaticResource ResultBackPill}" Command="{Binding BackToShareCommand}"/>
+
+                        <TextBlock Style="{StaticResource ResultTitle}" FontSize="60" LineHeight="62" Margin="0,30,0,0">
+                            <Run Text="Vos photos,"/><LineBreak/><Run Text="dans votre poche"/>
+                        </TextBlock>
+
+                        <StackPanel Margin="0,30,0,0">
+                            <DockPanel>
+                                <Border Style="{StaticResource ResultStepNumber}">
+                                    <TextBlock Text="1" Style="{StaticResource ResultStepDigit}"/>
+                                </Border>
+                                <TextBlock Text="Ouvrez l'appareil photo de votre téléphone" Style="{StaticResource ResultStepText}"/>
+                            </DockPanel>
+                            <DockPanel Margin="0,18,0,0">
+                                <Border Style="{StaticResource ResultStepNumber}">
+                                    <TextBlock Text="2" Style="{StaticResource ResultStepDigit}"/>
+                                </Border>
+                                <TextBlock Text="Visez le QR code" Style="{StaticResource ResultStepText}"/>
+                            </DockPanel>
+                            <DockPanel Margin="0,18,0,0">
+                                <Border Style="{StaticResource ResultStepNumber}">
+                                    <TextBlock Text="3" Style="{StaticResource ResultStepDigit}"/>
+                                </Border>
+                                <TextBlock Text="Téléchargez et partagez" Style="{StaticResource ResultStepText}"/>
+                            </DockPanel>
+                        </StackPanel>
+
+                        <!-- Lien à taper sans lecteur QR -->
+                        <Border Padding="22,18" CornerRadius="20" Margin="0,30,0,0" BorderThickness="2"
+                                Background="{StaticResource KioskPaperBrush}" BorderBrush="{StaticResource KioskForestLineBrush}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding GalleryLink}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <TextBlock Text="Pas de lecteur QR ? Rendez-vous sur" FontSize="15"
+                                           Foreground="{StaticResource KioskBrownBrush}"/>
+                                <TextBlock Text="{Binding GalleryLink}" FontSize="22" FontWeight="Bold" TextWrapping="Wrap"
+                                           Foreground="{StaticResource KioskForestBrush}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Style="{StaticResource ResultForestButton}" Content="C'est bon, merci !"
+                                HorizontalAlignment="Left" Margin="0,30,0,0" Command="{Binding GoHomeCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- ══ 3b · Email ══════════════════════════════════════════════════ -->
+            <Grid Margin="72,34,72,28" Visibility="{Binding IsEmailScreen, Converter={StaticResource BoolToVisibility}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource ResultBackPill}" Command="{Binding BackToShareCommand}"/>
+                    <TextBlock Text="Recevoir vos photos par email" Style="{StaticResource ResultTitle}" FontSize="44"
+                               LineHeight="48" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="Votre adresse email" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{StaticResource KioskForestBrush}"/>
+                            <TextBlock Text="{Binding EmailError}" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{StaticResource KioskErrorBrush}" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid>
+                            <controls:KioskTextBox x:Name="EmailBox" Style="{StaticResource KioskTextField}"
+                                                   Text="{Binding EmailInputText, UpdateSourceTrigger=PropertyChanged}"
+                                                   MaxLength="254" FontSize="28" Height="72" Padding="12,0" VerticalContentAlignment="Center"
+                                                   BorderBrush="{StaticResource KioskForestBrush}"/>
+                            <TextBlock Text="prenom.nom@email.fr" FontSize="28" IsHitTestVisible="False"
+                                       Foreground="{StaticResource KioskBrownBrush}" Opacity="0.45"
+                                       VerticalAlignment="Center" Margin="28,0,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=EmailBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource ResultForestButton}" Height="72" Padding="36,0"
+                            Tag="20" FontSize="21" Margin="20,0,0,0" VerticalAlignment="Bottom"
+                            Command="{Binding SendEmailCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SendButtonText}" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconArrow}" Fill="{StaticResource KioskCreamBrush}"
+                                  Stretch="Uniform" Width="20" Height="20" Margin="12,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <Grid Grid.Row="2" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ItemsControl ItemsSource="{Binding DomainSuggestions}" VerticalAlignment="Center" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource ResultDomainPill}" Click="OnDomainClick"
+                                        Command="{Binding DataContext.ApplyEmailDomainCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <TextBlock Text="{Binding StringFormat='@{0}'}"/>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <CheckBox Grid.Column="1" Style="{StaticResource ResultConsentBox}" MinHeight="48"
+                              VerticalAlignment="Center" IsChecked="{Binding EmailConsent}">
+                        <TextBlock Text="J'accepte de recevoir mes photos à cette adresse. Elle ne sert qu'à cet envoi."
+                                   FontSize="15" LineHeight="20" TextWrapping="Wrap" MaxWidth="440"
+                                   Foreground="{StaticResource KioskForestBrush}"/>
+                    </CheckBox>
+                </Grid>
+
+                <!-- Clavier tactile intégré (jamais le clavier Windows), agrandi à la place disponible -->
+                <Border Grid.Row="3" Margin="0,16,0,0" Padding="16" CornerRadius="28"
+                        Background="{StaticResource KioskCreamDarkBrush}">
+                    <Viewbox Stretch="Uniform">
+                        <controls:TouchKeyboard Layout="EmailKeysOnly" Target="{Binding ElementName=EmailBox}"/>
+                    </Viewbox>
+                </Border>
+            </Grid>
+
+            <!-- ══ C'est envoyé ! ══════════════════════════════════════════════ -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Visibility="{Binding IsEmailSentScreen, Converter={StaticResource BoolToVisibility}}">
+                <Border Width="120" Height="120" CornerRadius="60" Background="{StaticResource KioskMintBrush}"
+                        HorizontalAlignment="Center">
+                    <Path Data="{StaticResource IconCheck}" Fill="{StaticResource KioskForestBrush}"
+                          Stretch="Uniform" Width="56" Height="56"/>
+                </Border>
+                <TextBlock Text="C'est envoyé !" Style="{StaticResource ResultTitle}" FontSize="64" LineHeight="68"
+                           HorizontalAlignment="Center" Margin="0,22,0,0"/>
+                <TextBlock FontSize="21" Foreground="{StaticResource KioskBrownBrush}" HorizontalAlignment="Center"
+                           TextAlignment="Center" TextWrapping="Wrap" MaxWidth="900" Margin="0,22,0,0">
+                    <Run Text="Vos photos arrivent à"/>
+                    <Run Text="{Binding SentToAddress, Mode=OneWay}" FontWeight="SemiBold"
+                         Foreground="{StaticResource KioskForestBrush}"/>
+                </TextBlock>
+                <Button Style="{StaticResource ResultForestButton}" Content="Terminer" HorizontalAlignment="Center"
+                        Margin="0,40,0,0" Command="{Binding GoHomeCommand}"/>
+            </StackPanel>
+        </Grid>
+    </Viewbox>
+</UserControl>

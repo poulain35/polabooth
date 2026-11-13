@@ -1,0 +1,52 @@
+name: CLA
+
+# Vérifie que chaque auteur d'une pull request a accepté l'accord de contribution (CLA.md).
+# L'auteur l'accepte en commentant la pull request avec la phrase exacte de l'article 9 de CLA.md.
+# Les signatures sont enregistrées dans le fichier signatures/version1/cla.json de la branche
+# `cla-signatures` de ce dépôt. Créez cette branche une fois avant la première pull request
+# (git push origin HEAD:cla-signatures) et ne la protégez pas : l'action y écrit.
+#
+# pull_request_target : le workflow tourne avec les droits du dépôt, mais il ne récupère jamais le
+# code de la pull request. Ne pas ajouter d'étape actions/checkout ici.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+permissions:
+  actions: write
+  contents: write          # écrire les signatures dans la branche cla-signatures
+  pull-requests: write     # commenter et verrouiller la pull request
+  statuses: write
+
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request &&
+        (github.event.comment.body == 'recheck' ||
+         github.event.comment.body == 'Je confirme avoir lu et accepter le CLA de Polabooth. I have read and agree to the Polabooth CLA.'))
+    steps:
+      - name: Vérification du CLA
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-document: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.repository.default_branch }}/CLA.md
+          path-to-signatures: signatures/version1/cla.json
+          branch: cla-signatures
+          allowlist: dependabot[bot],renovate[bot],github-actions[bot]
+          custom-pr-sign-comment: Je confirme avoir lu et accepter le CLA de Polabooth. I have read and agree to the Polabooth CLA.
+          custom-notsigned-prcomment: >-
+            Merci pour votre contribution. Avant de l'examiner, nous avons besoin de votre accord sur le
+            [CLA de Polabooth](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.repository.default_branch }}/CLA.md).
+            Pour l'accepter, publiez un commentaire qui contient seulement la phrase ci-dessous.
+            / Thank you for your contribution. Before we review it, please accept the Polabooth CLA by
+            posting a comment that contains only the sentence below.
+          custom-allsigned-prcomment: >-
+            Tous les auteurs ont accepté le CLA. Merci ! / All contributors have accepted the CLA. Thank you!
+          signed-commit-message: 'CLA : $contributorName a accepté le CLA (pull request #$pullRequestNo)'
+          create-file-commit-message: 'CLA : création du fichier des signatures'

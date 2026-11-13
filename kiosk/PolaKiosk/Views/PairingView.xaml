@@ -1,0 +1,134 @@
+<UserControl x:Class="PolaKiosk.Views.PairingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:PolaKiosk.Converters">
+    <UserControl.Resources>
+        <converters:UrlToQrImageConverter x:Key="UrlToQrImage"/>
+
+        <!-- Bouton principal (vert forêt), lisible de loin -->
+        <Style x:Key="PairingPrimaryButton" TargetType="Button" BasedOn="{StaticResource KioskPrimaryButton}">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="48,18"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource KioskCreamBrush}">
+
+        <!-- Image de fond de l'écran de saisie (KioskSetupBgImage = null si absent), sous un voile crème -->
+        <Image Source="{DynamicResource KioskSetupBgImage}" Stretch="UniformToFill"/>
+        <Border Background="{StaticResource KioskCreamVeilBrush}"/>
+
+        <!-- ① Code + QR code -->
+        <Grid VerticalAlignment="Center" HorizontalAlignment="Center"
+              Visibility="{Binding IsShowingCode, Converter={StaticResource BoolToVisibility}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="72"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- QR code sur fond blanc (contraste pour l'appareil photo du téléphone) -->
+            <Border Grid.Column="0" Style="{StaticResource KioskTile}" Background="White" Padding="24"
+                    VerticalAlignment="Center">
+                <Image Source="{Binding QrUrl, Converter={StaticResource UrlToQrImage}}"
+                       Width="380" Height="380"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+            </Border>
+
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" MaxWidth="620">
+                <TextBlock Text="Associer cette borne"
+                           Style="{StaticResource KioskTitleText}" FontSize="44"
+                           Margin="0,0,0,16"/>
+                <TextBlock Text="Scannez avec votre téléphone, ou allez sur"
+                           FontSize="22" TextWrapping="Wrap"
+                           Foreground="{StaticResource KioskBrownBrush}"/>
+                <TextBlock Text="{Binding PairingAddress}"
+                           FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{StaticResource KioskForestBrush}"
+                           Margin="0,4,0,4"/>
+                <TextBlock Text="et tapez le code :"
+                           FontSize="22"
+                           Foreground="{StaticResource KioskBrownBrush}"
+                           Margin="0,0,0,24"/>
+
+                <!-- Code en chasse fixe (Consolas, présente sur tout Windows) : 0 et O bien distincts -->
+                <Border Style="{StaticResource KioskTile}" Padding="36,20" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding DisplayCode}"
+                               FontSize="96" FontWeight="Bold"
+                               FontFamily="Consolas"
+                               Foreground="{StaticResource KioskForestBrush}"/>
+                </Border>
+
+                <TextBlock Text="{Binding Countdown}"
+                           FontSize="20"
+                           Foreground="{StaticResource KioskBrownBrush}"
+                           Margin="0,16,0,0"/>
+                <TextBlock Text="Connexion perdue : le code reste valable, la borne réessaie."
+                           FontSize="18" TextWrapping="Wrap"
+                           Foreground="{StaticResource KioskWarningBrush}" Margin="0,12,0,0"
+                           Visibility="{Binding IsConnectionLost, Converter={StaticResource BoolToVisibility}}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ② Chargement (vérification de la licence, demande d'un code) -->
+        <TextBlock Text="Préparation de l'association…"
+                   FontSize="28" FontWeight="SemiBold"
+                   Foreground="{StaticResource KioskForestBrush}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}"/>
+
+        <!-- ③ Hors ligne -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="760"
+                    Visibility="{Binding IsOffline, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="{Binding OfflineText}"
+                       FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource KioskForestBrush}"
+                       Margin="0,0,0,16"/>
+            <TextBlock Text="Nouvel essai automatique toutes les 15 secondes."
+                       FontSize="20" TextAlignment="Center"
+                       Foreground="{StaticResource KioskBrownBrush}"
+                       Margin="0,0,0,36"/>
+            <Button Style="{StaticResource PairingPrimaryButton}" Command="{Binding RetryCommand}"
+                    Content="Réessayer"/>
+        </StackPanel>
+
+        <!-- ④ Association réussie -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="900"
+                    Visibility="{Binding IsPaired, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="✓" FontSize="96" FontWeight="Bold" Foreground="{StaticResource KioskForestBrush}"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            <TextBlock Text="{Binding PairedMessage}"
+                       FontSize="40" FontWeight="SemiBold" FontFamily="{StaticResource KioskTitleFont}"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource KioskForestBrush}"/>
+        </StackPanel>
+
+        <!-- Messages ponctuels et borne retirée, en bas de l'écran -->
+        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,56" MaxWidth="1000">
+            <TextBlock Text="{Binding Notice}"
+                       FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource KioskWarningBrush}" Margin="0,0,0,10"
+                       Visibility="{Binding HasNotice, Converter={StaticResource BoolToVisibility}}"/>
+            <TextBlock Text="{Binding RetiredMessage}"
+                       FontSize="20" TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource KioskBrownBrush}"
+                       Visibility="{Binding HasRetiredMessage, Converter={StaticResource BoolToVisibility}}"/>
+        </StackPanel>
+
+        <!-- ⑤ Une heure sans validation : tout l'écran est un bouton -->
+        <Button Command="{Binding RestartCommand}" Cursor="Hand"
+                Visibility="{Binding IsExhausted, Converter={StaticResource BoolToVisibility}}">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="Transparent">
+                        <TextBlock Text="{Binding ExhaustedText}"
+                                   FontSize="36" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" TextAlignment="Center" MaxWidth="800"
+                                   Foreground="{StaticResource KioskForestBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+    </Grid>
+</UserControl>

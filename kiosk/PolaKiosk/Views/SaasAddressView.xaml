@@ -1,0 +1,104 @@
+<UserControl x:Class="PolaKiosk.Views.SaasAddressView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PolaKiosk.Controls">
+    <!-- Écran « Adresse de votre SaaS » (open core K2) : premier démarrage d'une borne sans adresse Supabase -->
+    <Grid Background="{StaticResource KioskCreamBrush}">
+
+        <!-- Image de fond de l'écran de saisie (KioskSetupBgImage = null si absent), sous un voile crème -->
+        <Image Source="{DynamicResource KioskSetupBgImage}" Stretch="UniformToFill"/>
+        <Border Background="{StaticResource KioskCreamVeilBrush}"/>
+
+        <!-- ① Saisie de l'adresse -->
+        <Grid Margin="48,40" MaxWidth="1200">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSaved}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,24">
+                <TextBlock Text="Adresse de votre SaaS"
+                           Style="{StaticResource KioskTitleText}" FontSize="44"
+                           HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                <TextBlock Text="Tapez l'adresse où vous gérez vos événements, par exemple photobooth.mon-entreprise.fr"
+                           FontSize="22" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="900"
+                           Foreground="{StaticResource KioskBrownBrush}"/>
+            </StackPanel>
+
+            <!-- Champ + bouton -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid>
+                    <controls:KioskTextBox x:Name="AddressBox" Style="{StaticResource KioskTextField}"
+                                           Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
+                                           MaxLength="253" FontSize="30" Height="80" Padding="12,0"
+                                           VerticalContentAlignment="Center"
+                                           BorderBrush="{StaticResource KioskForestBrush}"/>
+                    <TextBlock Text="photobooth.mon-entreprise.fr" FontSize="30" IsHitTestVisible="False"
+                               Foreground="{StaticResource KioskBrownBrush}" Opacity="0.45"
+                               VerticalAlignment="Center" Margin="28,0,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=AddressBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+                <Button Grid.Column="1" Style="{StaticResource KioskPrimaryButton}" Height="80" Padding="40,0"
+                        FontSize="24" Margin="20,0,0,0"
+                        Command="{Binding ConnectCommand}" Content="Valider"/>
+            </Grid>
+
+            <!-- Vérification en cours / erreur -->
+            <Grid Grid.Row="2" Margin="0,14,0,0" MinHeight="34">
+                <TextBlock Text="Vérification de l'adresse…" FontSize="22" FontWeight="SemiBold"
+                           Foreground="{StaticResource KioskForestBrush}" HorizontalAlignment="Center"
+                           Visibility="{Binding IsChecking, Converter={StaticResource BoolToVisibility}}"/>
+                <TextBlock Text="{Binding Error}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
+                           TextAlignment="Center" HorizontalAlignment="Center"
+                           Foreground="{StaticResource KioskErrorBrush}"
+                           Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}"/>
+            </Grid>
+
+            <!-- Clavier tactile intégré (jamais le clavier Windows), agrandi à la place disponible -->
+            <Border Grid.Row="3" Margin="0,16,0,0" Padding="16" CornerRadius="28"
+                    Background="{StaticResource KioskCreamDarkBrush}">
+                <Viewbox Stretch="Uniform">
+                    <controls:TouchKeyboard Layout="Url" EnterLabel="Valider"
+                                            Target="{Binding ElementName=AddressBox}"
+                                            EnterCommand="{Binding ConnectCommand}"/>
+                </Viewbox>
+            </Border>
+        </Grid>
+
+        <!-- ② Adresse enregistrée : la borne redémarre puis affiche l'association -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="900"
+                    Visibility="{Binding IsSaved, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="✓" FontSize="96" FontWeight="Bold" Foreground="{StaticResource KioskForestBrush}"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+            <TextBlock Text="Adresse enregistrée. La borne redémarre…"
+                       FontSize="40" FontWeight="SemiBold" FontFamily="{StaticResource KioskTitleFont}"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource KioskForestBrush}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

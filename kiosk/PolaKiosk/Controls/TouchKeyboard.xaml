@@ -1,0 +1,98 @@
+<UserControl x:Class="PolaKiosk.Controls.TouchKeyboard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False" IsTabStop="False"
+             Stylus.IsPressAndHoldEnabled="False" Stylus.IsFlicksEnabled="False">
+
+    <!-- Ressources de l'app en DynamicResource : le clavier reste utilisable hors de l'application
+         (tests), où les clés de App.xaml n'existent pas. -->
+    <UserControl.Resources>
+        <!-- Touche papier (Button ou RepeatButton) : jamais focusable, pour garder le curseur dans le champ.
+             Appui et maintien désactivés : sinon WPF retarde l'appui tactile (clic droit simulé). -->
+        <Style x:Key="TouchKey" TargetType="ButtonBase">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Stylus.IsPressAndHoldEnabled" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="{DynamicResource KioskTextFont}"/>
+            <Setter Property="Foreground" Value="{DynamicResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource KioskPaperBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource KioskForestLineBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ButtonBase">
+                        <Grid>
+                            <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1.5"
+                                    CornerRadius="12" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True">
+                                <Border.RenderTransform>
+                                    <ScaleTransform/>
+                                </Border.RenderTransform>
+                            </Border>
+                            <!-- Voile vert forêt affiché pendant l'appui -->
+                            <Border x:Name="press" Background="{DynamicResource KioskForestBrush}" CornerRadius="12" Opacity="0"
+                                    IsHitTestVisible="False"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="press" Property="Opacity" Value="0.12"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="bg" To="0.95" Duration="0:0:0.08"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"/>
+                                            <DoubleAnimation Storyboard.TargetName="bg" To="0.95" Duration="0:0:0.08"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="bg" To="1" Duration="0:0:0.15"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"/>
+                                            <DoubleAnimation Storyboard.TargetName="bg" To="1" Duration="0:0:0.15"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Raccourcis (.com, @gmail.com…) et touches de commande : texte plus petit -->
+        <Style x:Key="TouchKeySmall" TargetType="ButtonBase" BasedOn="{StaticResource TouchKey}">
+            <Setter Property="FontSize" Value="20"/>
+        </Style>
+
+        <!-- Majuscule active -->
+        <Style x:Key="TouchKeyActive" TargetType="ButtonBase" BasedOn="{StaticResource TouchKey}">
+            <Setter Property="Background" Value="{DynamicResource KioskMintBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource KioskForestBrush}"/>
+        </Style>
+
+        <!-- Validation : vert forêt, texte crème -->
+        <Style x:Key="TouchKeyEnter" TargetType="ButtonBase" BasedOn="{StaticResource TouchKey}">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Foreground" Value="{DynamicResource KioskCreamBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource KioskForestBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource KioskForestBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Socle crème foncé derrière les touches, comme sur la maquette -->
+    <Border Background="{DynamicResource KioskCreamDarkBrush}" CornerRadius="28" Padding="12"
+            HorizontalAlignment="Center">
+        <StackPanel x:Name="RowsPanel" HorizontalAlignment="Center"/>
+    </Border>
+</UserControl>

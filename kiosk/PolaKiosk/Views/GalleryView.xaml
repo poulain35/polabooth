@@ -1,0 +1,95 @@
+<UserControl x:Class="PolaKiosk.Views.GalleryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{StaticResource KioskCreamBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- En-tête : retour + titre -->
+        <Grid Grid.Row="0" Margin="24,24,24,8">
+            <Button Command="{Binding BackCommand}" HorizontalAlignment="Left"
+                    Width="64" Height="64" Style="{StaticResource KioskIconButton}">
+                <Viewbox Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Canvas Width="24" Height="24">
+                        <Path Fill="{StaticResource KioskForestBrush}"
+                              Data="M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z"/>
+                    </Canvas>
+                </Viewbox>
+            </Button>
+            <TextBlock Text="Photos de l'événement" Style="{StaticResource KioskTitleText}"
+                       FontSize="34"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- État vide -->
+        <TextBlock Grid.Row="1" Text="Aucune photo pour le moment"
+                   Foreground="{StaticResource KioskBrownBrush}" FontSize="20"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}"/>
+
+        <!-- Grille de vignettes : lignes virtualisées, seules les vignettes visibles restent en mémoire -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Rows}"
+                      SizeChanged="OnGridSizeChanged"
+                      VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Standard"
+                      VirtualizingPanel.ScrollUnit="Pixel"
+                      ScrollViewer.CanContentScroll="True">
+            <ItemsControl.Template>
+                <ControlTemplate TargetType="ItemsControl">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="True" PanningMode="VerticalOnly" Padding="24,8,24,24">
+                        <ItemsPresenter/>
+                    </ScrollViewer>
+                </ControlTemplate>
+            </ItemsControl.Template>
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ItemsControl ItemsSource="{Binding Photos}" HorizontalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button CommandParameter="{Binding}"
+                                        Command="{Binding DataContext.OpenPhotoCommand,
+                                                  RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        Loaded="OnCardLoaded" Unloaded="OnCardUnloaded"
+                                        DataContextChanged="OnCardDataContextChanged"
+                                        Cursor="Hand" Margin="10" VerticalAlignment="Top">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <!-- Vignette posée sur papier, comme un tirage -->
+                                            <Border x:Name="card" CornerRadius="14" Background="{StaticResource KioskPaperBrush}"
+                                                    BorderBrush="{StaticResource KioskForestLineBrush}" BorderThickness="1"
+                                                    Padding="6" SnapsToDevicePixels="True"
+                                                    Effect="{StaticResource KioskSoftShadow}">
+                                                <Border CornerRadius="9" ClipToBounds="True">
+                                                    <Image Source="{Binding Thumb}" Width="240"
+                                                           Height="{Binding ImageHeight}" Stretch="Uniform"/>
+                                                </Border>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter TargetName="card" Property="Opacity" Value="0.85"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
+</UserControl>

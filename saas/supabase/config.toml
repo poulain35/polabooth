@@ -1,0 +1,96 @@
+# Supabase CLI config
+# project_id : nom de la pile locale (supabase start). Le projet hébergé est relié par supabase link (npm run install-instance).
+project_id = "polabooth"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[local_smtp]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[functions.get-event]
+verify_jwt = false
+
+[functions.autosave-design]
+verify_jwt = false
+
+# Historique des versions de l'éditeur client (LAB-115) : autorisation par code d'accès dans la fonction.
+[functions.design-versions]
+verify_jwt = false
+
+[functions.submit-design]
+verify_jwt = false
+
+[functions.generate-background]
+verify_jwt = false
+
+[functions.remove-background]
+verify_jwt = false
+
+[functions.set-event-name]
+verify_jwt = false
+
+# Flux invité (galerie) : autorisation par code d'accès dans la fonction, pas de JWT admin.
+[functions.get-guest-upload-url]
+verify_jwt = false
+
+[functions.record-guest-photo]
+verify_jwt = false
+
+# Alerte admin quand un cron échoue (LAB-102) : cron toutes les 15 min (Bearer service_role, rôle
+# vérifié dans la fonction). Jamais appelée par un client.
+[functions.check-cron-alerts]
+verify_jwt = true
+
+# Rappel avant expiration des liens photos & audio et purge des fichiers 30 jours après (LAB-212) :
+# cron quotidien (Bearer service_role, rôle vérifié dans la fonction). Jamais appelée par un client.
+[functions.media-expiry]
+verify_jwt = true
+
+# Webhook transactionnel Brevo (LAB-123) : Brevo n'envoie pas de JWT Supabase. Auth par ?token=
+# comparé en temps constant à BREVO_WEBHOOK_SECRET (secret absent : 500, jamais de passage silencieux).
+[functions.brevo-webhook]
+verify_jwt = false
+
+# Envoi du bilan d'événement au client (LAB-238) : JWT admin uniquement. build_event_report est
+# appelée sous ce JWT (propriétaire de l'organisation vérifié par la RPC et dans la fonction).
+[functions.send-event-report]
+verify_jwt = true
+
+# Resynchro manuelle du suivi d'un email depuis l'API Brevo (LAB-123) : JWT admin, propriétaire de
+# l'organisation du lead ou de l'événement vérifié dans la fonction.
+[functions.email-sync]
+verify_jwt = true
+
+# Envoi des montages PolaKiosk vers R2 (LAB-213) : appelé avec la clé anon en Bearer, comme
+# send-kiosk-photo (JWT anon vérifié par la passerelle). Licence (machine + secret) et code
+# d'accès vérifiés dans la fonction.
+[functions.get-kiosk-upload-url]
+verify_jwt = true
+
+# Test d'une clé de service depuis Paramètres > Clés (open core L6a) : JWT admin, appartenance à
+# app_admins vérifiée dans la fonction (requireAppAdmin).
+[functions.test-service-key]
+verify_jwt = true
+
+# URL d'envoi de l'installeur PolaKiosk vers R2 / S3 (LAB-269, Parc kiosk > Versions kiosk) : JWT
+# admin, appartenance à app_admins vérifiée dans la fonction (requireAppAdmin).
+[functions.get-release-upload-url]
+verify_jwt = true

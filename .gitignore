@@ -1,0 +1,34 @@
+# ── SaaS (React / Node) ────────────────────────────────
+saas/node_modules/
+saas/dist/
+saas/.env
+saas/.env.local
+saas/.env.*.local
+saas/.env.production
+
+# ── Kiosk (WPF / .NET) ─────────────────────────────────
+kiosk/**/bin/
+kiosk/**/obj/
+kiosk/**/TestResults/
+kiosk/**/*.user
+kiosk/**/*.suo
+kiosk/**/.vs/
+kiosk/**/appsettings.local.json
+kiosk/**/appsettings.Production.json
+kiosk/PolaKiosk/EDSDK/native/
+kiosk/installer/Output/
+
+# ── Supabase ───────────────────────────────────────────
+saas/supabase/.temp/
+
+# ── Secrets locaux (ne jamais committer) ───────────────
+.claude/secrets.env
+.claude/settings.local.json
+
+# ── Worktrees des agents (copies de travail locales) ───
+.claude/worktrees/
+
+# ── Général ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log

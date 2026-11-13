@@ -1,0 +1,309 @@
+<UserControl x:Class="PolaKiosk.Views.QuestionnaireView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PolaKiosk.Controls"
+             xmlns:vm="clr-namespace:PolaKiosk.ViewModels">
+
+    <UserControl.Resources>
+        <!-- Bouton principal : vert forêt (style commun de la borne) -->
+        <Style x:Key="QPrimaryButton" TargetType="Button" BasedOn="{StaticResource KioskPrimaryButton}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="MinHeight" Value="72"/>
+            <Setter Property="MinWidth" Value="240"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="Padding" Value="32,0"/>
+        </Style>
+
+        <!-- Bouton secondaire : vert d'eau -->
+        <Style x:Key="QSecondaryButton" TargetType="Button" BasedOn="{StaticResource KioskSecondaryButton}">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="MinHeight" Value="72"/>
+            <Setter Property="MinWidth" Value="240"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="Padding" Value="32,0"/>
+        </Style>
+
+        <!-- Lien discret (« En savoir plus », suggestion d'e-mail) -->
+        <Style x:Key="QLinkButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="MinHeight" Value="56"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" Padding="12,0">
+                            <TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline"
+                                       Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tuile d'option (select / multi) : papier, vert d'eau quand choisie -->
+        <DataTemplate x:Key="OptionTile" DataType="{x:Type vm:OptionItemViewModel}">
+            <Button Command="{Binding ToggleCommand}" Focusable="False" Cursor="Hand"
+                    MinHeight="72" MinWidth="260" Margin="8">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{StaticResource KioskPaperBrush}"
+                                CornerRadius="{StaticResource KioskButtonRadius}"
+                                BorderBrush="{StaticResource KioskForestLineBrush}"
+                                BorderThickness="2" Padding="24,12">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="Mark" Text="✓" FontSize="24" FontWeight="Bold"
+                                           Foreground="{StaticResource KioskForestBrush}" Margin="0,0,12,0" Visibility="Collapsed"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Label}" FontSize="22" FontWeight="SemiBold"
+                                           Foreground="{StaticResource KioskForestBrush}" TextWrapping="Wrap" MaxWidth="520"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource KioskMintBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource KioskForestBrush}"/>
+                                <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </DataTemplate>
+
+        <!-- Case à cocher tactile (72 px de haut, case à gauche du libellé) -->
+        <ControlTemplate x:Key="CheckTile" TargetType="Button">
+            <Border Background="Transparent" MinHeight="72" Padding="0,8">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="Box" Width="44" Height="44" CornerRadius="12"
+                            BorderBrush="{StaticResource KioskForestBrush}" BorderThickness="3"
+                            Background="{StaticResource KioskPaperBrush}"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="Tick" Text="✓" FontSize="28" FontWeight="Bold"
+                                   Foreground="{StaticResource KioskCreamBrush}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    </Border>
+                    <ContentPresenter Margin="20,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <ControlTemplate.Triggers>
+                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                    <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="Box" Property="Background" Value="{StaticResource KioskForestBrush}"/>
+                </DataTrigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource KioskCreamBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barre du haut : avancement à gauche, « Annuler » / « Passer » à droite, sur tous les écrans -->
+        <Grid Grid.Row="0" Margin="32,24,32,0">
+            <Border Style="{StaticResource KioskPill}" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Text="{Binding ProgressText}" FontSize="20"/>
+            </Border>
+            <Button Style="{StaticResource QSecondaryButton}" HorizontalAlignment="Right"
+                    MinWidth="180" Command="{Binding ExitCommand}" Content="{Binding ExitLabel}"/>
+        </Grid>
+
+        <!-- ① Écran titre -->
+        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    MaxWidth="900" Margin="40"
+                    Visibility="{Binding IsTitleStep, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource KioskTitleText}" FontSize="52"
+                       TextAlignment="Center" Margin="0,0,0,24"/>
+            <TextBlock Text="{Binding Intro}" FontSize="26" Foreground="{StaticResource KioskBrownBrush}"
+                       TextWrapping="Wrap" TextAlignment="Center" LineHeight="38" Margin="0,0,0,48"/>
+            <Button Style="{StaticResource QPrimaryButton}" HorizontalAlignment="Center" MinWidth="320"
+                    Command="{Binding StartCommand}" Content="Répondre"/>
+        </StackPanel>
+
+        <!-- ② Une question par écran -->
+        <Viewbox Grid.Row="1" StretchDirection="DownOnly" Margin="16"
+                 Visibility="{Binding IsQuestionStep, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Width="900" DataContext="{Binding CurrentQuestion}">
+                <TextBlock Style="{StaticResource KioskTitleText}" FontSize="38"
+                           TextAlignment="Center" Margin="0,0,0,8">
+                    <Run Text="{Binding Label, Mode=OneWay}"/>
+                    <Run Foreground="{StaticResource KioskBrownBrush}">
+                        <Run.Style>
+                            <Style TargetType="Run">
+                                <Setter Property="Text" Value=" *"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRequired}" Value="False">
+                                        <Setter Property="Text" Value=""/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Run.Style>
+                    </Run>
+                </TextBlock>
+                <TextBlock Text="{Binding ChoiceHint}" FontSize="18" Foreground="{StaticResource KioskBrownBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,8"
+                           Visibility="{Binding IsChoice, Converter={StaticResource BoolToVisibility}}"/>
+
+                <!-- Texte, e-mail, téléphone : champ + clavier tactile intégré -->
+                <StackPanel Margin="0,16,0,0"
+                            Visibility="{Binding IsTextInput, Converter={StaticResource BoolToVisibility}}">
+                    <controls:KioskTextBox x:Name="AnswerBox" Style="{StaticResource KioskTextField}"
+                                           Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                           MaxLength="{Binding MaxLength}"/>
+                    <TextBlock Text="{Binding Error}" FontSize="20" FontWeight="Medium"
+                               Foreground="{StaticResource KioskErrorBrush}"
+                               HorizontalAlignment="Center" Margin="0,10,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Error}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Button HorizontalAlignment="Center" Style="{StaticResource QLinkButton}"
+                            Command="{Binding ApplySuggestionCommand}" Content="{Binding SuggestionText}"
+                            Visibility="{Binding HasSuggestion, Converter={StaticResource BoolToVisibility}}"/>
+                    <controls:TouchKeyboard Margin="0,16,0,0" EnterLabel="Suivant"
+                                            Layout="{Binding KeyboardLayout}"
+                                            Target="{Binding ElementName=AnswerBox}"
+                                            EnterCommand="{Binding DataContext.NextCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                </StackPanel>
+
+                <!-- Choix : grosses tuiles -->
+                <ItemsControl Margin="0,16,0,0" ItemsSource="{Binding Options}"
+                              ItemTemplate="{StaticResource OptionTile}"
+                              Visibility="{Binding IsChoice, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel HorizontalAlignment="Center"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- Case à cocher (jamais obligatoire, décochée au départ) -->
+                <Button Margin="0,24,0,0" HorizontalAlignment="Center" Focusable="False" Cursor="Hand"
+                        Template="{StaticResource CheckTile}" Command="{Binding ToggleCheckedCommand}"
+                        Tag="{Binding IsChecked}"
+                        Visibility="{Binding IsCheckbox, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Oui" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource KioskForestBrush}"/>
+                </Button>
+
+                <!-- Retour / Suivant -->
+                <Grid Margin="0,28,0,0">
+                    <Button Style="{StaticResource QSecondaryButton}" HorizontalAlignment="Left"
+                            Content="Retour"
+                            Command="{Binding DataContext.BackCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                    <Button Style="{StaticResource QPrimaryButton}" HorizontalAlignment="Right"
+                            Content="Suivant"
+                            Command="{Binding DataContext.NextCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                </Grid>
+            </StackPanel>
+        </Viewbox>
+
+        <!-- ③ Écran final : notice, prospection, validation -->
+        <Viewbox Grid.Row="1" StretchDirection="DownOnly" Margin="16"
+                 Visibility="{Binding IsFinalStep, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Width="900">
+                <Border Style="{StaticResource KioskTile}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Notice}" FontSize="20" Foreground="{StaticResource KioskBrownBrush}"
+                                   TextWrapping="Wrap" LineHeight="30" MaxHeight="96"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button HorizontalAlignment="Left" Margin="-12,4,0,0"
+                                Style="{StaticResource QLinkButton}" Content="En savoir plus"
+                                Command="{Binding ShowNoticeCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Margin="0,28,0,0"
+                            Visibility="{Binding ShowMarketingConsent, Converter={StaticResource BoolToVisibility}}">
+                    <Button HorizontalAlignment="Left" Focusable="False" Cursor="Hand"
+                            Template="{StaticResource CheckTile}" Command="{Binding ToggleMarketingCommand}"
+                            Tag="{Binding MarketingConsent}">
+                        <TextBlock Text="{Binding MarketingLabel}" FontSize="22" Foreground="{StaticResource KioskForestBrush}"
+                                   TextWrapping="Wrap" MaxWidth="780"/>
+                    </Button>
+                    <TextBlock Text="{x:Static vm:QuestionnaireViewModel.MarketingHint}" FontSize="17"
+                               Foreground="{StaticResource KioskBrownBrush}" Margin="64,0,0,0"/>
+                </StackPanel>
+
+                <Grid Margin="0,36,0,0">
+                    <Button Style="{StaticResource QSecondaryButton}" HorizontalAlignment="Left"
+                            Content="Retour" Command="{Binding BackCommand}"/>
+                    <Button Style="{StaticResource QPrimaryButton}" HorizontalAlignment="Right"
+                            Content="Valider et voir ma photo" Command="{Binding SubmitCommand}"/>
+                </Grid>
+            </StackPanel>
+        </Viewbox>
+
+        <!-- Overlay « En savoir plus » : texte complet -->
+        <Border Grid.RowSpan="2" Background="{StaticResource KioskCreamBrush}"
+                Visibility="{Binding ShowFullNotice, Converter={StaticResource BoolToVisibility}}">
+            <Grid Margin="48,32">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+                    <TextBlock Text="{Binding FullNotice}" FontSize="20" Foreground="{StaticResource KioskForestBrush}"
+                               TextWrapping="Wrap" LineHeight="30" MaxWidth="1000"/>
+                </ScrollViewer>
+                <Button Grid.Row="1" Margin="0,24,0,0" HorizontalAlignment="Center"
+                        Style="{StaticResource QPrimaryButton}" Content="Fermer"
+                        Command="{Binding CloseNoticeCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- Overlay confirmation d'annulation (mode obligatoire) -->
+        <Border Grid.RowSpan="2" Background="{StaticResource KioskCreamBrush}"
+                Visibility="{Binding ShowCancelConfirm, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="820" Margin="40">
+                <TextBlock Text="{x:Static vm:QuestionnaireViewModel.CancelConfirmText}"
+                           Style="{StaticResource KioskTitleText}" FontSize="32"
+                           TextAlignment="Center" LineHeight="44" Margin="0,0,0,40"/>
+                <UniformGrid Columns="2" HorizontalAlignment="Center">
+                    <Button Style="{StaticResource QSecondaryButton}" Margin="0,0,12,0" MinWidth="320"
+                            Content="Annuler" Command="{Binding ConfirmCancelCommand}"/>
+                    <Button Style="{StaticResource QPrimaryButton}" Margin="12,0,0,0" MinWidth="320"
+                            Content="Revenir aux questions" Command="{Binding ResumeCommand}"/>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <!-- Overlay inactivité -->
+        <Border Grid.RowSpan="2" Background="{StaticResource KioskCreamBrush}"
+                Visibility="{Binding ShowIdleWarning, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="820" Margin="40">
+                <TextBlock Text="Vous êtes toujours là ?" Style="{StaticResource KioskTitleText}" FontSize="44"
+                           HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                <TextBlock Text="{x:Static vm:QuestionnaireViewModel.IdleRequiredText}" FontSize="24"
+                           Foreground="{StaticResource KioskBrownBrush}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,16"
+                           Visibility="{Binding IsRequiredMode, Converter={StaticResource BoolToVisibility}}"/>
+                <TextBlock Text="{Binding IdleCountdown}" FontSize="80" FontWeight="SemiBold"
+                           FontFamily="{StaticResource KioskTitleFont}" Foreground="{StaticResource KioskForestBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,32"/>
+                <Button Style="{StaticResource QPrimaryButton}" HorizontalAlignment="Center" MinWidth="360"
+                        MinHeight="88" FontSize="28" Content="Continuer" Command="{Binding ContinueCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Attente du montage (rare : l'invité a fini avant lui) -->
+        <Border Grid.RowSpan="2" Background="{StaticResource KioskCreamVeilBrush}"
+                Visibility="{Binding IsWaitingForPhoto, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Votre photo arrive…" Style="{StaticResource KioskTitleText}" FontSize="32"
+                           HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                <Border Width="48" Height="48" HorizontalAlignment="Center"
+                        BorderBrush="{StaticResource KioskSageBrush}" BorderThickness="4" CornerRadius="24"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

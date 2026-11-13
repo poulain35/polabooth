@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PolaKiosk.Tests/PolaKiosk.Tests.csproj" />
+  <Project Path="PolaKiosk/PolaKiosk.csproj" />
+</Solution>

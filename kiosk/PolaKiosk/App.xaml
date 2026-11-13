@@ -1,0 +1,310 @@
+<Application x:Class="PolaKiosk.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:PolaKiosk"
+             xmlns:converters="clr-namespace:PolaKiosk.Converters">
+    <Application.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <!-- ══ Identité visuelle de la borne (LAB-249) ══════════════════════════════
+             Couleurs fixes, identiques pour tous les événements : aucun réglage du SaaS
+             ne les change. Toujours passer par ces clés, jamais de couleur en dur. -->
+
+        <!-- Couleurs -->
+        <Color x:Key="KioskCreamColor">#F7F1E7</Color>      <!-- fond crème -->
+        <Color x:Key="KioskCreamDarkColor">#EFE6D6</Color>  <!-- pastilles, clavier -->
+        <Color x:Key="KioskPaperColor">#FFFDF8</Color>      <!-- papier du tirage, touches, cartes -->
+        <Color x:Key="KioskForestColor">#24412F</Color>     <!-- texte, boutons principaux -->
+        <Color x:Key="KioskSageColor">#9DB09A</Color>       <!-- zone photo, contours -->
+        <Color x:Key="KioskMintColor">#D6E8E0</Color>       <!-- arche, boutons secondaires -->
+        <Color x:Key="KioskBlushColor">#EBC9C3</Color>      <!-- accents, anneau du compte à rebours -->
+        <Color x:Key="KioskBrownColor">#6E5140</Color>      <!-- textes secondaires -->
+        <Color x:Key="KioskDarkColor">#1B241F</Color>       <!-- fond sombre (prise de vue, admin) -->
+
+        <!-- Pinceaux -->
+        <SolidColorBrush x:Key="KioskCreamBrush"     Color="{StaticResource KioskCreamColor}"/>
+        <SolidColorBrush x:Key="KioskCreamDarkBrush" Color="{StaticResource KioskCreamDarkColor}"/>
+        <SolidColorBrush x:Key="KioskPaperBrush"     Color="{StaticResource KioskPaperColor}"/>
+        <SolidColorBrush x:Key="KioskForestBrush"    Color="{StaticResource KioskForestColor}"/>
+        <SolidColorBrush x:Key="KioskSageBrush"      Color="{StaticResource KioskSageColor}"/>
+        <SolidColorBrush x:Key="KioskMintBrush"      Color="{StaticResource KioskMintColor}"/>
+        <SolidColorBrush x:Key="KioskBlushBrush"     Color="{StaticResource KioskBlushColor}"/>
+        <SolidColorBrush x:Key="KioskBrownBrush"     Color="{StaticResource KioskBrownColor}"/>
+        <SolidColorBrush x:Key="KioskDarkBrush"      Color="{StaticResource KioskDarkColor}"/>
+
+        <!-- Dérivés : voiles, contours, textes sur fond sombre, états -->
+        <SolidColorBrush x:Key="KioskOverlayBrush"        Color="{StaticResource KioskDarkColor}" Opacity="0.92"/> <!-- fenêtres par-dessus l'écran -->
+        <SolidColorBrush x:Key="KioskScrimBrush"          Color="{StaticResource KioskDarkColor}" Opacity="0.66"/> <!-- hors cadre, pastilles sur la caméra -->
+        <SolidColorBrush x:Key="KioskCreamVeilBrush"      Color="{StaticResource KioskCreamColor}" Opacity="0.82"/> <!-- par-dessus une image de fond -->
+        <SolidColorBrush x:Key="KioskForestLineBrush"     Color="{StaticResource KioskForestColor}" Opacity="0.14"/> <!-- contours discrets -->
+        <SolidColorBrush x:Key="KioskOnDarkBrush"         Color="{StaticResource KioskCreamColor}"/>
+        <SolidColorBrush x:Key="KioskOnDarkMutedBrush"    Color="{StaticResource KioskCreamColor}" Opacity="0.72"/>
+        <SolidColorBrush x:Key="KioskOnDarkSurfaceBrush"  Color="{StaticResource KioskCreamColor}" Opacity="0.08"/> <!-- cartes sur fond sombre -->
+        <SolidColorBrush x:Key="KioskOnDarkLineBrush"     Color="{StaticResource KioskCreamColor}" Opacity="0.22"/>
+        <SolidColorBrush x:Key="KioskErrorBrush"          Color="#A8432F"/> <!-- terracotta, lisible sur crème -->
+        <SolidColorBrush x:Key="KioskErrorOnDarkBrush"    Color="{StaticResource KioskBlushColor}"/>
+        <SolidColorBrush x:Key="KioskWarningBrush"        Color="#8A5A14"/> <!-- ocre, lisible sur crème -->
+
+        <!-- Polices embarquées (Assets/Fonts, voir KioskFonts) -->
+        <x:Static x:Key="KioskTitleFont" Member="local:KioskFonts.Title"/> <!-- Fraunces, titres, SemiBold -->
+        <x:Static x:Key="KioskTextFont"  Member="local:KioskFonts.Text"/>  <!-- DM Sans, textes -->
+
+        <!-- Arrondis -->
+        <CornerRadius x:Key="KioskButtonRadius">24</CornerRadius>
+        <CornerRadius x:Key="KioskTileRadius">28</CornerRadius>
+        <!-- Pas d'arrondi « 999 » pour les pastilles : au-delà de la moitié de la hauteur, WPF
+             dessine une ellipse (LAB-256, LAB-258). Une pastille prend la moitié de sa hauteur. -->
+
+        <!-- Ombre douce des cartes et boutons icônes -->
+        <DropShadowEffect x:Key="KioskSoftShadow" Color="#24412F" Opacity="0.10" BlurRadius="28" ShadowDepth="4" Direction="270"/>
+
+        <!-- ── Textes ─────────────────────────────────────────────────────────── -->
+        <Style x:Key="KioskTitleText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource KioskTitleFont}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="40"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="KioskBodyText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskBrownBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <!-- ── Boutons ────────────────────────────────────────────────────────── -->
+        <!-- Bouton principal : vert forêt plein. Fond et texte modifiables par usage. -->
+        <Style x:Key="KioskPrimaryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskCreamBrush}"/>
+            <Setter Property="Background" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="36,16"/>
+            <Setter Property="MinHeight" Value="64"/>
+            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource KioskButtonRadius}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Bouton secondaire : vert d'eau, texte vert forêt -->
+        <Style x:Key="KioskSecondaryButton" TargetType="Button" BasedOn="{StaticResource KioskPrimaryButton}">
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="{StaticResource KioskMintBrush}"/>
+        </Style>
+
+        <!-- Bouton contour : fond transparent, contour sauge (ex. « Refaire les photos », « Je refuse ») -->
+        <Style x:Key="KioskOutlineButton" TargetType="Button" BasedOn="{StaticResource KioskPrimaryButton}">
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskSageBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+
+        <!-- Bouton « Retour » (LAB-256) : même forme que « Refaire les photos » et « Terminer »,
+             fond transparent, contour sauge, chevron. Coins par Tag (défaut KioskButtonRadius) : un
+             arrondi de pastille (999) ferait dessiner une ellipse à WPF. Le texte se change par Content. -->
+        <Style x:Key="KioskBackButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Content" Value="Retour"/>
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskSageBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Tag" Value="{StaticResource KioskButtonRadius}"/>
+            <Setter Property="Padding" Value="18,0,24,0"/>
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z"
+                                      Fill="{TemplateBinding Foreground}" Stretch="Uniform"
+                                      Width="10" Height="16" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.80"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Bouton icône carré arrondi (cadenas, fermer, galerie…) : papier, icône vert forêt.
+             Taille par usage (Width/Height) ; défaut 76. Les icônes (Path) prennent
+             Fill="{StaticResource KioskForestBrush}". -->
+        <Style x:Key="KioskIconButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Width"  Value="76"/>
+            <Setter Property="Height" Value="76"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg"
+                                Background="{StaticResource KioskPaperBrush}"
+                                BorderBrush="{StaticResource KioskForestLineBrush}"
+                                BorderThickness="1.5"
+                                CornerRadius="{StaticResource KioskButtonRadius}"
+                                Effect="{StaticResource KioskSoftShadow}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.40"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Touche du pavé numérique (code PIN) : papier, chiffre vert forêt, 72 px de haut -->
+        <Style x:Key="KioskPadKey" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="6"/>
+            <Setter Property="Height" Value="72"/>
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{StaticResource KioskPaperBrush}"
+                                BorderBrush="{StaticResource KioskForestLineBrush}" BorderThickness="1.5"
+                                CornerRadius="{StaticResource KioskButtonRadius}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource KioskMintBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Carré icône (actions avec label sous le bouton, ex. écran partage) -->
+        <Style x:Key="KioskIconSquare" TargetType="Border">
+            <Setter Property="Width"  Value="84"/>
+            <Setter Property="Height" Value="84"/>
+            <Setter Property="Background" Value="{StaticResource KioskPaperBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskForestLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="CornerRadius" Value="{StaticResource KioskButtonRadius}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Effect" Value="{StaticResource KioskSoftShadow}"/>
+        </Style>
+
+        <!-- ── Surfaces ───────────────────────────────────────────────────────── -->
+        <!-- Pastille crème foncé (ex. « Retour à l'accueil dans 45 s ») -->
+        <Style x:Key="KioskPill" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource KioskCreamDarkBrush}"/>
+            <!-- Moitié de la hauteur (texte 18 à 20 + 2 × 10 de marge ≈ 46) -->
+            <Setter Property="CornerRadius" Value="23"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="TextElement.FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="TextElement.Foreground" Value="{StaticResource KioskBrownBrush}"/>
+            <Setter Property="TextElement.FontSize" Value="18"/>
+        </Style>
+
+        <!-- Tuile / carte arrondie sur papier -->
+        <Style x:Key="KioskTile" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource KioskPaperBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskForestLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource KioskTileRadius}"/>
+            <Setter Property="Padding" Value="32,28"/>
+            <Setter Property="Effect" Value="{StaticResource KioskSoftShadow}"/>
+        </Style>
+
+        <!-- Champ de saisie tactile (e-mail, questionnaire) : papier, contour discret, texte vert forêt -->
+        <Style x:Key="KioskTextField" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource KioskSageBrush}"/>
+            <Setter Property="Background" Value="{StaticResource KioskPaperBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskSageBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="20,14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="20"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource KioskForestBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Image de fond de l'écran de saisie, configurée dans le SaaS (null = masquée) -->
+        <x:Null x:Key="KioskSetupBgImage"/>
+    </Application.Resources>
+</Application>

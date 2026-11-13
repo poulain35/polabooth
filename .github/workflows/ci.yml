@@ -1,0 +1,69 @@
+name: CI
+
+# Contrôles automatiques de Polabooth, sur chaque push de la branche principale et chaque pull request :
+# - SaaS : lint, tests unitaires, build, vérification que le build ne contient aucun module privé ;
+# - borne : build et tests .NET.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  saas:
+    name: SaaS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: saas
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'          # requis : `node --test` lit le TypeScript nativement
+          cache: npm
+          cache-dependency-path: saas/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Build
+        run: VITE_PRIVATE_MODULES=none npm run build
+
+      - name: Build sans module privé
+        run: npm run check:open-build
+
+  kiosk:
+    name: Borne
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restauration
+        run: dotnet restore kiosk/PolaKiosk.slnx
+
+      - name: Build
+        run: dotnet build kiosk/PolaKiosk.slnx -c Release --no-restore
+
+      - name: Tests
+        run: dotnet test kiosk/PolaKiosk.slnx -c Release --no-build

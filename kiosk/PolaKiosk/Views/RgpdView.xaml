@@ -1,0 +1,40 @@
+<UserControl x:Class="PolaKiosk.Views.RgpdView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{StaticResource KioskCreamBrush}">
+
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    MaxWidth="700" Margin="40">
+
+            <!-- Icône + titre -->
+            <TextBlock Text="🔒" FontSize="52" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+            <TextBlock Text="Consentement" Style="{StaticResource KioskTitleText}"
+                       FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,32"/>
+
+            <!-- Message RGPD personnalisé -->
+            <Border Style="{StaticResource KioskTile}" Margin="0,0,0,40">
+                <StackPanel>
+                    <TextBlock Text="{Binding ConsentMessage}"
+                               FontSize="20" Foreground="{StaticResource KioskBrownBrush}"
+                               TextWrapping="Wrap" LineHeight="32"
+                               TextAlignment="Center"/>
+                    <!-- Questionnaire obligatoire : l'invité est prévenu avant « J'accepte » -->
+                    <TextBlock Text="{Binding HomeNotice}"
+                               Visibility="{Binding ShowHomeNotice, Converter={StaticResource BoolToVisibility}}"
+                               FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource KioskForestBrush}"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,20,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Boutons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Command="{Binding RefuseCommand}" Content="Je refuse"
+                        Style="{StaticResource KioskOutlineButton}"
+                        MinWidth="220" MinHeight="72" Margin="0,0,20,0"/>
+                <Button Command="{Binding AcceptCommand}" Content="J'accepte ✓"
+                        Style="{StaticResource KioskPrimaryButton}"
+                        MinWidth="220" MinHeight="72"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -1,0 +1,315 @@
+<UserControl x:Class="PolaKiosk.Views.LiveView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="{StaticResource KioskTextFont}"
+             Foreground="{StaticResource KioskOnDarkBrush}">
+
+    <!-- Écran de prise de vue (LAB-248, maquette 2) : tailles et positions de la maquette 1280×800. -->
+    <UserControl.Resources>
+        <!-- Couleurs propres à cet écran, dérivées de la palette (App.xaml) -->
+        <SolidColorBrush x:Key="LivePanelBrush"         Color="{StaticResource KioskDarkColor}"  Opacity="0.72"/>
+        <SolidColorBrush x:Key="LivePanelLineBrush"     Color="{StaticResource KioskCreamColor}" Opacity="0.25"/>
+        <SolidColorBrush x:Key="LiveDotLineBrush"       Color="{StaticResource KioskCreamColor}" Opacity="0.60"/>
+        <SolidColorBrush x:Key="LiveSlotLineBrush"      Color="{StaticResource KioskCreamColor}" Opacity="0.45"/>
+        <SolidColorBrush x:Key="LiveSlotCurrentBrush"   Color="{StaticResource KioskBlushColor}" Opacity="0.12"/>
+        <SolidColorBrush x:Key="LiveRingDiscBrush"      Color="{StaticResource KioskDarkColor}"  Opacity="0.55"/>
+        <SolidColorBrush x:Key="LiveRingTrackBrush"     Color="{StaticResource KioskCreamColor}" Opacity="0.18"/>
+        <SolidColorBrush x:Key="LiveCancelFillBrush"    Color="{StaticResource KioskDarkColor}"  Opacity="0.60"/>
+        <SolidColorBrush x:Key="LiveCancelLineBrush"    Color="{StaticResource KioskCreamColor}" Opacity="0.50"/>
+
+        <!-- Pastille sombre translucide sur la caméra -->
+        <Style x:Key="LivePill" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource LivePanelBrush}"/>
+            <Setter Property="CornerRadius" Value="32"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Petit cercle tournant des attentes (préparation, assemblage), en rose poudré -->
+        <Style x:Key="LiveSpinner" TargetType="Path">
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Stroke" Value="{StaticResource KioskBlushBrush}"/>
+            <Setter Property="StrokeThickness" Value="4"/>
+            <Setter Property="StrokeStartLineCap" Value="Round"/>
+            <Setter Property="StrokeEndLineCap" Value="Round"/>
+            <Setter Property="Data" Value="M24,4 A20,20 0 1 1 4,24"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <RotateTransform/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsVisible" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard x:Name="Spin">
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(Path.RenderTransform).(RotateTransform.Angle)"
+                                                 From="0" To="360" Duration="0:0:1" RepeatBehavior="Forever"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <StopStoryboard BeginStoryboardName="Spin"/>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Bouton « Annuler » : pastille sombre, contour crème, croix + texte -->
+        <Style x:Key="LiveCancelButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="Padding" Value="22,0"/>
+            <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource KioskOnDarkBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <!-- Zone tactile agrandie (transparente) autour de la pastille de la maquette -->
+                        <Border Background="Transparent" Padding="12" Margin="-12">
+                            <Border x:Name="bg"
+                                    Background="{StaticResource LiveCancelFillBrush}"
+                                    BorderBrush="{StaticResource LiveCancelLineBrush}" BorderThickness="2"
+                                    CornerRadius="26" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M6,6 L18,18 M18,6 L6,18" Stroke="{TemplateBinding Foreground}"
+                                          StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Width="18" Height="18" Stretch="None" Margin="0,0,10,0"
+                                          VerticalAlignment="Center">
+                                        <Path.RenderTransform>
+                                            <ScaleTransform ScaleX="0.75" ScaleY="0.75"/>
+                                        </Path.RenderTransform>
+                                    </Path>
+                                    <ContentPresenter VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.80"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource KioskDarkBrush}">
+
+        <!-- ① Caméra plein écran (effet miroir). Centrée : quand l'image déborde de l'écran, WPF la
+             calerait sinon en haut à gauche, et le miroir la décalerait d'autant (bande sombre). -->
+        <Image Source="{Binding LiveFrame}"
+               Stretch="UniformToFill"
+               HorizontalAlignment="Center" VerticalAlignment="Center"
+               RenderTransformOrigin="0.5,0.5">
+            <Image.RenderTransform>
+                <ScaleTransform ScaleX="-1"/>
+            </Image.RenderTransform>
+        </Image>
+
+        <!-- ① bis Barres de recadrage — canvas aux dimensions de la frame caméra
+             → même UniformToFill → même facteur d'échelle → alignement pixel-perfect -->
+        <Viewbox Stretch="UniformToFill"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Visibility="{Binding HasTemplateOverlay, Converter={StaticResource BoolToVisibility}}">
+            <Canvas Width="{Binding LiveFrameWidth}" Height="{Binding LiveFrameHeight}">
+                <!-- Haut -->
+                <Rectangle Canvas.Left="0" Canvas.Top="0"
+                            Width="{Binding LiveFrameWidth}" Height="{Binding PhotoZoneTop}"
+                            Fill="{StaticResource KioskScrimBrush}"/>
+                <!-- Bas -->
+                <Rectangle Canvas.Left="0" Canvas.Top="{Binding PhotoZoneDarkBottomY}"
+                            Width="{Binding LiveFrameWidth}" Height="{Binding PhotoZoneDarkBottomH}"
+                            Fill="{StaticResource KioskScrimBrush}"/>
+                <!-- Gauche -->
+                <Rectangle Canvas.Left="0" Canvas.Top="{Binding PhotoZoneTop}"
+                            Width="{Binding PhotoZoneLeft}" Height="{Binding PhotoZoneHeight}"
+                            Fill="{StaticResource KioskScrimBrush}"/>
+                <!-- Droite -->
+                <Rectangle Canvas.Left="{Binding PhotoZoneDarkRightX}" Canvas.Top="{Binding PhotoZoneTop}"
+                            Width="{Binding PhotoZoneDarkRightW}" Height="{Binding PhotoZoneHeight}"
+                            Fill="{StaticResource KioskScrimBrush}"/>
+            </Canvas>
+        </Viewbox>
+
+        <!-- ③ « Photo n sur total » + une pastille par photo (masqué pour une seule photo) -->
+        <Border Style="{StaticResource LivePill}"
+                VerticalAlignment="Top" Margin="0,52,0,0"
+                BorderBrush="{StaticResource LivePanelLineBrush}" BorderThickness="1"
+                Visibility="{Binding HasMultiplePhotos, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center">
+                    <Run Text="Photo"/>
+                    <Run Text="{Binding CurrentPhotoNumber, Mode=OneWay}"/>
+                    <Run Text="sur"/>
+                    <Run Text="{Binding TotalPhotoCount, Mode=OneWay}"/>
+                </TextBlock>
+                <ItemsControl ItemsSource="{Binding PhotoSlots}" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Pleine : photo prise ou en cours ; contour : à venir -->
+                            <Border x:Name="dot" Width="12" Height="12" CornerRadius="6" Margin="4,0"
+                                    Background="Transparent"
+                                    BorderBrush="{StaticResource LiveDotLineBrush}" BorderThickness="2"/>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsTaken}" Value="True">
+                                    <Setter TargetName="dot" Property="Background" Value="{StaticResource KioskBlushBrush}"/>
+                                    <Setter TargetName="dot" Property="BorderThickness" Value="0"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                    <Setter TargetName="dot" Property="Background" Value="{StaticResource KioskBlushBrush}"/>
+                                    <Setter TargetName="dot" Property="BorderThickness" Value="0"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- ④ Cases des photos de la séance, à droite : en cours surlignée en rose, à venir en
+             pointillés, déjà prise avec sa photo -->
+        <ItemsControl ItemsSource="{Binding PhotoSlots}"
+                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,88,0"
+                      IsHitTestVisible="False"
+                      Visibility="{Binding HasMultiplePhotos, Converter={StaticResource BoolToVisibility}}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid Width="112" Height="74" Margin="0,7">
+                        <!-- Pointillés (WPF n'a pas de bordure en tirets : rectangle arrondi) -->
+                        <Rectangle x:Name="dashes" RadiusX="12" RadiusY="12"
+                                   Stroke="{StaticResource LiveSlotLineBrush}" StrokeThickness="2"
+                                   StrokeDashArray="3 2"/>
+                        <Border x:Name="current" CornerRadius="12" Visibility="Collapsed"
+                                Background="{StaticResource LiveSlotCurrentBrush}"
+                                BorderBrush="{StaticResource KioskBlushBrush}" BorderThickness="3"/>
+                        <Border x:Name="photo" CornerRadius="12" Visibility="Collapsed">
+                            <Border.Background>
+                                <ImageBrush ImageSource="{Binding Photo}" Stretch="UniformToFill"/>
+                            </Border.Background>
+                        </Border>
+                    </Grid>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsTaken}" Value="True">
+                            <Setter TargetName="dashes" Property="Stroke" Value="{StaticResource KioskBlushBrush}"/>
+                            <Setter TargetName="dashes" Property="StrokeDashArray" Value="{x:Null}"/>
+                            <Setter TargetName="photo" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                            <Setter TargetName="dashes" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="current" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- ⑤ Compte à rebours : chiffre en Fraunces dans un anneau rose poudré qui se vide en continu
+             sur toute la durée (depuis le haut, sens des aiguilles d'une montre), puis le flash (LAB-260).
+             Anneau calculé à chaque image dans LiveView.xaml.cs (CountdownGeometry). -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,58"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding IsCountingDown, Converter={StaticResource BoolToVisibility}}">
+            <Grid Width="360" Height="360">
+                <Ellipse Fill="{StaticResource LiveRingDiscBrush}"/>
+                <!-- Fond de l'anneau : épaisseur 12, axe à 164 px du centre -->
+                <Ellipse Width="340" Height="340" Stroke="{StaticResource LiveRingTrackBrush}" StrokeThickness="12"/>
+                <Path x:Name="CountdownRing" Fill="{StaticResource KioskBlushBrush}"/>
+
+                <Grid x:Name="CountdownText" RenderTransformOrigin="0.5,0.5">
+                    <Grid.RenderTransform>
+                        <ScaleTransform x:Name="CountdownTextScale"/>
+                    </Grid.RenderTransform>
+                    <!-- Chiffre dessiné dans LiveView.xaml.cs, centré sur son contour réel (LAB-260) -->
+                    <Path x:Name="CountdownDigit" Fill="{StaticResource KioskOnDarkBrush}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Grid>
+
+            <!-- « ↑ Regardez l'objectif » -->
+            <Border Style="{StaticResource LivePill}" Margin="0,28,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="M12,19 L12,5 M6,11 L12,5 L18,11" Stroke="{StaticResource KioskOnDarkBrush}"
+                          StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Width="24" Height="24" Stretch="None" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Path.LayoutTransform>
+                            <ScaleTransform ScaleX="1.083" ScaleY="1.083"/>
+                        </Path.LayoutTransform>
+                    </Path>
+                    <TextBlock Text="Regardez l'objectif" FontSize="26" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- ⑥ Flash blanc, maintenu pendant la prise de vue, avec « Souriez ! » (LAB-248).
+             Blanc pur volontaire (il éclaire les visages) ; texte vert forêt pas trop grand :
+             l'écran reste presque entièrement blanc. -->
+        <Border Background="White"
+                Visibility="{Binding IsFlashing, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="Souriez !"
+                       FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold" FontSize="96"
+                       Foreground="{StaticResource KioskForestBrush}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+
+        <!-- ⑦ Préparation de la caméra -->
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Visibility="{Binding IsInitializing, Converter={StaticResource BoolToVisibility}}">
+            <Path Style="{StaticResource LiveSpinner}" Margin="0,0,0,24"/>
+            <TextBlock Text="Préparation de la caméra…"
+                       FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold" FontSize="32"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- ⑧ Assemblage après la prise de vue -->
+        <Border Background="{StaticResource KioskOverlayBrush}"
+                Visibility="{Binding IsCompositing, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Path Style="{StaticResource LiveSpinner}" Margin="0,0,0,24"/>
+                <TextBlock Text="Assemblage de votre photo…"
+                           FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold" FontSize="32"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ⑨ Erreur caméra (non bloquante, retour auto à l'accueil) -->
+        <Border Background="{StaticResource KioskOverlayBrush}"
+                Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="640" Margin="40">
+                <!-- Appareil photo, trait rose poudré -->
+                <Path Data="M4,8 A2,2 0 0 1 6,6 L8.5,6 L10,4 L14,4 L15.5,6 L18,6 A2,2 0 0 1 20,8 L20,17 A2,2 0 0 1 18,19 L6,19 A2,2 0 0 1 4,17 Z M12,9.5 A3.25,3.25 0 1 0 12,16 A3.25,3.25 0 1 0 12,9.5 Z"
+                      Stroke="{StaticResource KioskBlushBrush}" StrokeThickness="1.6" StrokeLineJoin="Round"
+                      Width="24" Height="24" Stretch="None" HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <Path.LayoutTransform>
+                        <ScaleTransform ScaleX="2.5" ScaleY="2.5"/>
+                    </Path.LayoutTransform>
+                </Path>
+                <TextBlock Text="{Binding ErrorMessage}"
+                           FontSize="24" LineHeight="34"
+                           HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                <TextBlock Text="Retour à l'accueil dans quelques secondes…"
+                           FontSize="18" Foreground="{StaticResource KioskOnDarkMutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,24,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ⑩ « Annuler » en haut à droite : retour à l'accueil (toujours visible sauf pendant le flash) -->
+        <Button Content="Annuler" Command="{Binding CancelCommand}"
+                Style="{StaticResource LiveCancelButton}"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,52,56,0"
+                Visibility="{Binding IsFlashing, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"/>
+
+    </Grid>
+</UserControl>

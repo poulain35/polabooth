@@ -1,0 +1,5 @@
+# Supabase local — ne jamais committer
+.branches
+.temp
+.env
+.env.*

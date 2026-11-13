@@ -1,0 +1,64 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Version de l'app — incrémenter à chaque release. Lue au runtime pour les MAJ. -->
+    <Version>1.0.16</Version>
+  </PropertyGroup>
+
+  <!-- Expose les membres internal (logique pure) au projet de test -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PolaKiosk.Tests" />
+  </ItemGroup>
+
+  <!-- Images Assets embarquées comme ressources WPF -->
+  <ItemGroup>
+    <Resource Include="Assets\**\*" Condition="Exists('Assets')" />
+  </ItemGroup>
+
+  <!-- DLL natives Canon : copiées à la RACINE de l'output (Link) — sinon le P/Invoke
+       [DllImport("EDSDK.dll")] ne les trouve pas et la détection caméra échoue.
+       Conditionnelles : gitignorées, donc absentes en CI (build sans caméra). -->
+  <ItemGroup>
+    <None Include="EDSDK\native\EDSDK.dll" Link="EDSDK.dll" Condition="Exists('EDSDK\native\EDSDK.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="EDSDK\native\EdsImage.dll" Link="EdsImage.dll" Condition="Exists('EDSDK\native\EdsImage.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Instance.json" Condition="Exists('appsettings.Instance.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Production.json" Condition="Exists('appsettings.Production.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.local.json" Condition="Exists('appsettings.local.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+  </ItemGroup>
+
+</Project>

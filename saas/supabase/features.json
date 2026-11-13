@@ -1,0 +1,177 @@
+{
+  "$comment": "Manifeste des fonctionnalités (open core, lot L3) : fonctions serveur, tables et tâches planifiées de chaque fonctionnalité du catalogue (src/features/catalog.js). migrations (fonctionnalités privées seulement) : migrations de supabase/migrations/ postérieures à la migration de base du dépôt public (open-core/migrations/<horodatage>_base.sql) qui créent ou modifient un objet privé, à écarter de l'export du dépôt public. Une migration ne mélange jamais objets ouverts et privés. Vérifié par supabase/functions/_shared/features-manifest.test.ts.",
+  "features": {
+    "core": {
+      "functions": [
+        "get-event",
+        "set-event-name",
+        "kiosk-admin-pin",
+        "get-kiosk-upload-url",
+        "send-kiosk-photo",
+        "check-cron-alerts",
+        "brevo-webhook",
+        "email-sync",
+        "test-service-key",
+        "get-release-upload-url"
+      ],
+      "tables": [
+        "organizations",
+        "app_admins",
+        "events",
+        "kiosk_licenses",
+        "kiosk_license_machines",
+        "kiosk_pairings",
+        "kiosk_releases",
+        "kiosk_logs",
+        "print_logs",
+        "photos",
+        "notifications",
+        "email_logs",
+        "email_events",
+        "cron_http_calls",
+        "cron_job_alerts",
+        "rpc_rate_limit_salt",
+        "service_keys"
+      ],
+      "crons": [
+        "check-cron-alerts",
+        "purge-cron-history"
+      ]
+    },
+    "templates": {
+      "functions": [],
+      "tables": [
+        "templates",
+        "decorations",
+        "custom_fonts"
+      ],
+      "crons": []
+    },
+    "client_design": {
+      "functions": [
+        "autosave-design",
+        "design-versions",
+        "submit-design",
+        "review-design",
+        "send-access-emails",
+        "resend-access-email",
+        "send-design-reminders"
+      ],
+      "tables": [
+        "client_designs",
+        "design_versions"
+      ],
+      "crons": [
+        "send-access-emails",
+        "send-design-reminders"
+      ]
+    },
+    "gallery": {
+      "functions": [
+        "get-photo-upload-url",
+        "get-photos",
+        "delete-photo",
+        "get-guest-upload-url",
+        "record-guest-photo",
+        "photo-webhook",
+        "media-expiry"
+      ],
+      "tables": [
+        "gallery_analytics",
+        "kiosk_photo_consents"
+      ],
+      "crons": [
+        "media-expiry",
+        "purge-kiosk-photo-consents"
+      ]
+    },
+    "guest_form": {
+      "functions": [],
+      "tables": [
+        "kiosk_guest_responses",
+        "event_form_responses"
+      ],
+      "crons": [
+        "purge-kiosk-guest-responses"
+      ]
+    },
+    "event_report": {
+      "functions": [
+        "send-event-report"
+      ],
+      "tables": [
+        "event_reports",
+        "event_activity"
+      ],
+      "crons": []
+    },
+    "delivery_email": {
+      "functions": [
+        "send-delivery"
+      ],
+      "tables": [],
+      "crons": [
+        "send-delivery"
+      ]
+    },
+    "kiosk_alerts": {
+      "functions": [
+        "check-kiosk-alerts"
+      ],
+      "tables": [
+        "kiosk_alerts"
+      ],
+      "crons": [
+        "check-kiosk-alerts"
+      ]
+    },
+    "planning": {
+      "functions": [],
+      "tables": [
+        "planning_entries"
+      ],
+      "crons": []
+    },
+    "google_calendar": {
+      "functions": [
+        "gcal-sync"
+      ],
+      "tables": [],
+      "crons": []
+    },
+    "ai_visuals": {
+      "functions": [
+        "remove-background",
+        "generate-background"
+      ],
+      "tables": [],
+      "crons": []
+    },
+    "help": {
+      "functions": [
+        "submit-support-message"
+      ],
+      "tables": [
+        "support_articles",
+        "support_messages"
+      ],
+      "crons": []
+    },
+    "assistant": {
+      "functions": [
+        "assistant-chat"
+      ],
+      "tables": [],
+      "crons": []
+    }
+  },
+  "always_on": {
+    "$comment": "Exécutées même fonctionnalité inactive : purges RGPD (SQL, sans garde) et désinscription d'un prospect (un refus de contact se respecte toujours).",
+    "functions": [],
+    "crons": [
+      "purge-cron-history",
+      "purge-kiosk-photo-consents",
+      "purge-kiosk-guest-responses"
+    ]
+  }
+}
