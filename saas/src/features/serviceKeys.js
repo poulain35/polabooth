@@ -18,41 +18,6 @@ const OPEN_SERVICE_KEYS = [
     help: 'Dans Brevo : Paramètres, SMTP et API, onglet Clés API.',
     testable: true,
   },
-  {
-    name: 'GOOGLE_CLIENT_ID',
-    label: 'ID client Google',
-    feature: 'google_calendar',
-    help: 'Dans Google Cloud Console : API et services, Identifiants, ID client OAuth.',
-    testable: true,
-  },
-  {
-    name: 'GOOGLE_CLIENT_SECRET',
-    label: 'Secret client Google',
-    feature: 'google_calendar',
-    help: 'Affiché avec l\'ID client, dans Google Cloud Console.',
-    testable: true,
-  },
-  {
-    name: 'GOOGLE_REFRESH_TOKEN',
-    label: 'Jeton d\'actualisation Google',
-    feature: 'google_calendar',
-    help: 'Obtenu une fois avec l\'ID et le secret client (par exemple avec OAuth Playground), avec accès à Google Agenda.',
-    testable: true,
-  },
-  {
-    name: 'ANTHROPIC_API_KEY',
-    label: 'Clé API Claude (Anthropic)',
-    feature: 'assistant',
-    help: 'Dans la console Claude (platform.claude.com) : Settings, API keys.',
-    testable: true,
-  },
-  {
-    name: 'REPLICATE_API_TOKEN',
-    label: 'Jeton API Replicate',
-    feature: 'ai_visuals',
-    help: 'Sur replicate.com : Account settings, API tokens.',
-    testable: true,
-  },
 ];
 
 export const SERVICE_KEYS = [
@@ -61,9 +26,6 @@ export const SERVICE_KEYS = [
 ];
 
 export const SERVICE_KEY_NAMES = SERVICE_KEYS.map((k) => k.name);
-
-/** Clés testées ensemble : tester l'une teste tout le groupe. */
-export const GOOGLE_KEY_NAMES = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'];
 
 const BY_NAME = new Map(SERVICE_KEYS.map((k) => [k.name, k]));
 
@@ -75,9 +37,6 @@ export function getServiceKey(name) {
 // (celles des modules privés en dernier).
 const KEY_GROUPS = [
   { feature: null, title: 'Emails', help: 'Socle : tous les envois d\'emails passent par Brevo.' },
-  { feature: 'google_calendar' },
-  { feature: 'assistant' },
-  { feature: 'ai_visuals' },
   ...moduleCatalogs.filter((m) => m.serviceKeys?.length).map((m) => ({ feature: m.id })),
 ];
 
@@ -99,11 +58,21 @@ export function keyGroups({ installed = () => true, emailProvider = 'brevo' } = 
     }));
 }
 
-// Réglages non secrets des services (organizations.service_settings).
-export const SERVICE_SETTINGS = {
-  assistant_model: { feature: 'assistant', envName: 'ASSISTANT_MODEL' },
-  google_calendar_id: { feature: 'google_calendar', envName: 'GOOGLE_CALENDAR_ID' },
-};
+// Réglages non secrets des services (organizations.service_settings). Ceux d'un module privé sont
+// déclarés par son catalogue (serviceSettings ; avec un libellé, leur champ s'affiche dans Paramètres > Clés,
+// LAB-421 ; sans libellé, le module affiche lui-même son réglage, ex. modèle de l'assistant, LAB-422).
+const MODULE_SETTINGS = Object.assign({}, ...moduleCatalogs.map((m) => m.serviceSettings ?? {}));
+
+export const SERVICE_SETTINGS = Object.fromEntries(
+  Object.entries(MODULE_SETTINGS).map(([id, s]) => [id, { feature: s.feature, envName: s.envName }]),
+);
+
+/** Champs texte des réglages déclarés par les modules pour la section `feature` de Paramètres > Clés. */
+export function moduleSettingFields(feature) {
+  return Object.entries(MODULE_SETTINGS)
+    .filter(([, s]) => s.feature === feature && s.label)
+    .map(([id, s]) => ({ id, label: s.label, help: s.help, placeholder: s.placeholder }));
+}
 
 /**
  * Fusionne `patch` dans les réglages relus en base. Une valeur vide retire la clé (le serveur

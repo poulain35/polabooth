@@ -69,7 +69,7 @@ Prix indicatifs relevés en novembre 2026, à vérifier chez chaque fournisseur.
 | Kit Canon EDSDK | Gratuit | | Inclus dans l'installeur prêt à l'emploi. Pour construire le vôtre : sur demande auprès de Canon. |
 | Inno Setup, .NET | Gratuits | | Pour construire l'installeur de la borne. |
 
-Les services facultatifs (images par IA, assistant, agenda Google) se paient chez leur fournisseur
+Les services facultatifs (agenda Google, images par IA, assistant) se paient chez leur fournisseur
 avec vos propres clés, saisies dans le SaaS (Réglages > Services connectés). Sans clé, ces fonctions sont
 simplement absentes.
 

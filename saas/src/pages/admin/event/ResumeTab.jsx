@@ -3,7 +3,8 @@
 // générales et historique des emails.
 import { useState } from 'react';
 import { useFeatures } from '../../../hooks/useFeatures';
-import { supabase, updateEventFormConfig, resendAccessEmail, getEmailLogs, syncEventToGoogleCalendar } from '../../../lib/supabase';
+import { supabase, updateEventFormConfig, resendAccessEmail, getEmailLogs } from '../../../lib/supabase';
+import { fireModuleHook } from '../../../features/modules';
 import DateTimePicker from '../../../components/DateTimePicker';
 import ModuleSlot from '../../../components/ModuleSlot';
 import EmailLogList from '../../../components/EmailLogList';
@@ -18,7 +19,6 @@ import { mediaPurgeInfo } from '../../../lib/mediaExpiry';
 import { httpUrlInput, safeHttpUrl } from '../../../lib/urls';
 import { APP_URL, mediaExpiryDefault, useHashScroll } from './eventTabUtils';
 import { CardHeading, CheckMark, FeatureCard, KioskSaveBar, Notice } from './shared';
-import EquipmentNeedsCard from './EquipmentNeedsCard';
 import { formatShortDate } from '../../../lib/dates';
 import { useCopy } from '../../../hooks/useCopy';
 import { Input } from '../../../components/ui/input';
@@ -121,7 +121,7 @@ export default function ResumeTab({ event, setEvent, steps, emailLogs, setEmailL
       if (error) throw error;
       setEvent(e => ({ ...e, ...updates }));
       setEditingInfo(false);
-      if (isAvailable('google_calendar')) syncEventToGoogleCalendar(id);
+      fireModuleHook('event.calendarSync', isAvailable, id);
       toast.success('Informations enregistrées');
     } catch (err) {
       toast.error(err.message);
@@ -176,8 +176,8 @@ export default function ResumeTab({ event, setEvent, steps, emailLogs, setEmailL
           </ul>
         </Card>
 
-        {/* Matériel mobilisé (LAB-358) : caché tant qu'aucun type n'existe */}
-        <EquipmentNeedsCard event={event} setEvent={setEvent} />
+        {/* Matériel mobilisé (LAB-358, module privé « planning ») : caché tant qu'aucun type n'existe */}
+        <ModuleSlot name="event.equipment" event={event} setEvent={setEvent} />
 
         {/* Email de création du cadre photo — invitation client */}
         {isAvailable('client_design') && (

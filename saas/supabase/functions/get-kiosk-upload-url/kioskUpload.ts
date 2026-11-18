@@ -2,7 +2,8 @@
 // Sans import Deno/esm.sh : testé par get-kiosk-upload-url.test.ts sous `node --test`.
 //
 // Mêmes règles que la RPC kiosk_record_photo, qui enregistre ensuite la séance :
-//   1. licence active pour (machine_id, secret), secret non vide ;
+//   1. licence active pour (machine_id, secret), secret non vide ; la base ne garde que l'empreinte
+//      SHA-256 du secret (secret_hash, LAB-423), comme public.kiosk_secret_hash ;
 //   2. événement event_id actif portant le code d'accès access_code.
 //
 // kind = "media" (défaut) : montage JPEG / PNG ou animation MP4. kind = "poster" : affiche JPEG d'une
@@ -17,6 +18,12 @@ export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 const POSTER_FILENAME = 'poster.jpg';
 const UPLOAD_KINDS = ['media', 'poster'] as const;
+
+// Même calcul que public.kiosk_secret_hash : SHA-256 des octets UTF-8, en hexadécimal minuscule.
+export async function kioskSecretHash(secret: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
 type UploadKind = typeof UPLOAD_KINDS[number];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,7 +102,7 @@ export async function resolveKioskUpload(db: KioskUploadDb, body: KioskUploadBod
     .from('kiosk_licenses')
     .select('id')
     .eq('machine_id', machineId)
-    .eq('secret', secret)
+    .eq('secret_hash', await kioskSecretHash(secret))
     .eq('is_active', true)
     .limit(1);
   if (licErr) return { ok: false, status: 500, error: 'Vérification de la licence impossible' };

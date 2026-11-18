@@ -2,7 +2,8 @@
 ; Installation PAR UTILISATEUR (aucun droit admin) → les mises à jour silencieuses
 ; fonctionnent sans UAC. Le watchdog est lancé via le dossier Démarrage de l'utilisateur.
 ;
-; Prérequis avant de compiler (voir installer\README.md) :
+; Construction : installer\build.ps1 (publication .NET, signature facultative, compilation ; voir
+; installer\README.md). À la main : d'abord
 ;   dotnet publish PolaKiosk\PolaKiosk.csproj -c Release -r win-x64 --self-contained true
 ;
 ; Version : UNE SEULE source, <Version> du PolaKiosk.csproj. Elle est lue ici dans la DLL
@@ -51,6 +52,12 @@ SetupIconFile=..\PolaKiosk\Assets\Brand\polabooth.ico
 UninstallDisplayIcon={app}\{#ExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Signature Authenticode facultative (LAB-424) : build.ps1 passe /DSign et l'outil « polasign »
+; (installer\sign.ps1) quand un certificat est configuré. Signe l'installeur et le désinstalleur.
+#ifdef Sign
+SignTool=polasign
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"

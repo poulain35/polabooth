@@ -7,7 +7,7 @@
 
 import { corsResponse } from './cors.ts';
 import { PRIVATE_MODULES } from './private-modules.ts';
-import type { KeyTest, ServiceKey } from './service-keys.ts';
+import type { KeyTest, ServiceKey, ServiceSetting } from './service-keys.ts';
 
 export type FeatureId =
   | 'core' | 'templates' | 'client_design' | 'gallery' | 'guest_form' | 'event_report'
@@ -27,13 +27,14 @@ export interface Feature {
 
 /**
  * Ce qu'un module privé ajoute au code ouvert (_shared/modules/<id>/catalog.ts) : entrée de sa
- * fonctionnalité complétée, clés de ses services (après celles du code ouvert) et leur test, conséquence
- * métier de l'arrêt de ses tâches planifiées (email « cron en échec »).
+ * fonctionnalité complétée, clés de ses services (après celles du code ouvert), leurs réglages non secrets
+ * et leur test, conséquence métier de l'arrêt de ses tâches planifiées (email « cron en échec »).
  */
 export interface ModuleCatalog {
   id: FeatureId;
   feature?: Partial<Pick<Feature, 'label' | 'description' | 'requiredKeys'>>;
   serviceKeys?: ServiceKey[];
+  serviceSettings?: Record<string, ServiceSetting>;
   keyTests?: Record<string, KeyTest>;
   cronImpact?: Record<string, string>;
 }
@@ -128,30 +129,30 @@ const OPEN_FEATURES: Feature[] = [
     label: 'Planning et parc de bornes',
     description: 'Suivez sur un calendrier quelle borne part sur quel événement.',
     dependsOn: [],
-    visibility: 'open',
+    visibility: 'private',
     core: false,
     defaultEnabled: true,
     requiredKeys: [],
   },
   {
     id: 'google_calendar',
-    label: 'Synchro Google Calendar',
-    description: 'Retrouvez vos événements et votre planning dans votre agenda Google.',
+    label: 'Synchro d\'agenda',
+    description: 'Retrouvez vos événements et votre planning dans votre agenda en ligne.',
     dependsOn: ['planning'],
-    visibility: 'open',
+    visibility: 'private',
     core: false,
     defaultEnabled: true,
-    requiredKeys: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN'],
+    requiredKeys: [],
   },
   {
     id: 'ai_visuals',
     label: 'IA visuelle',
     description: 'Détourez une image ou générez un fond directement dans l\'éditeur.',
     dependsOn: ['templates'],
-    visibility: 'open',
+    visibility: 'private',
     core: false,
     defaultEnabled: true,
-    requiredKeys: ['REPLICATE_API_TOKEN'],
+    requiredKeys: [],
   },
   {
     id: 'help',
@@ -168,10 +169,10 @@ const OPEN_FEATURES: Feature[] = [
     label: 'Assistant',
     description: 'Un assistant répond aux questions de vos clients dans la page d\'aide.',
     dependsOn: ['help'],
-    visibility: 'open',
+    visibility: 'private',
     core: false,
     defaultEnabled: true,
-    requiredKeys: ['ANTHROPIC_API_KEY'],
+    requiredKeys: [],
   },
   {
     id: 'booking',

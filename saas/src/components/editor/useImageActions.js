@@ -1,11 +1,11 @@
 import { fabric } from 'fabric';
-import { removeImageBackground } from '../../lib/supabase';
-import { downscaleToDataUrl, svgToBitmap, tintElement, tintGroup } from './imageTools';
+import { svgToBitmap, tintElement, tintGroup } from './imageTools';
 
-// Stickers (ajout et teinte) et suppression de l'arrière-plan d'une image.
+// Stickers (ajout et teinte) et suppression de l'arrière-plan d'une image. `removeBackground` : détourage
+// fourni par le module privé « ai_visuals » (hook 'editor.removeBackground', LAB-422), null sans lui.
 export function useImageActions({
   eventCode, currentFormat, isRemovingBg, setIsRemovingBg, setRemoveBgError, fabricRef, addObjectToCanvas,
-  handleObjectChange,
+  handleObjectChange, removeBackground = null,
 }) {
   // ── Sticker ──────────────────────────────────────────────────────────────────
   async function addSticker(srcOrSvg) {
@@ -112,33 +112,14 @@ export function useImageActions({
   // ── Suppression d'arrière-plan (admin) ────────────────────────────────────────
   async function handleRemoveBackground() {
     const canvas = fabricRef.current;
-    if (!canvas || isRemovingBg) return;
+    if (!canvas || isRemovingBg || !removeBackground) return;
     const obj = canvas.getActiveObject();
     if (!obj || obj.type !== 'image') return;
 
     setIsRemovingBg(true);
     setRemoveBgError('');
     try {
-      const el      = obj.getElement();
-      const input   = downscaleToDataUrl(el);
-      // Dimensions affichées à préserver (le résultat peut avoir une autre résolution)
-      const dispW   = (obj.width  || 1) * (obj.scaleX || 1);
-      const dispH   = (obj.height || 1) * (obj.scaleY || 1);
-      const result  = await removeImageBackground(input, eventCode);
-      await new Promise((resolve) => {
-        obj.setSrc(result, () => {
-          obj.set({
-            scaleX: dispW / (obj.width  || 1),
-            scaleY: dispH / (obj.height || 1),
-          });
-          obj.setCoords();
-          // La teinte sticker n'a plus de sens après détourage — on réinitialise
-          delete obj._origSrc;
-          obj.stickerTintColor = null;
-          canvas.renderAll();
-          resolve();
-        }, { crossOrigin: 'anonymous' });
-      });
+      await removeBackground({ canvas, obj, eventCode });
       handleObjectChange();
     } catch (err) {
       setRemoveBgError(err.message ?? 'Erreur inconnue');

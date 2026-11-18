@@ -159,19 +159,27 @@ test('licenseCommand : vers la carte de la borne', () => {
 });
 
 test('buildPageCommands : filtrées comme le menu', () => {
-  const all = buildPageCommands({ isAvailable: () => true, isAppAdmin: true, salesTabs: [{ id: 'devis', label: 'Devis' }] });
+  const all = buildPageCommands({
+    isAvailable: () => true, isAppAdmin: true, salesTabs: [{ id: 'devis', label: 'Devis' }],
+    eventViews: [{ id: 'calendrier', label: 'Calendrier', keywords: ['planning'] }],
+    bornesTabs: [{ id: 'materiel', label: 'Matériel', keywords: ['stock'] }],
+  });
   const ids = all.map((i) => i.id);
-  for (const id of ['action:new-event', 'page:ventes', 'page:ventes:devis', 'page:events:calendrier', 'page:bornes:alertes', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
+  for (const id of ['action:new-event', 'page:ventes', 'page:ventes:devis', 'page:events:calendrier', 'page:bornes:materiel', 'page:bornes:alertes', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
     assert.ok(ids.includes(id), id);
   }
+  assert.equal(all.find((i) => i.id === 'page:events:calendrier').href, '/admin/events?vue=calendrier');
+  assert.equal(all.find((i) => i.id === 'page:bornes:materiel').href, '/admin/bornes?tab=materiel');
+  // Onglets des modules juste après État, comme dans la page.
+  assert.equal(ids.indexOf('page:bornes:materiel'), ids.indexOf('page:bornes:etat') + 1);
 
   const open = buildPageCommands({ isAvailable: (id) => id === 'core', isAppAdmin: false, salesTabs: [], hiddenSettings: ['offres'] });
   const openIds = open.map((i) => i.id);
-  for (const id of ['page:ventes', 'page:events:calendrier', 'page:bornes:alertes', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
+  // Version ouverte (LAB-421) : ni Calendrier ni Matériel, fournis par le module privé « planning ».
+  for (const id of ['page:ventes', 'page:events:calendrier', 'page:bornes:materiel', 'page:bornes:alertes', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
     assert.ok(!openIds.includes(id), id);
   }
   assert.ok(openIds.includes('page:bornes:etat'));
-  assert.ok(openIds.includes('page:bornes:materiel'));
   assert.ok(openIds.includes('page:reglages:entreprise'));
 });
 

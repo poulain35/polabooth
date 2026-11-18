@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MoreHorizontal, Copy, ExternalLink, ClipboardCheck, Download, Images, Pencil, Check, CalendarClock, Send,
@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabase';
 import { DESIGN_KIND_LABELS, DESIGN_KINDS, mainFrame, pendingKindsByEvent } from '../../lib/clientDesigns';
 import { toast } from 'sonner';
 import { useFeatures } from '../../hooks/useFeatures';
+import { moduleSlot } from '../../features/modules';
 import { EVENT_STAGES, eventInStage, eventStatusKey, stageFromParams } from '../../lib/eventStages';
 import { CreateButton, PAGE_WIDTH_CLASS, PageContainer, PageHeader } from '../../components/admin/AdminPage';
 import { cn } from '../../lib/utils';
@@ -27,8 +28,12 @@ import { formatDateTime } from '../../lib/dates';
 import { copyText } from '../../lib/clipboard';
 import { Spinner } from '../../components/ui/spinner';
 
-// Vue Calendrier (?vue=calendrier) : contenu de l'ancien planning, gardé par la fonctionnalité planning.
-const AdminPlanning = lazy(() => import('./AdminPlanning'));
+// Vues ajoutées par les modules (?vue=<id>), à côté de la liste : la vue Calendrier du module privé
+// « planning » (LAB-421). Sans module, la page n'a que la liste et pas de sélecteur de vue.
+function useModuleViews() {
+  const { isAvailable } = useFeatures();
+  return moduleSlot('events.views').filter((view) => isAvailable(view.feature));
+}
 
 const STATUS_STYLES = {
   archived:  { label: 'Archivé',     tone: 'gray' },
@@ -75,34 +80,35 @@ function eventsCsv(rows) {
 
 export default function AdminEvents() {
   const [searchParams] = useSearchParams();
-  const { isAvailable } = useFeatures();
-  const calendar = searchParams.get('vue') === 'calendrier' && isAvailable('planning');
+  const views = useModuleViews();
+  const view = views.find((v) => v.id === searchParams.get('vue'));
 
-  if (!calendar) return <EventList />;
+  if (!view) return <EventList />;
 
+  const { Component } = view;
   return (
     <div className={`${PAGE_WIDTH_CLASS} flex h-full flex-col`}>
       <div className="shrink-0 px-4 pb-4 pt-5 sm:px-6 lg:px-8 lg:pt-7">
-        <EventsHeader calendar />
+        <EventsHeader view={view.id} />
       </div>
       <div className="min-h-0 flex-1">
         <Suspense fallback={<div className="flex justify-center py-24"><Spinner /></div>}>
-          <AdminPlanning />
+          <Component />
         </Suspense>
       </div>
     </div>
   );
 }
 
-function EventsHeader({ calendar = false, description, actions }) {
-  const { isAvailable } = useFeatures();
+function EventsHeader({ view = 'liste', description, actions }) {
+  const views = useModuleViews();
   return (
     <PageHeader
       title="Événements"
       description={description}
       actions={(
         <>
-          {isAvailable('planning') && <ViewSwitch calendar={calendar} />}
+          {views.length > 0 && <ViewSwitch current={view} views={views} />}
           {actions}
           <CreateButton to="/admin/events/new">Nouvel événement</CreateButton>
         </>
@@ -111,13 +117,16 @@ function EventsHeader({ calendar = false, description, actions }) {
   );
 }
 
-/** Sélecteur de vue Liste / Calendrier (?vue=). */
-function ViewSwitch({ calendar }) {
+/** Sélecteur de vue (?vue=) : Liste, puis les vues des modules (Calendrier). */
+function ViewSwitch({ current, views }) {
   const item = (active) => cn(segmentedItemClass, active ? segmentedItemActiveClass : segmentedItemIdleClass);
   return (
     <nav aria-label="Vue" className={segmentedTrackClass}>
-      <Link to="?vue=liste" aria-current={!calendar ? 'page' : undefined} className={item(!calendar)}>Liste</Link>
-      <Link to="?vue=calendrier" aria-current={calendar ? 'page' : undefined} className={item(calendar)}>Calendrier</Link>
+      {[{ id: 'liste', label: 'Liste' }, ...views].map(({ id, label }) => (
+        <Link key={id} to={`?vue=${id}`} aria-current={current === id ? 'page' : undefined} className={item(current === id)}>
+          {label}
+        </Link>
+      ))}
     </nav>
   );
 }

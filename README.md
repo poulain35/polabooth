@@ -34,14 +34,12 @@ Le socle est toujours présent. Les autres fonctionnalités s'activent ou se dé
 | Bilan d'événement | Un bilan chiffré de l'événement pour votre client : photos, impressions, partages. |
 | Email de livraison | Après l'événement, votre client reçoit un email avec le lien vers ses photos. |
 | Alertes de la borne | Un email quand une borne a un souci d'imprimante ou manque de papier. |
-| Planning et parc de bornes | Un calendrier pour savoir quelle borne part sur quel événement. |
-| Synchro Google Calendar | Vos événements et votre planning dans votre agenda Google. |
-| IA visuelle | Détourage d'une image ou fond généré, dans l'éditeur (avec votre propre clé). |
 | Aide et support | Une page d'aide pour vos clients, qui peuvent vous envoyer un message. |
-| Assistant | Un assistant répond aux questions de vos clients dans la page d'aide (avec votre propre clé). |
 
-La réservation en ligne, la facturation, le suivi de prospects et le livre d'or audio ne font pas
-partie de Polabooth.
+La réservation en ligne, la facturation, le suivi de prospects, le livre d'or audio, le planning (avec
+le stock de matériel), la synchro d'agenda, l'IA visuelle (détourage, fond généré) et l'assistant de la
+page d'aide ne font pas partie de Polabooth. Ce sont des modules sur demande, listés dans Réglages >
+Fonctionnalités avec un lien pour en parler.
 
 ---
 

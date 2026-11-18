@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useOrg } from './AdminLayout';
 import { useFeatures } from '../../hooks/useFeatures';
-import { supabase, getEmailLogs, duplicateEvent, fetchLicenses, getEventStats, syncEventToGoogleCalendar } from '../../lib/supabase';
+import { supabase, getEmailLogs, duplicateEvent, fetchLicenses, getEventStats } from '../../lib/supabase';
 import { ArrowRight, CalendarDays, Check, ChevronRight, Copy, FileText, Loader2, MapPin, Monitor, Pencil } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardTitle } from '../../components/ui/card';
@@ -21,7 +21,7 @@ import { mediaPurgeInfo } from '../../lib/mediaExpiry';
 import { BRAND } from '../../lib/instanceBrand';
 import { mainFrame } from '../../lib/clientDesigns';
 import { eventStage, eventSteps, nextEventAction, STAGE_BADGES } from '../../lib/eventStages';
-import { moduleHook, moduleSlot } from '../../features/modules';
+import { fireModuleHook, moduleHook, moduleSlot } from '../../features/modules';
 import { pickTab } from '../../features/adminRoutes';
 import { timeAgo } from './event/eventTabUtils';
 import { useKioskConfig } from './event/useKioskConfig';
@@ -178,7 +178,7 @@ export default function AdminEventDetail() {
       if (error) throw error;
       setEvent(e => ({ ...e, name }));
       setEditingName(false);
-      if (isAvailable('google_calendar')) syncEventToGoogleCalendar(id);
+      fireModuleHook('event.calendarSync', isAvailable, id);
     } catch (err) {
       setNameErr(err.message);
     } finally {

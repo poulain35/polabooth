@@ -118,9 +118,9 @@ test('erreur HTTP au corps non JSON (passerelle) : texte de repli, et message cl
 
 test('réponse 200 au corps non JSON ou vide : {} au lieu d’une erreur de lecture', async () => {
   const c = caller({ reply: () => response(200, 'pas du json') });
-  assert.deepEqual(await c.callFunction('gcal-sync', { admin: true, json: {}, fallback: 'Erreur' }), {});
+  assert.deepEqual(await c.callFunction('send-test-email', { admin: true, json: {}, fallback: 'Erreur' }), {});
   const empty = caller({ reply: () => response(204, null) });
-  assert.deepEqual(await empty.callFunction('gcal-sync', { admin: true, json: {}, fallback: 'Erreur' }), {});
+  assert.deepEqual(await empty.callFunction('send-test-email', { admin: true, json: {}, fallback: 'Erreur' }), {});
 });
 
 test('errorFields : champs de la réponse ajoutés à l’erreur', async () => {
@@ -153,7 +153,7 @@ test('fetchFunction rend la réponse brute (fichier de police) sans lire le corp
 test('lib/api : plus de fetch aux edge functions hors de l’assistant, sauf get-photos', () => {
   const dir = new URL('./api/', import.meta.url);
   const files = ['designs', 'emails', 'eventReports', 'kioskConfig', 'kiosks', 'kioskScreens', 'library',
-    'photos', 'planning', 'settings', 'support'];
+    'photos', 'settings', 'support'];
   for (const name of files) {
     const src = readFileSync(new URL(`${name}.js`, dir), 'utf8');
     assert.doesNotMatch(src, /fetch\(`\$\{FUNCTIONS_URL\}/, `${name}.js appelle encore une fonction par fetch`);

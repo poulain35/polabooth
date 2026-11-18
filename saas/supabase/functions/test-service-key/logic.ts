@@ -3,7 +3,7 @@
 // Ne renvoie jamais la clé ni le corps d'une erreur du fournisseur, seulement le statut HTTP.
 // Le test des clés d'un module privé est déclaré par le module (keyTests de son catalogue, LAB-403).
 
-import { GOOGLE_KEY_NAMES, SERVICE_KEY_NAMES, getServiceKey, type KeyTest } from '../_shared/service-keys.ts';
+import { SERVICE_KEY_NAMES, getServiceKey, type KeyTest } from '../_shared/service-keys.ts';
 import { PRIVATE_MODULES } from '../_shared/private-modules.ts';
 import type { EnvGet, ResolvedSecret, SecretSource } from '../_shared/secrets.ts';
 import { resolveEmailProvider, type EmailProvider } from '../_shared/email-provider.ts';
@@ -19,9 +19,6 @@ export const TEST_TIMEOUT_MS = 10_000;
 
 export const ENDPOINTS = {
   brevo: 'https://api.brevo.com/v3/account',
-  anthropic: 'https://api.anthropic.com/v1/models',
-  replicate: 'https://api.replicate.com/v1/account',
-  googleToken: 'https://oauth2.googleapis.com/token',
 };
 
 const SOURCE_LABEL: Record<SecretSource, string> = {
@@ -56,36 +53,8 @@ const KEY_TESTS: Record<string, KeyTest> = {
   BREVO_API_KEY: {
     request: (value) => ({ url: ENDPOINTS.brevo, init: { headers: { 'api-key': value, Accept: 'application/json' } } }),
   },
-  ANTHROPIC_API_KEY: {
-    request: (value) => ({
-      url: ENDPOINTS.anthropic,
-      init: { headers: { 'x-api-key': value, 'anthropic-version': '2023-06-01' } },
-    }),
-  },
-  REPLICATE_API_TOKEN: {
-    request: (value) => ({ url: ENDPOINTS.replicate, init: { headers: { Authorization: `Bearer ${value}` } } }),
-  },
   ...Object.assign({}, ...PRIVATE_MODULES.map((m) => m.keyTests ?? {})),
 };
-
-function requestFor(name: string, values: Record<string, string>): { url: string; init: RequestInit } {
-  const single = KEY_TESTS[name];
-  if (single) return single.request(values[name]);
-  // Trio Google : échange du jeton d'actualisation contre un jeton d'accès (aucune écriture).
-  return {
-    url: ENDPOINTS.googleToken,
-    init: {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: values.GOOGLE_CLIENT_ID,
-        client_secret: values.GOOGLE_CLIENT_SECRET,
-        refresh_token: values.GOOGLE_REFRESH_TOKEN,
-        grant_type: 'refresh_token',
-      }).toString(),
-    },
-  };
-}
 
 /** `null` si `name` n'est pas une clé testable du catalogue. */
 export async function testServiceKey(
@@ -95,29 +64,31 @@ export async function testServiceKey(
   env: EnvGet,
 ): Promise<KeyTestResult | null> {
   const key = getServiceKey(name);
-  if (!key?.testable) return null;
+  const test = KEY_TESTS[name];
+  if (!key?.testable || !test) return null;
 
-  const names = GOOGLE_KEY_NAMES.includes(name) ? GOOGLE_KEY_NAMES : [name];
+  const group = test.group;
+  const names = group?.names ?? [name];
   const resolved = await Promise.all(names.map((n) => readSecret(n)));
   const source = resolved[names.indexOf(name)].source;
 
   const missing = names.filter((_, i) => !resolved[i].value);
   if (missing.length) {
-    const message = names.length > 1
-      ? `Clé manquante : ${missing.map((n) => getServiceKey(n)?.label ?? n).join(', ')}. Les trois clés Google sont nécessaires.`
+    const message = group
+      ? `Clé manquante : ${missing.map((n) => getServiceKey(n)?.label ?? n).join(', ')}. ${group.missing}`
       : 'Aucune clé : ni saisie ici, ni variable d\'environnement sur le serveur.';
     return { ok: false, source, message };
   }
 
-  const skipped = KEY_TESTS[name]?.skip?.(env) ?? null;
+  const skipped = test.skip?.(env) ?? null;
   if (skipped) return { ok: false, source, message: skipped };
 
   const values = Object.fromEntries(names.map((n, i) => [n, resolved[i].value as string]));
-  const { url, init } = requestFor(name, values);
+  const { url, init } = test.request(values[name], values);
   const result = await call(fetchImpl, url, init);
   if ('failed' in result) return { ok: false, source, message: 'Service injoignable. Réessayez plus tard.' };
   if (result.status >= 200 && result.status < 300) {
-    return { ok: true, source, message: names.length > 1 ? 'Clés Google valides.' : 'Clé valide.' };
+    return { ok: true, source, message: group?.ok ?? 'Clé valide.' };
   }
   return { ok: false, source, message: statusMessage(result.status) };
 }

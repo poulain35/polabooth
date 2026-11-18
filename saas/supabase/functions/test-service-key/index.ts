@@ -2,7 +2,7 @@
  * POST /functions/v1/test-service-key  (open core L6a, Paramètres > Clés)
  * Réservé aux administrateurs de l'application (app_admins, comme les RPC set_service_key…).
  *
- * Body:    { name: 'BREVO_API_KEY' | 'GOOGLE_CLIENT_ID' | … }
+ * Body:    { name: 'BREVO_API_KEY' | … } (une clé testable du catalogue)
  * Réponse: { ok, source: 'vault' | 'env' | 'none', message }
  *
  * Lit la clé comme les autres fonctions (getSecret : Vault, sinon variable d'environnement) et

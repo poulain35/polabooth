@@ -128,10 +128,14 @@ function PaletteBody({ createActions, onClose, onCreate }) {
         : tab === 'livraison' ? deliveryFeatures.some((f) => isAvailable(f))
           : true));
     const gallery = galleryCardFlags(isAvailable);
+    const fromModules = (name) => moduleSlot(name).filter((item) => isAvailable(item.feature))
+      .map(({ id, label, keywords }) => ({ id, label, keywords }));
     return buildPageCommands({
       isAvailable,
       isAppAdmin,
       salesTabs: salesTabs.map((tab) => ({ id: tab.id, label: tab.label })),
+      eventViews: fromModules('events.views'),
+      bornesTabs: fromModules('bornes.tabs'),
       createActions,
       hiddenSettings: [
         ...(hasOfferSettings(isAvailable) ? [] : ['offres']),

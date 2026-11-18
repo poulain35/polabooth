@@ -1,4 +1,4 @@
-// Assistance client (page /aide).
+// Assistance client (page /aide). Le chat de l'assistant est dans le module privé « assistant » (LAB-422).
 import { supabase } from './client.js';
 import { callFunction } from './functions.js';
 
@@ -22,12 +22,6 @@ export async function getSupportContent(code) {
   ]);
   if (error) throw error;
   return { articles: articles ?? [], contact: contact ?? null };
-}
-
-/** Chat IA de dépannage (closed-book). messages = [{ role, content }]. */
-export function assistantChat({ code, messages }) {
-  // { reply, escalate: { needed, urgency } }
-  return callFunction('assistant-chat', { json: { code, messages }, fallback: 'Erreur assistant' });
 }
 
 /** Escalade : enregistre un message pour le loueur et le notifie. */

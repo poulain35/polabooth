@@ -4,6 +4,17 @@ import { sumCopies } from '../printCopies.js';
 import { generateAccessCode, isUniqueViolation } from '../accessCode.js';
 import { supabase } from './client.js';
 
+// ── Borne assignée (fiche › Jour J) ──────────────────────────────────────────
+
+/** Borne qui part sur l'événement (events.photobooth_id), null pour la retirer. */
+export async function updateEventPhotobooth(eventId, photoboothId) {
+  const { error } = await supabase
+    .from('events')
+    .update({ photobooth_id: photoboothId ?? null })
+    .eq('id', eventId);
+  if (error) throw error;
+}
+
 // ── Recherche (header admin) ─────────────────────────────────────────────────
 
 /** Recherche d'événements pour l'autocomplétion du header admin (nom / client / code).

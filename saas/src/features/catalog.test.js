@@ -12,7 +12,10 @@ const SPEC_IDS = [
   'kiosk_alerts', 'planning', 'google_calendar', 'ai_visuals', 'help', 'assistant', 'booking',
   'prospects', 'invoicing', 'audio_guestbook',
 ];
-const PRIVATE_IDS = ['booking', 'prospects', 'invoicing', 'audio_guestbook'];
+const PRIVATE_IDS = ['planning', 'google_calendar', 'ai_visuals', 'assistant', 'booking', 'prospects', 'invoicing', 'audio_guestbook'];
+// Privées mais actives par défaut (version allégée, LAB-421 et LAB-422) : rien ne change pour les
+// entreprises existantes.
+const PRIVATE_DEFAULT_ON = ['planning', 'google_calendar', 'ai_visuals', 'assistant'];
 const ALL_TRUE = Object.fromEntries(SPEC_IDS.map((id) => [id, true]));
 
 test('catalogue : les 17 fonctionnalités de la spec, champs complets', () => {
@@ -22,7 +25,7 @@ test('catalogue : les 17 fonctionnalités de la spec, champs complets', () => {
     assert.ok(Array.isArray(f.dependsOn) && Array.isArray(f.requiredKeys), f.id);
     assert.equal(f.visibility, PRIVATE_IDS.includes(f.id) ? 'private' : 'open', f.id);
     assert.equal(f.core, f.id === 'core' || f.id === 'templates', f.id);
-    assert.equal(f.defaultEnabled, f.visibility === 'open', f.id);
+    assert.equal(f.defaultEnabled, f.visibility === 'open' || PRIVATE_DEFAULT_ON.includes(f.id), f.id);
     for (const dep of f.dependsOn) assert.ok(getFeature(dep), `${f.id} → ${dep}`);
   }
   assert.deepEqual(

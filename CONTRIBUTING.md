@@ -9,6 +9,7 @@ ensuite.
 
 ## 1. Avant de commencer
 
+- **Le cadre des échanges** : voir le [code de conduite](CODE_OF_CONDUCT.md).
 - **Une faille de sécurité ?** Ne passez pas par une issue publique : voir [SECURITY.md](SECURITY.md).
 - **Une question ?** Posez-la dans l'onglet **Discussions** du dépôt, pas dans une issue.
 - **Un bug ?** Ouvrez une issue : ce que vous avez fait, ce qui s'est passé, ce que vous attendiez,
@@ -132,6 +133,7 @@ apparaît dans le commit de synchronisation suivant.
 ## English summary
 
 - Report security issues privately: see [SECURITY.md](SECURITY.md).
+- Follow the [code of conduct](CODE_OF_CONDUCT.md).
 - Ask questions in the Discussions tab; report bugs in Issues.
 - Open an issue before any large change.
 - User-facing text and documentation are in French; code identifiers are in English.

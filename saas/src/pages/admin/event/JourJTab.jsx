@@ -3,6 +3,8 @@
 // À partir de 1024 px : la borne et les compteurs dans une colonne à droite.
 import { useEffect, useState } from 'react';
 import { exportPolaFile, getEventPrintLogs, updateEventPhotobooth } from '../../../lib/supabase';
+import { useFeatures } from '../../../hooks/useFeatures';
+import { fireModuleHook } from '../../../features/modules';
 import EventKioskLogsSection from '../../../components/admin/EventKioskLogsSection';
 import { EventKioskPushCard } from '../../../components/admin/KioskEventPush';
 import { kioskChoices } from '../../../lib/kioskEventPush';
@@ -103,6 +105,7 @@ function PrintHistorySection({ eventId }) {
 // ── Onglet Jour J ─────────────────────────────────────────────────────────────
 
 export default function JourJTab({ event, setEvent, design, kioskCfg, stats, photobooths, refreshPhotobooths, handleLicenseUpdate }) {
+  const { isAvailable } = useFeatures();
   const [selectedPb, setSelectedPb] = useState(event.photobooth_id ?? '');
   const [savingPb,   setSavingPb]   = useState(false);
   const [exporting,   setExporting]   = useState(false);
@@ -114,6 +117,7 @@ export default function JourJTab({ event, setEvent, design, kioskCfg, stats, pho
     try {
       await updateEventPhotobooth(event.id, pbId || null);
       setEvent(e => ({ ...e, photobooth_id: pbId || null }));
+      fireModuleHook('event.calendarSync', isAvailable, event.id);
       toast.success('Borne enregistrée');
     } catch (e) {
       toast.error(e.message);
@@ -166,7 +170,7 @@ export default function JourJTab({ event, setEvent, design, kioskCfg, stats, pho
             icon={<Monitor />}
             tone="peach"
             title="Borne assignée"
-            description="Code couleur dans le planning"
+            description="Code couleur de la borne"
           />
           <div className="flex items-center gap-2">
             {currentPb && <span className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: currentPb.color }} />}

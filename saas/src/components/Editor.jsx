@@ -1,9 +1,8 @@
-import { useRef, useEffect, useLayoutEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { Suspense, useRef, useEffect, useLayoutEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import Toolbar from './Toolbar';
 import PropertiesPanel from './PropertiesPanel';
 import TemplatesSidebar from './TemplatesSidebar';
 import StickerPanel from './StickerPanel';
-import AIBackgroundPanel from './AIBackgroundPanel';
 import BatchImportModal from './BatchImportModal';
 import { FORMATS, isHomeFormat, isKioskFormat } from '../utils/formats';
 import { isTransparentBackground, ALLOWED } from '../lib/kioskScreenLayout';
@@ -11,6 +10,7 @@ import { BLANK_TEMPLATE } from '../templates/index';
 import { exportAsHighResPNG } from '../utils/export';
 import { fetchDecorations, fetchDbTemplateById } from '../lib/supabase';
 import { submitButtonLabels } from '../lib/editorMobile';
+import { moduleHook, moduleSlot } from '../features/modules';
 // Découpage de l'éditeur (LAB-404) : réglages du canvas, hooks et morceaux de l'écran dans ./editor/.
 import {
   ADMIN_CANVAS_ACCENT, CLIENT_CANVAS_ACCENT, ADMIN_DEFAULT_GRADIENT, CLIENT_DEFAULT_GRADIENT, DEFAULT_BG_COLOR,
@@ -34,6 +34,10 @@ import CanvasStage from './editor/CanvasStage';
 import { EditorStatusBar, MobileZoomBar } from './editor/EditorStatusBar';
 import MobilePropertiesSheet from './editor/MobilePropertiesSheet';
 
+// IA visuelle (fond généré, détourage) : module privé « ai_visuals » (LAB-422). Sans lui, aucun bouton.
+const AIBackgroundPanel = moduleSlot('editor.aiBackground')[0]?.Component ?? null;
+const REMOVE_BACKGROUND = moduleHook('editor.removeBackground');
+
 // ─── Editor ───────────────────────────────────────────────────────────────────
 
 const Editor = forwardRef(function Editor({
@@ -48,7 +52,7 @@ const Editor = forwardRef(function Editor({
   onHistoryOpen    = null,  // client: () => void — ouvre le panneau historique
   onEditAnswers    = null,  // client: () => void — retour au formulaire de l'événement (menu ⋯)
   formatBleedOverrides = {}, // { [formatId]: bleedMm } — surcharge admin par format
-  aiVisuals        = true,  // fonctionnalité ai_visuals : détourage et fond généré
+  aiVisuals        = true,  // fonctionnalité ai_visuals : détourage et fond généré (si le module est installé)
   onReady          = null,  // () => void — contenu chargé et polices prêtes (LAB-298 : publication)
   onSubmitRequest  = null,  // client, plusieurs cadres (LAB-313) : le bouton d'envoi appelle la page
   submitLabel      = null,  // libellé du bouton d'envoi quand onSubmitRequest est donné
@@ -244,7 +248,7 @@ const Editor = forwardRef(function Editor({
     addSticker, applyStickerColor, handleRemoveBackground,
   } = useImageActions({
     eventCode, currentFormat, isRemovingBg, setIsRemovingBg, setRemoveBgError, fabricRef, addObjectToCanvas,
-    handleObjectChange,
+    handleObjectChange, removeBackground: REMOVE_BACKGROUND?.run ?? null,
   });
   const {
     handleSaveAllFormats, handleClientSave, handleSaveTemplateClick, handleSubmit, handleExport,
@@ -313,7 +317,7 @@ const Editor = forwardRef(function Editor({
     onCenterV: centerV,
     onToggleLock: toggleLock,
     onStickerColorChange: applyStickerColor,
-    onRemoveBackground: aiVisuals ? handleRemoveBackground : null,
+    onRemoveBackground: aiVisuals && REMOVE_BACKGROUND ? handleRemoveBackground : null,
     isRemovingBackground: isRemovingBg,
     removeBackgroundError: removeBgError,
   };
@@ -346,7 +350,7 @@ const Editor = forwardRef(function Editor({
           onToggleTemplates={() => setActivePanel(activePanel === 'templates' ? null : 'templates')}
           onToggleStickers={() => setActivePanel(activePanel === 'stickers' ? null : 'stickers')}
           onToggleAIBackground={() => setActivePanel(activePanel === 'ai-background' ? null : 'ai-background')}
-          showAIBackground={!isClientMode && aiVisuals && !kioskMode}
+          showAIBackground={!isClientMode && aiVisuals && !kioskMode && !!AIBackgroundPanel}
           onAddPhotoZone={addPhotoZone}
           showPhotoZone={!homeMode && !kioskMode}
           showTemplates={!kioskMode}
@@ -394,13 +398,15 @@ const Editor = forwardRef(function Editor({
           />
         )}
 
-        {activePanel === 'ai-background' && !isClientMode && aiVisuals && (
-          <AIBackgroundPanel
-            formatId={currentFormat.id}
-            onApply={applyAIBackground}
-            onSaveAllFormats={onSaveTemplate ? handleSaveAllFormats : null}
-            onClose={() => setActivePanel(null)}
-          />
+        {activePanel === 'ai-background' && !isClientMode && aiVisuals && AIBackgroundPanel && (
+          <Suspense fallback={null}>
+            <AIBackgroundPanel
+              formatId={currentFormat.id}
+              onApply={applyAIBackground}
+              onSaveAllFormats={onSaveTemplate ? handleSaveAllFormats : null}
+              onClose={() => setActivePanel(null)}
+            />
+          </Suspense>
         )}
 
         <CanvasStage

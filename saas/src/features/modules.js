@@ -33,3 +33,13 @@ export function moduleHook(name) {
   }
   return null;
 }
+
+/**
+ * Lance sans l'attendre le crochet `name` d'un module si sa fonctionnalité est disponible (ex.
+ * 'event.calendarSync' après l'enregistrement d'un événement). Sans effet sans module ; ne lève jamais.
+ */
+export function fireModuleHook(name, isAvailable, ...args) {
+  const hook = moduleHook(name);
+  if (!hook || !isAvailable(hook.feature)) return;
+  Promise.resolve().then(() => hook.run(...args)).catch(() => {});
+}

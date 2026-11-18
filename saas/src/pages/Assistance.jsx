@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ChevronDown, LifeBuoy, Mail, MessageSquare, Phone } from 'lucide-react';
-import { getSupportContent, assistantChat, submitSupportMessage, getPublicFeatures } from '../lib/supabase';
+import { ChevronDown, LifeBuoy } from 'lucide-react';
+import { getSupportContent, getPublicFeatures } from '../lib/supabase';
 import { FEATURE_UNAVAILABLE_MESSAGE, hasPublicFeature, isFeatureDisabledError } from '../features/featureGate';
 import { BRAND } from '../lib/instanceBrand';
 import { cn } from '../lib/utils';
 import { safeHttpUrl } from '../lib/urls';
 import { Spinner } from '../components/ui/spinner';
 import { usePfFonts } from '../components/public/clientEditorStyles';
+import { Escalation, Linkified } from '../components/public/SupportContact';
+import { moduleSlot } from '../features/modules';
 
 // Page d'aide ouverte sans session (/aide, /aide/:code), lue par le client pendant l'événement : style du
 // site (palette noyer & sauge, classes pola-pf-* de index.css), hors du thème de l'admin.
@@ -18,22 +20,14 @@ const VIEWS = [
 ];
 const TEXT_BUTTON = 'pola-pf-link text-[15px]';
 
+// Chat de l'assistant : module privé « assistant » (LAB-422). Sans lui, l'onglet propose le contact du loueur.
+const AssistantChat = moduleSlot('help.chat')[0]?.Component ?? null;
+
 // Regroupe les cas publiés par catégorie pour la FAQ.
 function groupByCategory(articles) {
   const map = {};
   for (const a of articles) (map[a.category] ??= []).push(a);
   return map;
-}
-
-// Rend un texte en transformant les URLs en liens cliquables. `linkClassName` : couleur du lien
-// (vide dans une bulle noyer, où le lien garde la couleur du texte).
-function Linkified({ text, linkClassName = 'text-pf-noyer' }) {
-  const parts = String(text).split(/(https?:\/\/[^\s]+)/g);
-  return parts.map((part, i) =>
-    /^https?:\/\//.test(part)
-      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={cn('break-all underline underline-offset-2', linkClassName)}>{part}</a>
-      : part
-  );
 }
 
 export default function Assistance() {
@@ -55,7 +49,7 @@ export default function Assistance() {
     Promise.all([getSupportContent(code), getPublicFeatures(code)])
       .then(([{ articles, contact }, features]) => {
         if (!hasPublicFeature(features, 'help')) { setUnavailable(true); return; }
-        setAssistant(hasPublicFeature(features, 'assistant'));
+        setAssistant(hasPublicFeature(features, 'assistant') && !!AssistantChat);
         setArticles(articles); setContact(contact);
       })
       .catch((e) => { if (isFeatureDisabledError(e)) setUnavailable(true); else setError(e.message); })
@@ -117,7 +111,11 @@ export default function Assistance() {
         {view === 'faq'
           ? <Faq grouped={grouped} openId={openId} setOpenId={setOpenId} onAsk={() => setView('chat')} assistant={assistant} />
           : assistant
-            ? <Chat code={code} contact={contact} />
+            ? (
+              <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="h-8 w-8 border-pf-noyer" /></div>}>
+                <AssistantChat code={code} contact={contact} />
+              </Suspense>
+            )
             : <ContactOnly code={code} contact={contact} />}
       </div>
     </div>
@@ -186,180 +184,11 @@ function Faq({ grouped, openId, setOpenId, onAsk, assistant }) {
   );
 }
 
-// ── Chat IA + escalade ─────────────────────────────────────────────────────────
-function Chat({ code, contact }) {
-  const [messages, setMessages] = useState([]); // { role, content }
-  const [input, setInput]       = useState('');
-  const [sending, setSending]   = useState('');
-  const [escalate, setEscalate] = useState({ needed: false, urgency: 'none' });
-  const bottomRef = useRef(null);
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, sending]);
-
-  async function send() {
-    const text = input.trim();
-    if (!text || sending) return;
-    const next = [...messages, { role: 'user', content: text }];
-    setMessages(next);
-    setInput('');
-    setSending('…');
-    try {
-      const { reply, escalate } = await assistantChat({ code, messages: next });
-      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
-      setEscalate(escalate);
-    } catch (e) {
-      const content = isFeatureDisabledError(e)
-        ? "L'assistant n'est pas disponible. Vous pouvez contacter directement le loueur ci-dessous."
-        : e.rateLimited
-        ? `Vous avez envoyé beaucoup de messages en peu de temps. ${e.message} En cas d'urgence, contactez directement le loueur ci-dessous.`
-        : `Désolé, une erreur est survenue (${e.message}). Vous pouvez contacter directement le loueur ci-dessous.`;
-      setMessages((m) => [...m, { role: 'assistant', content }]);
-      setEscalate({ needed: true, urgency: 'normal' });
-    } finally {
-      setSending('');
-    }
-  }
-
-  const phone = contact?.contact_phone;
-
-  return (
-    <div className="pola-pf-card flex min-h-[60vh] flex-col overflow-hidden">
-      {/* Fil de discussion */}
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <p className="py-8 text-center text-[15px] text-pf-muted">
-            Décrivez votre problème (ex. « l'imprimante n'imprime plus », « la photo est toute noire »).
-          </p>
-        )}
-        {messages.map((m, i) => {
-          const mine = m.role === 'user';
-          return (
-            <div key={i} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
-              <div className={cn(
-                'max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed',
-                mine ? 'bg-pf-noyer text-white' : 'bg-pf-surface text-pf-text',
-              )}>
-                <Linkified text={m.content} linkClassName={mine ? '' : undefined} />
-              </div>
-            </div>
-          );
-        })}
-        {sending && (
-          <div className="flex justify-start">
-            <div role="status" className="rounded-2xl bg-pf-surface px-4 py-2.5 text-[15px] text-pf-muted">L'assistant réfléchit…</div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Escalade vers le loueur */}
-      {escalate.needed && (
-        <Escalation code={code} contact={contact} phone={phone} urgency={escalate.urgency} transcript={messages} />
-      )}
-
-      {/* Saisie */}
-      <div className="flex items-end gap-2 border-t border-pf-line p-3">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          rows={1}
-          placeholder="Votre message…"
-          aria-label="Votre message"
-          className="pola-pf-input min-w-0 flex-1 resize-none"
-        />
-        <button type="button" onClick={send} disabled={!input.trim() || !!sending} className="pola-pf-btn-primary px-5">
-          Envoyer
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Sans assistant (fonctionnalité assistant désactivée) : contact direct du loueur ──
+// ── Sans assistant (fonctionnalité désactivée ou module absent) : contact direct du loueur ──
 function ContactOnly({ code, contact }) {
   return (
     <div className="pola-pf-card pt-3">
       <Escalation code={code} contact={contact} phone={contact?.contact_phone} urgency="normal" transcript={[]} />
-    </div>
-  );
-}
-
-// ── Boutons d'escalade + formulaire « laisser un message » ──────────────────────
-function Escalation({ code, contact, phone, urgency, transcript }) {
-  const [showForm, setShowForm]   = useState(false);
-  const [name, setName]           = useState('');
-  const [msgPhone, setMsgPhone]   = useState('');
-  const [text, setText]           = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent]           = useState(false);
-  const [err, setErr]             = useState('');
-
-  const blocking = urgency === 'blocking';
-
-  async function submit() {
-    if (!text.trim() || submitting) return;
-    setSubmitting(true); setErr('');
-    try {
-      await submitSupportMessage({
-        code, name, phone: msgPhone, message: text,
-        urgency: blocking ? 'blocking' : 'normal', transcript,
-      });
-      setSent(true);
-    } catch (e) {
-      setErr(isFeatureDisabledError(e) ? "L'envoi de message n'est pas disponible." : e.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (sent) {
-    return (
-      <p role="status" className="mx-3 mb-3 flex items-start gap-2 rounded-2xl bg-pf-sage-soft p-3 text-[15px] text-pf-sage">
-        <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <span className="min-w-0 break-words">Message envoyé. {contact?.contact_company || 'Le loueur'} vous recontactera dès que possible.</span>
-      </p>
-    );
-  }
-
-  return (
-    <div className={cn('mx-3 mb-3 rounded-2xl p-3', blocking ? 'bg-pola-error-soft' : 'bg-pf-surface')}>
-      <p className={cn('mb-2 text-[15px] font-medium', blocking ? 'text-pola-error' : 'text-pf-text')}>
-        {blocking
-          ? 'Problème bloquant — contactez le loueur directement :'
-          : 'Besoin de contacter le loueur ?'}
-      </p>
-
-      {/* flex-wrap : sur un petit téléphone, le troisième bouton passe à la ligne au lieu de déborder. */}
-      <div className="flex flex-wrap gap-2">
-        {phone && (
-          <a href={`tel:${phone}`} className={cn(blocking ? 'pola-btn-destructive' : 'pola-pf-btn-primary', 'flex-1 px-4 py-3 text-base')}>
-            <Phone aria-hidden="true" className="size-4" />Appeler
-          </a>
-        )}
-        {phone && (
-          <a href={`sms:${phone}`} className="pola-pf-btn-secondary flex-1 bg-white px-4">
-            <MessageSquare aria-hidden="true" className="size-4" />SMS
-          </a>
-        )}
-        <button type="button" className="pola-pf-btn-secondary flex-1 bg-white px-4" aria-expanded={showForm} onClick={() => setShowForm((s) => !s)}>
-          <Mail aria-hidden="true" className="size-4" />Message
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="mt-3 flex flex-col gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Votre prénom" aria-label="Votre prénom" className="pola-pf-input" />
-          <input value={msgPhone} onChange={(e) => setMsgPhone(e.target.value)} type="tel"
-            placeholder="Votre numéro (pour être rappelé)" aria-label="Votre numéro (pour être rappelé)" className="pola-pf-input" />
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3}
-            placeholder="Décrivez votre problème…" aria-label="Décrivez votre problème" className="pola-pf-input resize-none" />
-          {err && <p role="alert" className="pola-pf-error break-words">{err}</p>}
-          <button type="button" onClick={submit} disabled={!text.trim() || submitting} className="pola-pf-btn-primary w-full">
-            {submitting ? 'Envoi…' : 'Envoyer le message'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

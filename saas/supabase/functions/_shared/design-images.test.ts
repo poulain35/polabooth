@@ -124,9 +124,3 @@ test('upload-design-image : aperçu (?kind=preview) réservé à l’administrat
   // Refus avant toute lecture de la base ou du corps.
   assert.ok(src.indexOf("kind === 'preview' && accessCode") < src.indexOf('publicGuard('));
 });
-
-test('remove-background : résultat rangé dans le stockage, data URI en repli', () => {
-  const src = source('remove-background');
-  assert.match(src, /storeDesignImage\(db, scope, bytes\)/);
-  assert.match(src, /data:image\/png;base64,/);
-});

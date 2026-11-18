@@ -1,11 +1,13 @@
 // LAB-213 : URL d'envoi R2 des montages PolaKiosk. Autorisation identique à kiosk_record_photo,
 // chemin stable par séance, et migration qui fait de storage_path un argument obligatoire.
 // LAB-229 : animations MP4 (60 Mo), affiche (kind "poster"), images limitées à 25 Mo.
+// LAB-423 : la licence est cherchée par l'empreinte SHA-256 du secret (secret_hash), jamais par le clair.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
-  kioskStoragePath, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, maxUploadBytes, montageContentType, resolveKioskUpload,
+  kioskSecretHash, kioskStoragePath, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, maxUploadBytes, montageContentType, resolveKioskUpload,
 } from './kioskUpload.ts';
 import { PRIVATE_HISTORY, readPrivateHistory } from '../../../scripts/private-history.mjs';
 
@@ -16,13 +18,14 @@ const FILE = 'composite_20261025_213000.jpg';
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row[]>;
+const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 
 function baseTables(): Tables {
   return {
     kiosk_licenses: [
-      { id: 'l1', machine_id: 'PC-1', secret: 's3cr3t', is_active: true },
-      { id: 'l2', machine_id: 'PC-OFF', secret: 'off', is_active: false },
-      { id: 'l3', machine_id: 'PC-EMPTY', secret: '', is_active: true },
+      { id: 'l1', machine_id: 'PC-1', secret_hash: sha256('s3cr3t'), is_active: true },
+      { id: 'l2', machine_id: 'PC-OFF', secret_hash: sha256('off'), is_active: false },
+      { id: 'l3', machine_id: 'PC-EMPTY', secret_hash: null, is_active: true },
     ],
     events: [
       { id: EVENT, name: 'Mariage Léa & Tom', access_code: 'ABC123', status: 'active' },
@@ -81,6 +84,26 @@ test('refus : code d’accès invalide, d’un autre événement ou événement 
     const res = await resolveKioskUpload(fakeDb(baseTables()), { ...valid(), ...patch });
     assert.deepEqual(res, { ok: false, status: 404, error: 'Événement introuvable ou clôturé' }, JSON.stringify(patch));
   }
+});
+
+test('empreinte du secret : SHA-256 hexadécimal des octets UTF-8, comme public.kiosk_secret_hash', async () => {
+  assert.equal(await kioskSecretHash('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  assert.equal(await kioskSecretHash('ks_é'), sha256('ks_é'));
+  assert.match(await kioskSecretHash('s3cr3t'), /^[0-9a-f]{64}$/);
+});
+
+test('licence cherchée par secret_hash, jamais par le secret en clair', async () => {
+  const cols: string[] = [];
+  const db = fakeDb(baseTables());
+  const spy = { from(t: string) { const q = db.from(t); const eq = q.eq; q.eq = (c: string, v: unknown) => { if (t === 'kiosk_licenses') cols.push(c); return eq(c, v); }; return q; } };
+  const res = await resolveKioskUpload(spy, valid());
+  assert.equal(res.ok, true);
+  assert.ok(cols.includes('secret_hash'));
+  assert.ok(!cols.includes('secret'));
+  // Une ligne qui porterait encore le clair ne suffit pas.
+  const clear = baseTables();
+  clear.kiosk_licenses = [{ id: 'l9', machine_id: 'PC-1', secret: 's3cr3t', is_active: true }];
+  assert.equal((await resolveKioskUpload(fakeDb(clear), valid())).status, 403);
 });
 
 test('refus : machine inconnue, secret faux ou vide, licence inactive → 403', async () => {

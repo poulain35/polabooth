@@ -62,7 +62,14 @@ test('borne et .pola inchangés : aucune RPC de la borne ni get_public_event tou
   assert.doesNotMatch(bundle, /equipment/);
 });
 
-test('features.json : tables du socle', () => {
+// Module privé « planning » (LAB-421, décision A5) : tables de la fonctionnalité, migration publiée.
+// Dans le dépôt public, le manifeste n'a plus d'entrée planning.
+test('features.json : tables du planning, migration publiée', () => {
   const manifest = JSON.parse(readFileSync(join(SAAS, 'supabase', 'features.json'), 'utf8'));
-  for (const t of TABLES) assert.ok(manifest.features.core.tables.includes(t), t);
+  const planning = manifest.features.planning;
+  for (const t of TABLES) assert.ok(!manifest.features.core.tables.includes(t), t);
+  if (!planning) return;
+  for (const t of TABLES) assert.ok(planning.tables.includes(t), t);
+  assert.ok(planning.published_migrations.includes(MIGRATION));
+  assert.ok(!planning.migrations.includes(MIGRATION));
 });

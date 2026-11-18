@@ -1,0 +1,42 @@
+name: Proposer une fonctionnalité
+description: Une amélioration précise, à discuter avant toute pull request.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Une idée encore floue ? Lancez plutôt une Discussion. Une issue sert à décrire un besoin précis avant d'écrire le code (voir CONTRIBUTING.md).
+  - type: dropdown
+    id: part
+    attributes:
+      label: Partie concernée
+      options:
+        - SaaS (administration, éditeur, pages client)
+        - Borne (PolaKiosk)
+        - Installation (script, guides)
+        - Les deux
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Le besoin
+      description: Ce que vous voulez faire aujourd'hui sans y arriver, et pour qui (vous, vos clients, leurs invités).
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Ce que vous proposez
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Autres pistes envisagées
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: Je peux proposer une pull request pour cette fonctionnalité.

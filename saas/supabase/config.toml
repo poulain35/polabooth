@@ -41,12 +41,6 @@ verify_jwt = false
 [functions.submit-design]
 verify_jwt = false
 
-[functions.generate-background]
-verify_jwt = false
-
-[functions.remove-background]
-verify_jwt = false
-
 # LAB-348 : client par code d'événement (?code=) ou administrateur de l'application (JWT vérifié dans la fonction).
 [functions.upload-design-image]
 verify_jwt = false

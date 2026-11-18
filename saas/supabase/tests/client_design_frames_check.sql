@@ -275,11 +275,11 @@ BEGIN
   PERFORM set_config('lab311.mkb', 'lab311_kb_' || substr(md5(gen_random_uuid()::text), 1, 10), true);
   PERFORM set_config('lab311.ska', 'ks_' || md5(gen_random_uuid()::text), true);
   PERFORM set_config('lab311.skb', 'ks_' || md5(gen_random_uuid()::text), true);
-  INSERT INTO public.kiosk_licenses (machine_id, machine_name, label, org_id, is_active, secret, activated_at)
-  SELECT current_setting('lab311.mka'), 'PC-LAB311-KA', 'Borne KA', o.id, true, current_setting('lab311.ska'), now()
+  INSERT INTO public.kiosk_licenses (machine_id, machine_name, label, org_id, is_active, secret_hash, activated_at)
+  SELECT current_setting('lab311.mka'), 'PC-LAB311-KA', 'Borne KA', o.id, true, public.kiosk_secret_hash(current_setting('lab311.ska')), now()
     FROM public.organizations o WHERE o.owner_id = current_setting('lab311.ua')::uuid;
-  INSERT INTO public.kiosk_licenses (machine_id, machine_name, label, org_id, is_active, secret, activated_at)
-  SELECT current_setting('lab311.mkb'), 'PC-LAB311-KB', 'Borne KB', o.id, true, current_setting('lab311.skb'), now()
+  INSERT INTO public.kiosk_licenses (machine_id, machine_name, label, org_id, is_active, secret_hash, activated_at)
+  SELECT current_setting('lab311.mkb'), 'PC-LAB311-KB', 'Borne KB', o.id, true, public.kiosk_secret_hash(current_setting('lab311.skb')), now()
     FROM public.organizations o WHERE o.owner_id = current_setting('lab311.ub')::uuid;
 END $$;
 

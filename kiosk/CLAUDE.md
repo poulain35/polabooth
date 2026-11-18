@@ -44,7 +44,8 @@ Paquets NuGet : toujours une version exacte dans le `.csproj` (pas de `*`). Test
 kiosk/
 ├── PolaKiosk.slnx                 ← solution
 ├── docs/checklist-tests-terrain.md
-├── installer/                     ← PolaKiosk.iss (Inno Setup), instance.iss facultatif (éditeur)
+├── installer/                     ← PolaKiosk.iss (Inno Setup), instance.iss facultatif (éditeur),
+│                                    build.ps1 (construction), sign.ps1 (signature facultative)
 ├── scripts/                       ← watchdog.ps1, apply-update.ps1
 ├── PolaKiosk/
 │   ├── App.xaml(.cs)              ← démarrage, DI, erreurs globales ; App.xaml = couleurs, polices, styles
@@ -377,6 +378,10 @@ WPF et testée : `TouchKeyboardEditor`, `TouchKeyboardLayouts`, `EmailDomainSugg
 - **Installeur** : par utilisateur dans `%LocalAppData%\Programs\PolaKiosk`, exclut
   `appsettings.local.json`. Éditeur affiché : `AppPublisher` de `installer/instance.iss` s'il existe,
   sinon « PolaKiosk ».
+- **Signature** (facultative, LAB-424) : `installer/build.ps1` signe `PolaKiosk.exe`, `PolaKiosk.dll`,
+  l'installeur et le désinstalleur si `KIOSK_SIGN_CERT_THUMBPRINT`, `KIOSK_SIGN_CERT_FILE` (+ mot de passe)
+  ou `KIOSK_SIGN_COMMAND` est défini (`installer/sign.ps1`, Authenticode SHA-256 horodaté) ; sinon
+  installeur non signé, comme avant. Une signature ratée arrête la construction. Scripts en UTF-8 avec BOM.
 - **Version** : une seule source, `<Version>` du `.csproj` (l'installeur la lit dans la DLL publiée).
 
 ---

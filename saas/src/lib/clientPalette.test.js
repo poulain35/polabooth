@@ -28,10 +28,12 @@ const CLIENT_FILES = [
   '../components/GalleryBookingBanner.jsx',
   './galleryBranding.js',
   '../pages/Assistance.jsx',
+  '../components/public/SupportContact.jsx',
 ];
 // Pages client des modules privés, absentes du dépôt public (LAB-419).
 const PRIVATE_CLIENT_FILES = [
   '../modules/audio_guestbook/pages/AudioGallery.jsx',
+  '../modules/assistant/AssistantChat.jsx',
 ];
 
 const RAW_PALETTE = /\b(?:[a-z]+:)*(?:bg|text|border|ring|ring-offset|from|via|to|fill|stroke|divide|outline|decoration|shadow|accent|caret|placeholder)-(?:gray|slate|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/;

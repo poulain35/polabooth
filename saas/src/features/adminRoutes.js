@@ -9,9 +9,10 @@ export const SALES_TABS = ['demandes', 'devis', 'prospects'];
 /**
  * Onglets de la page Bornes (`/admin/bornes?tab=`), LAB-338. Alertes : fonctionnalité kiosk_alerts ;
  * code : admin de la plateforme seulement. Une alerte précise : `?tab=alertes&alerte=<id>`.
- * materiel : stock de matériel par type (LAB-358), fonctionnalité du socle.
+ * Les modules ajoutent les leurs après État (`bornes.tabs`) : materiel, stock de matériel par type
+ * (LAB-358), du module privé « planning » (LAB-421).
  */
-export const BORNES_TABS = ['etat', 'materiel', 'ecrans', 'alertes', 'code', 'versions'];
+export const BORNES_TABS = ['etat', 'ecrans', 'alertes', 'code', 'versions'];
 
 /** Onglets définitifs de la fiche de l'événement (`/admin/events/:id?tab=`), posés au lot 3. */
 export const EVENT_TABS = ['resume', 'creation', 'borne', 'jour-j', 'livraison'];

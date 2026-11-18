@@ -2,10 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  GOOGLE_KEY_NAMES, SERVICE_KEYS, SERVICE_KEY_NAMES, SERVICE_SETTINGS, getServiceKey, keyGroups, mergeServiceSettings,
+  SERVICE_KEYS, SERVICE_KEY_NAMES, SERVICE_SETTINGS, getServiceKey, keyGroups, mergeServiceSettings, moduleSettingFields,
 } from './serviceKeys.js';
 import { FEATURES, getFeature } from './catalog.js';
-import { ASSISTANT_MODELS, ASSISTANT_MODEL_LINKS, PRICES_CHECKED_ON, VISUAL_MODELS } from './aiModels.js';
 import * as server from '../../supabase/functions/_shared/service-keys.ts';
 import { PRIVATE_HISTORY } from '../../scripts/private-history.mjs';
 import moduleCatalogs from '../modules/catalog.js';
@@ -14,10 +13,9 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 // Clés des modules privés installés : déclarées par leur catalogue (src/modules/<id>/catalog.js, LAB-403).
 const MODULE_KEYS = moduleCatalogs.flatMap((m) => m.serviceKeys ?? []).map((k) => k.name);
 const MODULE_GROUPS = moduleCatalogs.filter((m) => m.serviceKeys?.length).map((m) => m.id);
-const EXPECTED = [
-  'BREVO_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN',
-  'ANTHROPIC_API_KEY', 'REPLICATE_API_TOKEN', ...MODULE_KEYS,
-];
+const EXPECTED = ['BREVO_API_KEY', ...MODULE_KEYS];
+// Réglages des modules privés installés (serviceSettings de leur catalogue, LAB-421).
+const MODULE_SETTINGS = Object.assign({}, ...moduleCatalogs.map((m) => m.serviceSettings ?? {}));
 
 test('catalogue des clés : clés ouvertes puis celles des modules, champs complets, fonctionnalité connue', () => {
   assert.deepEqual(SERVICE_KEY_NAMES, EXPECTED);
@@ -29,13 +27,11 @@ test('catalogue des clés : clés ouvertes puis celles des modules, champs compl
   }
   assert.equal(getServiceKey('BREVO_API_KEY').feature, null, 'emails = socle');
   assert.equal(getServiceKey('inconnue'), null);
-  for (const name of GOOGLE_KEY_NAMES) assert.equal(getServiceKey(name).feature, 'google_calendar');
 });
 
 test('parité front / serveur : catalogue des clés et réglages identiques', () => {
   assert.deepEqual(server.SERVICE_KEYS, SERVICE_KEYS);
   assert.deepEqual(server.SERVICE_KEY_NAMES, SERVICE_KEY_NAMES);
-  assert.deepEqual(server.GOOGLE_KEY_NAMES, GOOGLE_KEY_NAMES);
   assert.deepEqual(server.SERVICE_SETTINGS, SERVICE_SETTINGS);
 });
 
@@ -56,7 +52,8 @@ test('migration : liste blanche SQL = catalogue, RPC réservées, pas d\'accent 
   const sql = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
   const allowed = sql.match(/FUNCTION public\.service_key_allowed[\s\S]*?ARRAY\[([\s\S]*?)\]/);
   assert.ok(allowed, 'liste blanche introuvable');
-  assert.deepEqual([...allowed[1].matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]), SERVICE_KEY_NAMES);
+  // Même ensemble (l'ordre du catalogue suit les modules installés, LAB-421).
+  assert.deepEqual([...allowed[1].matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]).sort(), [...SERVICE_KEY_NAMES].sort());
   assert.doesNotMatch(sql, /[À-ÿ]/, 'accent dans le SQL exécutable');
 
   const body = (name) => {
@@ -84,37 +81,21 @@ test('migration : liste blanche SQL = catalogue, RPC réservées, pas d\'accent 
 });
 
 test('mergeServiceSettings : fusion, valeur vide retirée, clé inconnue ignorée', () => {
-  const stored = Object.freeze({ assistant_model: 'claude-haiku-5-5', autre: 1 });
-  assert.deepEqual(mergeServiceSettings(stored, { google_calendar_id: ' agenda@x ' }), {
-    assistant_model: 'claude-haiku-5-5', autre: 1, google_calendar_id: 'agenda@x',
-  });
-  assert.deepEqual(mergeServiceSettings(stored, { assistant_model: '  ' }), { autre: 1 });
-  assert.deepEqual(mergeServiceSettings(null, { pirate: 'x', assistant_model: 'm' }), { assistant_model: 'm' });
+  assert.deepEqual(mergeServiceSettings(null, { pirate: 'x' }), {});
+  assert.deepEqual(mergeServiceSettings(Object.freeze({ autre: 1 }), { pirate: 'x' }), { autre: 1 });
   assert.deepEqual(mergeServiceSettings([], {}), {});
-});
-
-test('aide au choix des modèles : forme et ids alignés sur les fonctions serveur', () => {
-  assert.deepEqual(ASSISTANT_MODELS.map((m) => m.id), ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']);
-  for (const m of ASSISTANT_MODELS) assert.ok(m.label && m.summary && m.price, m.id);
-  assert.match(ASSISTANT_MODEL_LINKS.models, /^https:\/\//);
-  assert.match(ASSISTANT_MODEL_LINKS.pricing, /^https:\/\//);
-  assert.match(PRICES_CHECKED_ON, /^\d{2}\/\d{2}\/\d{4}$/);
-
-  const generate = read('../../supabase/functions/generate-background/index.ts');
-  const remove = read('../../supabase/functions/remove-background/index.ts');
-  for (const m of VISUAL_MODELS) {
-    assert.ok(m.label && m.use, m.id);
-    assert.equal(m.url, `https://replicate.com/${m.id}`);
-    assert.ok(generate.includes(`'${m.id}'`) || remove.includes(`'${m.id}'`), `${m.id} absent des fonctions`);
-  }
-  for (const m of generate.matchAll(/'(black-forest-labs\/[a-z0-9.-]+)'/g)) {
-    assert.ok(VISUAL_MODELS.some((v) => v.id === m[1]), `${m[1]} absent de l'aide`);
-  }
+  // Un réglage déclaré par un module installé (aucun dans le dépôt public).
+  const id = Object.keys(SERVICE_SETTINGS)[0];
+  if (!id) return;
+  const stored = Object.freeze({ [id]: 'ancien@x', autre: 1 });
+  assert.deepEqual(mergeServiceSettings(stored, { [id]: ' agenda@x ' }), { [id]: 'agenda@x', autre: 1 });
+  assert.deepEqual(mergeServiceSettings(stored, { [id]: '  ' }), { autre: 1 });
+  assert.deepEqual(mergeServiceSettings(null, { pirate: 'x', [id]: 'm' }), { [id]: 'm' });
 });
 
 test('keyGroups : par défaut (Brevo, tout installé), toutes les sections et toutes les clés', () => {
   const groups = keyGroups();
-  assert.deepEqual(groups.map((g) => g.feature), [null, 'google_calendar', 'assistant', 'ai_visuals', ...MODULE_GROUPS]);
+  assert.deepEqual(groups.map((g) => g.feature), [null, ...MODULE_GROUPS]);
   assert.match(groups[0].help, /Brevo/);
   assert.deepEqual(groups.flatMap((g) => g.keys.map((k) => k.name)).sort(), [...SERVICE_KEY_NAMES].sort());
   for (const g of groups) assert.ok(g.keys.every((k) => k.feature === g.feature));
@@ -122,9 +103,22 @@ test('keyGroups : par défaut (Brevo, tout installé), toutes les sections et to
 
 test('keyGroups : module privé absent du build = section masquée ; SMTP = pas de clé Brevo', () => {
   const groups = keyGroups({ installed: (id) => !MODULE_GROUPS.includes(id), emailProvider: 'smtp' });
-  assert.deepEqual(groups.map((g) => g.feature), [null, 'google_calendar', 'assistant', 'ai_visuals']);
+  assert.deepEqual(groups.map((g) => g.feature), [null]);
   assert.deepEqual(groups[0].keys, []);
   assert.match(groups[0].help, /SMTP/);
   assert.doesNotMatch(groups[0].help, /Brevo/);
   assert.ok(!groups.flatMap((g) => g.keys).some((k) => k.name === 'BREVO_API_KEY' || MODULE_KEYS.includes(k.name)));
+});
+
+test('réglages des modules : repris dans SERVICE_SETTINGS, champ de leur section de Paramètres > Clés', () => {
+  for (const [id, setting] of Object.entries(MODULE_SETTINGS)) {
+    assert.deepEqual(SERVICE_SETTINGS[id], { feature: setting.feature, envName: setting.envName }, id);
+    assert.equal(mergeServiceSettings({}, { [id]: ' x ' })[id], 'x', id);
+    // Avec un libellé : champ affiché par Paramètres > Clés ; sans : le module l'affiche lui-même (LAB-422).
+    const shown = moduleSettingFields(setting.feature).some((f) => f.id === id);
+    if (setting.label) assert.ok(setting.help && setting.placeholder && shown, id);
+    else assert.equal(shown, false, id);
+  }
+  assert.deepEqual(moduleSettingFields('assistant'), [], 'modèle de l\'assistant : rendu par son module');
+  assert.deepEqual(moduleSettingFields('inconnue'), []);
 });

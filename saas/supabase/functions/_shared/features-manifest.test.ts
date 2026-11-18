@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { FEATURES } from './features.ts';
 
-interface Entry { functions: string[]; tables: string[]; crons: string[]; migrations?: string[] }
+interface Entry { functions: string[]; tables: string[]; crons: string[]; migrations?: string[]; published_migrations?: string[] }
 interface Manifest { features: Record<string, Entry>; always_on: { functions: string[]; crons: string[] } }
 
 const FUNCTIONS_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -96,7 +96,8 @@ test('socle : aucune garde de fonctionnalité dans les fonctions du socle', () =
 // La migration de base (<horodatage>_base.sql) remplace, dans le dépôt public, toutes les migrations
 // antérieures, sans les objets privés. Elle est dans open-core/migrations/ ici, dans supabase/migrations/
 // une fois exportée. Toute migration postérieure qui crée ou modifie un objet privé est déclarée dans le
-// champ `migrations` de sa fonctionnalité privée, pour que l'export l'écarte.
+// champ `migrations` de sa fonctionnalité privée, pour que l'export l'écarte, ou dans son champ
+// `published_migrations` si elle est déjà publiée et le reste (tables gardées, LAB-421, décision A5).
 // Heuristique (sans analyseur SQL) : une migration est privée si, hors commentaires, elle nomme en
 // position de table (public.x, ou x après FROM, JOIN, INTO, UPDATE, TABLE, REFERENCES, ON) une table
 // d'une fonctionnalité privée absente de la base, ou planifie une tâche pg_cron privée absente de la
@@ -123,10 +124,12 @@ test('migrations privées : une seule base, champ réservé aux fonctionnalités
   for (const [id, e] of entries) {
     if (!privateIds.includes(id)) {
       assert.equal(e.migrations, undefined, `${id} : fonctionnalité ouverte, pas de champ migrations`);
+      assert.equal(e.published_migrations, undefined, `${id} : fonctionnalité ouverte, pas de champ published_migrations`);
       continue;
     }
     assert.ok(Array.isArray(e.migrations), `${id} : champ migrations attendu (liste, éventuellement vide)`);
-    declared.push(...e.migrations!);
+    assert.ok(e.published_migrations === undefined || Array.isArray(e.published_migrations), `${id} : published_migrations`);
+    declared.push(...e.migrations!, ...(e.published_migrations ?? []));
   }
   assert.deepEqual(dupes(declared), []);
   for (const name of declared) {
@@ -148,7 +151,7 @@ test('migrations privées : toute migration postérieure à la base qui touche u
     ? new RegExp(String.raw`(?:\bpublic"?\.|\b(?:from|join|into|update|table|references|on)\s+)"?(?:${tables.join('|')})"?\b`, 'i')
     : null;
   const cronRef = crons.length ? new RegExp(String.raw`cron\.(?:un)?schedule\(\s*'(?:${crons.join('|')})'`, 'i') : null;
-  const declared = new Set(privateEntries.flatMap((e) => e.migrations ?? []));
+  const declared = new Set(privateEntries.flatMap((e) => [...(e.migrations ?? []), ...(e.published_migrations ?? [])]));
   const missing = migrationNames.filter((name) => name > baseName! && !declared.has(name)).filter((name) => {
     const sql = stripComments(readFileSync(join(MIGRATIONS_DIR, name), 'utf8'));
     return tableRef?.test(sql) || cronRef?.test(sql);

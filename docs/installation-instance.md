@@ -384,7 +384,7 @@ Remettez ensuite `dist/` en ligne (étape 6).
   planifiée quotidienne (`billing-documents-cleanup`, 03:45 UTC, fonction du même nom) efface les
   PDF d'une réservation supprimée, ou d'un document supprimé, 24 h après. La conservation légale
   des factures reste dans votre outil de facturation.
-- Les clés des services facultatifs (images par IA, assistant, agenda Google) se saisissent dans le
+- Les clés des services facultatifs (agenda Google, images par IA, assistant) se saisissent dans le
   SaaS : Réglages > Services connectés.
 - Seul le compte administrateur (créé par le script, étape 10) crée une organisation : un autre
   compte qui se connecte au SaaS n'en obtient pas d'office et ne voit rien.
@@ -417,7 +417,6 @@ Remettez ensuite `dist/` en ligne (étape 6).
   vide sans la réservation en ligne). Pour l'afficher seulement s'il existe :
   `{% if params.TRACKING_URL %}<p>Où en est votre réservation ? <a href="{{ params.TRACKING_URL }}">Suivre ma réservation</a></p>{% endif %}`.
   En SMTP, ou sans modèle, les emails de l'app ajoutent cette ligne d'eux-mêmes.
-- Bornes › Matériel : décrivez votre parc par type. Tant qu'un type n'a aucun matériel, rien n'est vérifié.
 - Inscriptions fermées : un compte ne se crée que par invitation (script, ou Authentication > Users >
   « Invite user » dans Supabase). Ne rouvrez pas les inscriptions (Authentication > Sign In / Providers >
   « Allow new users to sign up ») : n'importe qui pourrait se créer un compte.

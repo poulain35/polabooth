@@ -13,7 +13,6 @@ const all = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort();
 const sql = strip(readFileSync(join(MIGRATIONS, MIGRATION), 'utf8'));
 const esc = (s) => s.replace(/[().]/g, '\\$&');
 const SIGNATURE = 'public.kiosk_get_approved_design(text, text, uuid)';
-const body = sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.kiosk_get_approved_design'));
 
 test('migration : présente, timestamp unique', () => {
   assert.ok(all.includes(MIGRATION));
@@ -51,7 +50,12 @@ test('migration : design_versions.slot et index par cadre', () => {
 test('RPC borne : dernière définition, cadre au plus petit slot, frames sous condition stricte', () => {
   const defining = all.filter((f) => /CREATE OR REPLACE FUNCTION "?public"?\."?kiosk_get_approved_design"?/
     .test(readFileSync(join(MIGRATIONS, f), 'utf8')));
-  assert.equal(defining.at(-1), MIGRATION);
+  // LAB-423 redéfinit la RPC pour comparer l'empreinte du secret : les règles valent pour la dernière définition.
+  assert.ok(defining.includes(MIGRATION));
+  assert.equal(defining.at(-1), '20270112000423_kiosk_secret_hash.sql');
+  const latest = strip(readFileSync(join(MIGRATIONS, defining.at(-1)), 'utf8'));
+  const start = latest.indexOf('CREATE OR REPLACE FUNCTION public.kiosk_get_approved_design');
+  const body = latest.slice(start, latest.indexOf('$$;', start));
 
   assert.match(body, /SECURITY DEFINER\s+SET search_path = public, pg_temp/);
   assert.match(body, /AND d\.kind = 'print'\s+AND d\.status = 'approved'\s+AND e\.org_id = v_org\s+ORDER BY d\.slot\s+LIMIT 1;/);

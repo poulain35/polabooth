@@ -12,6 +12,7 @@ const TESTS = new URL('../../tests/', import.meta.url);
 
 const MIGRATION = '20261223000000_kiosk_logs_event_session.sql';
 const PREVIOUS_RPC = '20261216000003_lab128_kiosk_record_logs.sql';
+const SECRET_HASH = '20270112000423_kiosk_secret_hash.sql';
 const CHECK = 'lab325_kiosk_logs_event_session_check.sql';
 const UUID_RE = "'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'";
 
@@ -30,7 +31,11 @@ test('migration : horodatage unique, dernière définition de kiosk_record_logs,
   assert.equal(all.filter((f) => f.startsWith('20261223000000_')).length, 1);
   const later = all.filter((f) => f > MIGRATION)
     .filter((f) => /FUNCTION public\.kiosk_record_logs\(/.test(strip(readFileSync(new URL(f, DIR), 'utf8'))));
-  assert.deepEqual(later, [], 'aucune migration plus récente ne redéfinit la RPC');
+  // LAB-423 la redéfinit pour comparer l'empreinte du secret, sans rien changer d'autre.
+  assert.deepEqual(later, [SECRET_HASH], 'seule la migration LAB-423 redéfinit la RPC');
+  const hashed = (s: string) => flat(s.replace(/AND (l\.)?secret <> ''\s+AND (l\.)?secret = p_secret/g,
+    'AND public.kiosk_secret_matches($1secret_hash, p_secret)'));
+  assert.equal(flat(rpcBody(strip(readFileSync(new URL(SECRET_HASH, DIR), 'utf8')))), hashed(rpcBody(sql())));
   const s = sql();
   assert.match(s, /ADD COLUMN IF NOT EXISTS event_id\s+UUID NULL;/);
   assert.match(s, /ADD COLUMN IF NOT EXISTS session_id UUID NULL;/);

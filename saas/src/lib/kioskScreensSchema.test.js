@@ -55,7 +55,9 @@ test('RLS : propriétaire de l\'organisation seulement, aucun droit pour anon', 
 test('RPC borne : licence vérifiée exactement comme kiosk_get_approved_design', () => {
   const defining = all.filter((f) => /CREATE OR REPLACE FUNCTION "?public"?\."?kiosk_get_approved_design"?/.test(read(f)));
   const approved = fnBody(strip(read(defining.at(-1))), 'kiosk_get_approved_design');
-  const screens = fnBody(sql, 'kiosk_get_screens');
+  // Dernière définition de chaque côté (LAB-423 compare l'empreinte du secret dans les deux).
+  const screensDefining = all.filter((f) => /CREATE OR REPLACE FUNCTION public\.kiosk_get_screens\(/.test(strip(read(f))));
+  const screens = fnBody(strip(read(screensDefining.at(-1))), 'kiosk_get_screens');
   assert.equal(licenseCheck(screens).replace('kiosk_get_screens', 'X'), licenseCheck(approved).replace('kiosk_get_approved_design', 'X'));
   assert.match(screens, /USING ERRCODE = '42501'/);
   assert.match(screens, /RETURNS jsonb\s+LANGUAGE plpgsql\s+STABLE\s+SECURITY DEFINER\s+SET search_path = public, pg_temp/);

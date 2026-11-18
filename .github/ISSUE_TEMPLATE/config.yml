@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Une question, une idée à discuter
+    url: https://github.com/poulain35/polabooth/discussions
+    about: Installation, utilisation, conseils de matériel. Les issues servent aux bugs et aux demandes précises.
+  - name: Une faille de sécurité
+    url: https://github.com/poulain35/polabooth/security/advisories/new
+    about: Signalement privé, jamais dans une issue publique (voir SECURITY.md).

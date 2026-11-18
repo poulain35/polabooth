@@ -95,8 +95,8 @@ export const LIMITS = {
   // Plafond de coût toutes IP confondues (clé fixe GLOBAL_KEY) : une rotation d'IP ne le contourne pas.
   assistantGlobalDay: { bucket: 'assistant:global-day', limit: 500, windowSeconds: DAY },
 
-  // Payant (Replicate), admin authentifié, compté par utilisateur. Le mode « 4 formats » de
-  // AIBackgroundPanel fait 4 appels par clic : 40/h = 10 essais multi-formats par heure.
+  // Payant (Replicate), admin authentifié, compté par utilisateur. Le mode « 4 formats » du
+  // panneau de fond généré (module IA visuelle) fait 4 appels par clic : 40/h = 10 essais multi-formats par heure.
   generateBgUser: { bucket: 'generate-bg:user', limit: 40, windowSeconds: HOUR },
   generateBgUserDay: { bucket: 'generate-bg:user-day', limit: 150, windowSeconds: DAY },
 

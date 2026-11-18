@@ -147,12 +147,21 @@ tester, moins bon pour un vrai événement.
 Depuis `kiosk\` :
 
 ```powershell
-dotnet publish PolaKiosk\PolaKiosk.csproj -c Release -r win-x64 --self-contained true
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\PolaKiosk.iss
+powershell -NoProfile -ExecutionPolicy Bypass -File installer\build.ps1
 ```
 
-Résultat : `installer\Output\setup-polakiosk.exe` (environ 100 Mo, .NET inclus : rien à installer
-sur la borne).
+Le script publie l'application puis compile l'installeur avec Inno Setup. Résultat :
+`installer\Output\setup-polakiosk.exe` (environ 100 Mo, .NET inclus : rien à installer sur la borne).
+
+**Signature (facultative).** Sans signature, Windows affiche « Windows a protégé votre ordinateur »
+(éditeur inconnu) au premier lancement de l'installeur téléchargé : cliquez « Informations
+complémentaires » puis « Exécuter quand même ». Pour éviter cet avertissement chez vos clients ou
+sur vos bornes, achetez un certificat de signature de code (Authenticode) au nom de votre société
+auprès d'une autorité de certification, puis définissez avant le script `KIOSK_SIGN_CERT_THUMBPRINT`
+(certificat du magasin Windows ou jeton USB), ou `KIOSK_SIGN_CERT_FILE` et
+`KIOSK_SIGN_CERT_PASSWORD` (fichier `.pfx`), ou `KIOSK_SIGN_COMMAND` (service de signature dans le
+cloud). Détails : `kiosk/installer/README.md`, « Signer ». Les mises à jour lancées depuis le SaaS
+ne déclenchent pas cet avertissement.
 
 Le numéro de version est celui de `PolaKiosk\PolaKiosk.csproj` (`<Version>`). Changez-le avant
 chaque nouvelle version : la borne compare les numéros pour ses mises à jour.

@@ -88,10 +88,8 @@ test('fonctions admin LAB-113 : garde partagé appliqué', () => {
   for (const [fn, re] of Object.entries(expected)) if (installed(fn)) assert.match(source(fn), re, fn);
 });
 
-test('limites de débit : generate-background par utilisateur, assistant-chat plafond global', () => {
-  assert.match(source('generate-background'), /LIMITS\.generateBgUser, auth\.user\.id\]/);
-  assert.match(source('generate-background'), /LIMITS\.generateBgUserDay, auth\.user\.id\]/);
-  assert.match(source('assistant-chat'), /LIMITS\.assistantGlobalDay, GLOBAL_KEY\]/);
+// generate-background et assistant-chat (modules privés, LAB-422) : vérifiés par les tests de leur module.
+test('limites de débit : email de test de la borne et des réglages par utilisateur', () => {
   assert.match(source('kiosk-email-preview'), /LIMITS\.kioskEmailTestUser, auth\.user\.id\]/);
   if (installed('send-test-email')) assert.match(source('send-test-email'), /LIMITS\.testEmailUser, auth\.user\.id\]/);
 });

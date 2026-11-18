@@ -25,6 +25,12 @@ const smtpReady = {
   keys: Object.fromEntries(SERVICE_KEY_NAMES.map((name) => [name, 'none'])),
 };
 const allKeys = Object.fromEntries(Object.keys(smtpReady.keys).map((name) => [name, 'env']));
+// Modules privés installés qui demandent des clés : sans eux, pas d'étape « Services connectés » (LAB-421, LAB-422).
+const KEY_MODULES = moduleCatalogs.filter((m) => m.serviceKeys?.length).map((m) => m.id);
+const withKeyModules = (...ids) => new Set([...KEY_MODULES, ...ids]);
+// Étape « Services connectés » : seulement avec un module privé à clés (absente du dépôt public).
+const NEEDS_KEYS = { skip: KEY_MODULES.length ? false : 'aucun module à clés installé (dépôt public)' };
+const NEEDS_GOOGLE = { skip: KEY_MODULES.includes('google_calendar') ? false : 'module agenda Google absent (dépôt public)' };
 const byId = (result, id) => result.steps.find((s) => s.id === id);
 const ids = (result) => result.steps.map((s) => s.id);
 const bookingStep = (done) => ({
@@ -38,8 +44,8 @@ test('sans organisation : pas de carte', () => {
   assert.equal(buildSetupSteps(), null);
 });
 
-test('organisation neuve, administrateur, sans module : 2 étapes sur 8', () => {
-  const result = buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: smtpReady });
+test('organisation neuve, administrateur, modules à clés : 2 étapes sur 8', NEEDS_KEYS, () => {
+  const result = buildSetupSteps({ org: freshOrg, installed: withKeyModules(), isAppAdmin: true, serviceStatus: smtpReady });
   assert.deepEqual(ids(result), ['company', 'emails', 'notify', 'features', 'keys', 'template', 'kiosk', 'test_event']);
   assert.deepEqual(result.steps.map((s) => s.n), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.equal(result.done, 2);
@@ -96,8 +102,8 @@ test('étape 2 : textes selon le fournisseur et ce qui manque', () => {
   );
 });
 
-test('statut illisible : étapes 2 et 5 non faites, état inconnu', () => {
-  const result = buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: null });
+test('statut illisible : étapes 2 et 5 non faites, état inconnu', NEEDS_KEYS, () => {
+  const result = buildSetupSteps({ org: freshOrg, installed: withKeyModules(), isAppAdmin: true, serviceStatus: null });
   for (const id of ['emails', 'keys']) {
     const step = byId(result, id);
     assert.equal(step.done, false);
@@ -119,7 +125,7 @@ test('étape 4 : faite dès qu\'un choix est enregistré', () => {
   assert.equal(byId(buildSetupSteps({ org: { ...freshOrg, features: { gallery: true } } }), 'features').done, true);
 });
 
-test('étape 5 : clés des fonctionnalités actives et installées seulement', () => {
+test('étape 5 : clés des fonctionnalités actives et installées seulement', NEEDS_KEYS, () => {
   const none = { ...freshOrg, features: { google_calendar: false, ai_visuals: false, assistant: false } };
   assert.equal(byId(buildSetupSteps({ org: none, isAppAdmin: true, serviceStatus: smtpReady }), 'keys'), undefined);
 
@@ -127,12 +133,14 @@ test('étape 5 : clés des fonctionnalités actives et installées seulement', (
   const invoicing = { ...none, features: { ...none.features, booking: true, invoicing: true } };
   assert.deepEqual(requiredServiceKeys(invoicing, new Set()), []);
 
-  const all = byId(buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: { ...smtpReady, keys: allKeys } }), 'keys');
+  const all = byId(buildSetupSteps({
+    org: freshOrg, installed: withKeyModules(), isAppAdmin: true, serviceStatus: { ...smtpReady, keys: allKeys },
+  }), 'keys');
   assert.equal(all.done, true);
   assert.equal(all.help, 'Les services de vos fonctionnalités sont connectés.');
 });
 
-test('étape 6 : fournie par le module, absente sans lui ou réservation désactivée', () => {
+test('étape 6 : fournie par le module, absente sans lui ou réservation désactivée', NEEDS_KEYS, () => {
   const withBooking = { ...freshOrg, features: { booking: true } };
   const open = buildSetupSteps({ org: withBooking, installed: new Set(), moduleSteps: [bookingStep(false)] });
   assert.equal(byId(open, 'booking'), undefined);
@@ -140,7 +148,7 @@ test('étape 6 : fournie par le module, absente sans lui ou réservation désact
   assert.equal(byId(disabled, 'booking'), undefined);
 
   const result = buildSetupSteps({
-    org: withBooking, installed: new Set(['booking']), isAppAdmin: true, serviceStatus: smtpReady, moduleSteps: [bookingStep(false)],
+    org: withBooking, installed: withKeyModules('booking'), isAppAdmin: true, serviceStatus: smtpReady, moduleSteps: [bookingStep(false)],
   });
   assert.deepEqual(ids(result), ['company', 'emails', 'notify', 'features', 'keys', 'booking', 'template', 'kiosk', 'test_event']);
   assert.equal(byId(result, 'booking').n, 6);
@@ -234,9 +242,9 @@ const emptyOrg = {
 };
 const NOW = new Date('2026-11-16T09:00:00Z');
 
-test('organisation vide, statut illisible : 0 étape sur 8, les 3 indispensables connues reportées', () => {
+test('organisation vide, statut illisible : 0 étape sur 8, les 3 indispensables connues reportées', NEEDS_KEYS, () => {
   // Les 4 modèles « Vierge » n'ont pas d'aperçu : fetchSetupInputs les compte 0.
-  const result = buildSetupSteps({ org: emptyOrg, isAppAdmin: true, serviceStatus: null, activeTemplates: 0 });
+  const result = buildSetupSteps({ org: emptyOrg, installed: withKeyModules(), isAppAdmin: true, serviceStatus: null, activeTemplates: 0 });
   assert.equal(result.total, 8);
   assert.equal(result.done, 0);
   assert.equal(result.complete, false);
@@ -295,16 +303,14 @@ test('dépendance coupée : la fonctionnalité qui en dépend ne demande pas de 
   assert.deepEqual(requiredServiceKeys({ features }, installed), []);
 });
 
-test('construction ouverte : sans module, aucune étape réservation ni clé d’un module', () => {
+test('construction ouverte : sans module, ni étape réservation ni Services connectés', () => {
   const org = { ...freshOrg, features: { booking: true, invoicing: true } };
   const result = buildSetupSteps({ org, installed: new Set(), isAppAdmin: true, serviceStatus: smtpReady, moduleSteps: [] });
   assert.equal(byId(result, 'booking'), undefined);
-  assert.equal(result.total, 8);
+  assert.equal(byId(result, 'keys'), undefined);
+  assert.equal(result.total, 7);
+  assert.deepEqual(requiredServiceKeys(org, new Set()), []);
   const moduleKeys = moduleCatalogs.flatMap((m) => m.serviceKeys ?? []);
-  for (const key of moduleKeys) {
-    assert.ok(!byId(result, 'keys').help.includes(key.label), key.name);
-    assert.ok(!requiredServiceKeys(org, new Set()).includes(key.name), key.name);
-  }
   assert.ok(SERVICE_KEYS.length > moduleKeys.length);
 });
 
@@ -319,23 +325,28 @@ test('compte qui n’est pas administrateur de l’application : ni 2, ni 5, ni 
   assert.deepEqual(result.steps.map((s) => s.n), result.steps.map((_, i) => i + 1));
 });
 
-test('statut à moitié lisible : sans email ou sans clés, l’étape concernée est inconnue', () => {
-  const noKeys = buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: { email: smtpReady.email } });
+test('statut à moitié lisible : sans email ou sans clés, l’étape concernée est inconnue', NEEDS_KEYS, () => {
+  const installed = withKeyModules();
+  const noKeys = buildSetupSteps({ org: freshOrg, installed, isAppAdmin: true, serviceStatus: { email: smtpReady.email } });
   assert.equal(byId(noKeys, 'emails').done, true);
   assert.equal(byId(noKeys, 'keys').unknown, true);
-  const noEmail = buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: { keys: allKeys } });
+  const noEmail = buildSetupSteps({ org: freshOrg, installed, isAppAdmin: true, serviceStatus: { keys: allKeys } });
   assert.equal(byId(noEmail, 'emails').unknown, true);
   assert.equal(byId(noEmail, 'keys').done, true);
   assert.ok(setupTodayItems(noEmail).every((i) => i.id !== 'setup:emails'));
 });
 
-test('statut sans une clé attendue : comptée comme absente', () => {
-  const partial = { ...smtpReady, keys: { REPLICATE_API_TOKEN: 'vault' } };
-  const org = { ...freshOrg, features: { google_calendar: false, assistant: false } };
-  assert.equal(byId(buildSetupSteps({ org, isAppAdmin: true, serviceStatus: partial }), 'keys').done, true);
-  const missing = byId(buildSetupSteps({ org: freshOrg, isAppAdmin: true, serviceStatus: partial }), 'keys');
+test('statut sans une clé attendue : comptée comme absente', NEEDS_GOOGLE, () => {
+  const google = { GOOGLE_CLIENT_ID: 'vault', GOOGLE_CLIENT_SECRET: 'vault', GOOGLE_REFRESH_TOKEN: 'vault' };
+  const org = { ...freshOrg, features: { ai_visuals: false, assistant: false } };
+  const installed = new Set(['google_calendar']);
+  const complete = { ...smtpReady, keys: google };
+  assert.equal(byId(buildSetupSteps({ org, installed, isAppAdmin: true, serviceStatus: complete }), 'keys').done, true);
+  const partial = { ...smtpReady, keys: { GOOGLE_CLIENT_ID: 'vault' } };
+  const missing = byId(buildSetupSteps({ org, installed, isAppAdmin: true, serviceStatus: partial }), 'keys');
   assert.equal(missing.done, false);
-  assert.doesNotMatch(missing.help, /Replicate/);
+  assert.doesNotMatch(missing.help, /ID client Google/);
+  assert.match(missing.help, /Secret client Google/);
 });
 
 test('carte masquée : isSetupCardHidden selon la ligne setup:card', () => {
@@ -386,12 +397,12 @@ test('« Garder ces choix » : toutes les fonctionnalités hors socle, sans rien
   assert.ok(!('core' in kept) && !('templates' in kept), 'socle jamais enregistré');
 
   // Mêmes étapes (sauf la 4, cochée) avant et après l'enregistrement.
-  const args = { isAppAdmin: true, serviceStatus: smtpReady, installed: new Set(['booking', 'invoicing']) };
+  const args = { isAppAdmin: true, serviceStatus: smtpReady, installed: withKeyModules('booking', 'invoicing') };
   const before = buildSetupSteps({ org: freshOrg, ...args });
   const after = buildSetupSteps({ org: { ...freshOrg, features: kept }, ...args });
   assert.deepEqual(ids(after), ids(before));
   assert.equal(byId(after, 'features').done, true);
-  assert.equal(byId(after, 'keys').help, byId(before, 'keys').help);
+  assert.equal(byId(after, 'keys')?.help, byId(before, 'keys')?.help);
   assert.equal(after.done, before.done + 1);
 });
 

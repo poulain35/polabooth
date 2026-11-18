@@ -64,7 +64,7 @@ function PairingDone({ code, result, pinWarning, onAgain }) {
 
   const modeLine = {
     resumed:  'Ce PC était déjà connu : la borne garde son historique.',
-    replaced: 'Le nouveau PC remplace l’ancien : la borne garde son nom, sa couleur et son planning.',
+    replaced: 'Le nouveau PC remplace l’ancien : la borne garde son nom, sa couleur et ses événements.',
     moved:    `Borne déplacée vers le compte ${result.org_name ?? ''}.`,
   }[result.mode];
 
@@ -364,7 +364,7 @@ export default function AdminPair() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Pour un PC changé ou réinstallé : la borne garde son nom, sa couleur et son planning.
+                      Pour un PC changé ou réinstallé : la borne garde son nom, sa couleur et ses événements.
                     </p>
                   </div>
 

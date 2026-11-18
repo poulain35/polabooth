@@ -50,7 +50,8 @@ test('lien : adresse, objet et texte de la demande de connecteur', () => {
 });
 
 test('lien : message vide = « (aucun) », sujet module, instance et version inconnues', () => {
-  const { body } = decode(buildVendorMailto({ tool: 'Galerie', topic: 'module:gallery' }));
+  const { subject, body } = decode(buildVendorMailto({ tool: 'Galerie', topic: 'module:gallery' }));
+  assert.equal(subject, 'Polabooth : demande du module Galerie');
   assert.equal(body, [
     'Outil demandé : Galerie',
     'Sujet : module gallery',

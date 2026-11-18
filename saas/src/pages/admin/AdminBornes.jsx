@@ -1,30 +1,35 @@
-// Bornes (/admin/bornes?tab=etat|materiel|ecrans|alertes|code|versions, LAB-335 puis LAB-338) : état des
-// bornes, stock de matériel (LAB-358), écrans de la borne, alertes (fonctionnalité kiosk_alerts), écran de saisie du code (admin
+// Bornes (/admin/bornes?tab=etat|ecrans|alertes|code|versions, LAB-335 puis LAB-338) : état des
+// bornes, écrans de la borne, alertes (fonctionnalité kiosk_alerts), écran de saisie du code (admin
 // de la plateforme seulement) et versions. Une alerte précise : ?tab=alertes&alerte=<id>.
+// Les modules ajoutent leurs onglets après État (`bornes.tabs`) : Matériel (stock, LAB-358) du module
+// privé « planning » (LAB-421).
 import { lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PageTabs from '../../components/admin/PageTabs';
 import { PageContainer, PageHeader } from '../../components/admin/AdminPage';
 import { BORNES_TABS, pickTab } from '../../features/adminRoutes';
+import { moduleSlot } from '../../features/modules';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useAppAdmin } from '../../hooks/useAppAdmin';
 import { Spinner } from '../../components/ui/spinner';
 
 const AdminLicenses = lazy(() => import('./AdminLicenses'));
-const EquipmentTab = lazy(() => import('./bornes/EquipmentTab'));
 const ScreenCards = lazy(() => import('./AdminKioskScreens').then((m) => ({ default: m.ScreenCards })));
 const AlertsTab = lazy(() => import('./bornes/AlertsTab'));
 const CodeScreenTab = lazy(() => import('./bornes/CodeScreenTab'));
 const VersionsTab = lazy(() => import('./bornes/VersionsTab'));
 
+// Onglets des modules : chacun porte sa fonctionnalité (feature), filtrée comme celle des alertes.
+const MODULE_TABS = moduleSlot('bornes.tabs');
+
 const TABS = [
   { id: 'etat', label: 'État', Component: AdminLicenses },
-  { id: 'materiel', label: 'Matériel', Component: EquipmentTab },
+  ...MODULE_TABS,
   { id: 'ecrans', label: 'Écrans', Component: ScreenCards },
   { id: 'alertes', label: 'Alertes', Component: AlertsTab, feature: 'kiosk_alerts' },
   { id: 'code', label: 'Code', Component: CodeScreenTab, appAdminOnly: true },
   { id: 'versions', label: 'Versions', Component: VersionsTab },
-].filter((tab) => BORNES_TABS.includes(tab.id));
+].filter((tab) => BORNES_TABS.includes(tab.id) || MODULE_TABS.includes(tab));
 
 const spinner = (
   <div className="flex justify-center py-24">

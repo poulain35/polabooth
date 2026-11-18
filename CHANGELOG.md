@@ -42,9 +42,12 @@ chaque version le dit.
    `SUPABASE_ACCESS_TOKEN=sbp_…`. Créez-le sur https://supabase.com/dashboard/account/tokens
    (« Generate new token ») et copiez-le tout de suite, il n'est affiché qu'une fois. Le script en
    a besoin à chaque mise à jour. Le modèle `saas/instance.env.example` l'explique.
-2. Mettez à jour le SaaS (voir plus haut). Treize nouvelles migrations sont appliquées.
+2. Mettez à jour le SaaS (voir plus haut). Quatorze nouvelles migrations sont appliquées.
 3. Installez la borne **1.0.19** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
    l'imprimante dans l'Admin de la borne (voir plus bas).
+4. Facultatif : dans Supabase (Edge Functions), supprimez les fonctions `generate-background`,
+   `remove-background`, `assistant-chat` et `gcal-sync`, qui ne sont plus livrées (voir plus bas).
+   Les clés Replicate, Anthropic et Google déjà enregistrées ne servent plus.
 
 Vous n'avez plus besoin d'installer la CLI Supabase vous-même ni de lancer `supabase login` : le
 script la télécharge la première fois.
@@ -58,6 +61,14 @@ script la télécharge la première fois.
 - Le script vérifie la messagerie et le stockage avant de rien modifier : email de test, fichier de
   test lu par l'adresse publique, règle CORS posée si elle manque.
 - Guide pas à pas avec formulaire : `docs/guide-installation.html`, à ouvrir par un double-clic.
+- Construction de l'installeur de la borne en une commande (`kiosk/installer/build.ps1`), avec
+  signature Authenticode facultative si vous avez un certificat de signature de code (moins
+  d'alertes SmartScreen chez vos clients) : voir `kiosk/installer/README.md`.
+
+### Dépôt
+
+- Code de conduite (`CODE_OF_CONDUCT.md`) et modèles d'issue (bug, fonctionnalité) ; les questions
+  passent par les Discussions, les failles par le signalement privé (voir `SECURITY.md`).
 
 ### SaaS
 
@@ -71,15 +82,24 @@ script la télécharge la première fois.
 - Choix du cadre : jusqu'à 4 cadres par événement, l'invité choisit le sien sur la borne.
 - Galerie aux couleurs de l'événement.
 - Journal de la borne dans la fiche de l'événement.
-- Stock de matériel par type (Bornes > Matériel) : combien de bornes vous avez, et lesquelles sont
-  indisponibles.
-- Une couleur différente par borne dans le calendrier.
 - Ménage quotidien des images des modèles qui ne servent plus.
 - Croix pour retirer une notification de la cloche.
 - Page d'aide (`/aide`) aux couleurs des pages client.
 - Sécurité renforcée : la liste des comptes et les alertes des bornes ne sont plus lisibles sans
   connexion, fichiers des buckets ni listables ni hors des types et des tailles prévus, types de
   fichiers vérifiés à l'envoi des photos des invités.
+- Le secret de chaque borne n'est plus gardé en clair dans la base, seulement son empreinte : une
+  copie de la base ne permet plus de se faire passer pour une borne. Les bornes déjà associées
+  continuent de marcher, sans nouvelle association.
+- L'IA visuelle (détourage, fond généré) et le chat de l'assistant ne font plus partie de Polabooth :
+  ce sont des modules sur demande. La page d'aide garde la FAQ et le message à votre entreprise ; les
+  clés Replicate et Anthropic disparaissent des Services connectés.
+- Réglages > Fonctionnalités : groupe « Modules sur demande », avec un lien « Contactez-moi pour en
+  parler » pour chaque module absent.
+- Le planning (vue Calendrier des événements, stock de matériel de Bornes > Matériel) et la synchro
+  Google Calendar ne font plus partie de Polabooth. Une borne sert un événement à la fois. Les tables
+  restent dans la base, sans effet ; rien à faire de votre côté. Le code publié le 13 novembre 2026
+  reste disponible sous sa licence.
 
 ### Borne (1.0.17 à 1.0.19)
 

@@ -100,18 +100,6 @@ export async function reviewDesign({ designId, action, feedback }) {
   });
 }
 
-/**
- * Supprime l'arrière-plan d'une image. Renvoie l'adresse du PNG transparent rangé dans le bucket
- * `designs` (LAB-348), ou un data URI si le stockage a échoué côté serveur.
- * Auth : code d'accès événement (client) OU session admin si pas de code.
- */
-export async function removeImageBackground(image, code = null) {
-  const data = await callFunction('remove-background', {
-    admin: !code, json: { image, code }, fallback: 'Erreur lors de la suppression du fond',
-  });
-  return data.url;
-}
-
 // ── Images des modèles dans le stockage (LAB-348) ─────────────────────────────
 
 /**

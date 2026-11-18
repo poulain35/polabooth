@@ -115,18 +115,3 @@ export function tintElement(el, color, isTransparent) {
     if (el.stroke && el.stroke !== 'none') el.set({ stroke: color });
   }
 }
-
-// ─── Suppression d'arrière-plan (admin) ──────────────────────────────────────
-// Réduit l'image à 2048px max avant envoi pour limiter la taille du payload + du résultat
-export function downscaleToDataUrl(el, maxDim = 2048) {
-  const w = el.naturalWidth  || el.width;
-  const h = el.naturalHeight || el.height;
-  if (!w || !h) return el.src;
-  const scale = Math.min(1, maxDim / Math.max(w, h));
-  if (scale >= 1 && /^data:/.test(el.src)) return el.src;
-  const oc = document.createElement('canvas');
-  oc.width  = Math.round(w * scale);
-  oc.height = Math.round(h * scale);
-  oc.getContext('2d').drawImage(el, 0, 0, oc.width, oc.height);
-  return oc.toDataURL('image/png');
-}

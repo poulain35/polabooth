@@ -158,7 +158,8 @@ test('featureInstalled : une fonctionnalité privée exige son module, les ouver
   const none = new Set();
   assert.equal(featureInstalled('booking', none), false);
   assert.equal(featureInstalled('booking', new Set(['booking'])), true);
-  assert.equal(featureInstalled('planning', none), true);
+  assert.equal(featureInstalled('planning', none), false, 'planning : module privé (LAB-421)');
+  assert.equal(featureInstalled('gallery', none), true);
   assert.equal(featureInstalled('core', none), true);
   assert.equal(featureInstalled('inconnue', none), true, 'id hors catalogue : laissé au reste du contrôle');
 });

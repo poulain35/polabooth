@@ -1,5 +1,5 @@
 {
-  "$comment": "Manifeste des fonctionnalités (open core, lot L3) : fonctions serveur, tables et tâches planifiées de chaque fonctionnalité du catalogue (src/features/catalog.js). migrations (fonctionnalités privées seulement) : migrations de supabase/migrations/ postérieures à la migration de base du dépôt public (open-core/migrations/<horodatage>_base.sql) qui créent ou modifient un objet privé, à écarter de l'export du dépôt public. Une migration ne mélange jamais objets ouverts et privés. Vérifié par supabase/functions/_shared/features-manifest.test.ts.",
+  "$comment": "Manifeste des fonctionnalités (open core, lot L3) : fonctions serveur, tables et tâches planifiées de chaque fonctionnalité du catalogue (src/features/catalog.js). migrations (fonctionnalités privées seulement) : migrations de supabase/migrations/ postérieures à la migration de base du dépôt public (open-core/migrations/<horodatage>_base.sql) qui créent ou modifient un objet privé, à écarter de l'export du dépôt public. published_migrations (fonctionnalités privées seulement, LAB-421, décision A5) : migrations postérieures à la base qui touchent une table privée mais restent publiées (tables gardées dans le dépôt public, voir KEPT_TABLES de scripts/open-core/private-objects.mjs). Une migration ne mélange jamais objets ouverts et privés. Vérifié par supabase/functions/_shared/features-manifest.test.ts.",
   "features": {
     "core": {
       "functions": [
@@ -35,9 +35,7 @@
         "cron_job_alerts",
         "rpc_rate_limit_salt",
         "service_keys",
-        "kiosk_screens",
-        "equipment_types",
-        "equipment_items"
+        "kiosk_screens"
       ],
       "crons": [
         "check-cron-alerts",
@@ -136,28 +134,6 @@
         "check-kiosk-alerts"
       ]
     },
-    "planning": {
-      "functions": [],
-      "tables": [
-        "planning_entries"
-      ],
-      "crons": []
-    },
-    "google_calendar": {
-      "functions": [
-        "gcal-sync"
-      ],
-      "tables": [],
-      "crons": []
-    },
-    "ai_visuals": {
-      "functions": [
-        "remove-background",
-        "generate-background"
-      ],
-      "tables": [],
-      "crons": []
-    },
     "help": {
       "functions": [
         "submit-support-message"
@@ -166,13 +142,6 @@
         "support_articles",
         "support_messages"
       ],
-      "crons": []
-    },
-    "assistant": {
-      "functions": [
-        "assistant-chat"
-      ],
-      "tables": [],
       "crons": []
     }
   },

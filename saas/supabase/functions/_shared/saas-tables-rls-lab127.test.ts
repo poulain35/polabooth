@@ -15,6 +15,9 @@ const MIGRATION = '20261113000000_saas_tables_owner_rls.sql';
 const CHECK = fileURLToPath(new URL('../../tests/lab127_saas_tables_rls_check.sql', import.meta.url));
 const FUNCTIONS = fileURLToPath(new URL('../', import.meta.url));
 const SRC = fileURLToPath(new URL('../../../src/', import.meta.url));
+// API du planning : module privé « planning » (LAB-421), absent de la version ouverte.
+const PLANNING_API = join(SRC, 'modules', 'planning', 'lib', 'planningApi.js');
+const NO_PLANNING = !existsSync(PLANNING_API);
 const KIOSK = fileURLToPath(new URL('../../../../kiosk/', import.meta.url));
 
 const strip = (s: string) => s.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
@@ -216,8 +219,8 @@ test('migration : planning_entries.org_id, défaut organisation de l\'utilisateu
   assert.doesNotMatch(sql, /DELETE FROM|TRUNCATE (TABLE )?public|DROP TABLE|DROP COLUMN/i);
 });
 
-test('front : la page Planning n\'envoie pas org_id (défaut de colonne) et ne filtre pas par organisation', () => {
-  const src = readFileSync(join(SRC, 'lib', 'api', 'planning.js'), 'utf8');
+test('front : la page Planning n\'envoie pas org_id (défaut de colonne) et ne filtre pas par organisation', { skip: NO_PLANNING }, () => {
+  const src = readFileSync(PLANNING_API, 'utf8');
   const create = src.slice(src.indexOf('export async function createPlanningEntry'), src.indexOf('export async function updatePlanningEntry'));
   assert.match(create, /\.from\('planning_entries'\)\s*\.insert\(\{/);
   assert.doesNotMatch(create, /org_id/);
@@ -407,8 +410,8 @@ test('planning : WITH CHECK de l\'UPDATE identique à son USING (pas de déplace
   assert.equal(m![1], `org_id ${OWNER_ORGS}`);
 });
 
-test('front : createPlanningEntry relit la ligne créée (SELECT accordé, défaut = organisation possédée)', () => {
-  const src = readFileSync(join(SRC, 'lib', 'api', 'planning.js'), 'utf8');
+test('front : createPlanningEntry relit la ligne créée (SELECT accordé, défaut = organisation possédée)', { skip: NO_PLANNING }, () => {
+  const src = readFileSync(PLANNING_API, 'utf8');
   const create = src.slice(src.indexOf('export async function createPlanningEntry'), src.indexOf('export async function updatePlanningEntry'));
   assert.match(create, /\.insert\(\{[\s\S]*?\}\)\s*\.select\(\)\s*\.single\(\)/);
   assert.ok(GRANTS.planning_entries.includes('SELECT'));

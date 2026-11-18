@@ -35,59 +35,9 @@ test('Brevo : GET /v3/account avec l\'en-tête api-key', async () => {
   assert.equal(headersOf(calls[0])['api-key'], 'xkeysib-123');
 });
 
-test('Anthropic : GET /v1/models avec x-api-key et anthropic-version', async () => {
-  const { calls, fetchImpl } = mockFetch(200);
-  const res = await testServiceKey('ANTHROPIC_API_KEY', reader({ ANTHROPIC_API_KEY: env('sk-ant') }), fetchImpl, noEnv);
-  assert.equal(res?.ok, true);
-  assert.equal(res?.source, 'env');
-  assert.equal(calls[0].url, 'https://api.anthropic.com/v1/models');
-  assert.deepEqual(headersOf(calls[0]), { 'x-api-key': 'sk-ant', 'anthropic-version': '2023-06-01' });
-});
-
-test('Replicate : GET en Bearer', async () => {
-  const { calls, fetchImpl } = mockFetch(200);
-  const res = await testServiceKey('REPLICATE_API_TOKEN', reader({ REPLICATE_API_TOKEN: vault('tok') }), fetchImpl, noEnv);
-  assert.equal(res?.ok, true);
-  assert.equal(calls[0].url, 'https://api.replicate.com/v1/account');
-  assert.equal(calls[0].init?.method, undefined, 'GET');
-  assert.equal(headersOf(calls[0]).Authorization, 'Bearer tok');
-});
-
-test('Google : un seul échange de jeton pour le trio, quelle que soit la clé testée', async () => {
-  const secrets = {
-    GOOGLE_CLIENT_ID: vault('id.apps.googleusercontent.com'),
-    GOOGLE_CLIENT_SECRET: env('secret'),
-    GOOGLE_REFRESH_TOKEN: vault('1//refresh'),
-  };
-  for (const name of Object.keys(secrets)) {
-    const { calls, fetchImpl } = mockFetch(200, '{"access_token":"ya29"}');
-    const res = await testServiceKey(name, reader(secrets), fetchImpl, noEnv);
-    assert.equal(res?.ok, true, name);
-    assert.equal(res?.message, 'Clés Google valides.');
-    assert.equal(res?.source, secrets[name as keyof typeof secrets].source, name);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://oauth2.googleapis.com/token');
-    assert.equal(calls[0].init?.method, 'POST');
-    const form = new URLSearchParams(String(calls[0].init?.body));
-    assert.equal(form.get('grant_type'), 'refresh_token');
-    assert.equal(form.get('client_id'), 'id.apps.googleusercontent.com');
-    assert.equal(form.get('client_secret'), 'secret');
-    assert.equal(form.get('refresh_token'), '1//refresh');
-  }
-});
-
-test('Google : une clé du trio manquante → pas d\'appel, message qui la nomme', async () => {
-  const { calls, fetchImpl } = mockFetch(200);
-  const res = await testServiceKey('GOOGLE_CLIENT_ID', reader({ GOOGLE_CLIENT_ID: vault('id') }), fetchImpl, noEnv);
-  assert.equal(res?.ok, false);
-  assert.equal(res?.source, 'vault');
-  assert.match(res!.message, /Secret client Google, Jeton d'actualisation Google/);
-  assert.equal(calls.length, 0);
-});
-
 test('aucune clé (ni Vault ni environnement) → source none, pas d\'appel', async () => {
   const { calls, fetchImpl } = mockFetch(200);
-  const res = await testServiceKey('REPLICATE_API_TOKEN', reader({}), fetchImpl, noEnv);
+  const res = await testServiceKey('BREVO_API_KEY', reader({}), fetchImpl, noEnv);
   assert.deepEqual(res, { ok: false, source: 'none', message: 'Aucune clé : ni saisie ici, ni variable d\'environnement sur le serveur.' });
   assert.equal(calls.length, 0);
 });
@@ -107,7 +57,7 @@ test('refus du fournisseur : statut HTTP seulement, jamais la clé ni le corps',
 
 test('erreur réseau → service injoignable', async () => {
   const { fetchImpl } = mockFetch('network');
-  const res = await testServiceKey('ANTHROPIC_API_KEY', reader({ ANTHROPIC_API_KEY: vault('k') }), fetchImpl, noEnv);
+  const res = await testServiceKey('BREVO_API_KEY', reader({ BREVO_API_KEY: vault('k') }), fetchImpl, noEnv);
   assert.deepEqual(res, { ok: false, source: 'vault', message: 'Service injoignable. Réessayez plus tard.' });
 });
 
@@ -134,14 +84,16 @@ test('index.ts : session, puis administrateur de l\'application, avant toute lec
 const envOf = (vars: Record<string, string>): EnvGet => (n) => vars[n];
 
 test('status : provenance de chaque clé du catalogue, jamais leur valeur', async () => {
+  // Clés d'un module installé (aucune dans le dépôt public) : la première par variable d'environnement.
+  const [fromEnv, ...unset] = SERVICE_KEYS.map((k) => k.name).filter((n) => n !== 'BREVO_API_KEY');
   const res = await serviceStatus(reader({
     BREVO_API_KEY: vault('xkeysib-tres-secrete'),
-    ANTHROPIC_API_KEY: env('sk-tres-secret'),
+    ...(fromEnv ? { [fromEnv]: env('gid-tres-secret') } : {}),
   }), envOf({ FROM_EMAIL: 'contact@exemple.fr', SMTP_PASSWORD: 'mdp-tres-secret' }));
   assert.deepEqual(Object.keys(res.keys).sort(), SERVICE_KEYS.map((k) => k.name).sort());
   assert.equal(res.keys.BREVO_API_KEY, 'vault');
-  assert.equal(res.keys.ANTHROPIC_API_KEY, 'env');
-  assert.equal(res.keys.REPLICATE_API_TOKEN, 'none');
+  if (fromEnv) assert.equal(res.keys[fromEnv], 'env');
+  for (const n of unset) assert.equal(res.keys[n], 'none', n);
   assert.deepEqual(res.email, { provider: 'brevo', ready: true, missing: [] });
   assert.doesNotMatch(JSON.stringify(res), /tres-secret|contact@exemple/);
 });
@@ -183,7 +135,8 @@ test('status : aucun appel au fournisseur, garde avant la lecture du corps', () 
 // ── Cas aux limites du statut (LAB-346) ──────────────────────────────────────
 
 test('status SMTP : ni hôte, ni identifiant, ni mot de passe, ni expéditeur dans la réponse', async () => {
-  const res = await serviceStatus(reader({ GOOGLE_CLIENT_ID: vault('gid-tres-secret') }), envOf({
+  const others = SERVICE_KEYS.filter((k) => k.name !== 'BREVO_API_KEY');
+  const res = await serviceStatus(reader(Object.fromEntries(others.map((k) => [k.name, vault('cle-tres-secret')]))), envOf({
     SMTP_HOST: 'smtp.hote-secret.fr', SMTP_USER: 'identifiant-secret', SMTP_PASSWORD: 'mdp-tres-secret',
     FROM_EMAIL: 'expediteur@exemple.fr',
   }));

@@ -21,7 +21,6 @@ Installation d'une instance : `docs/installation-instance.md`.
 | Backend | Supabase (Auth, Postgres, Storage) |
 | Fonctions serveur | Supabase Edge Functions (TypeScript, Deno) |
 | Emails | Brevo (API) ou tout serveur SMTP |
-| IA (facultatif) | clés de l'instance : Replicate (images), Anthropic (assistant) |
 | Stockage des médias | Cloudflare R2 ou tout fournisseur compatible S3 (URL présignées, `_shared/storage.ts`) |
 
 ---
@@ -72,8 +71,8 @@ scripts/                 # install-instance, check-open-build, kiosk-config…
 /admin/*                   → RequireAuth (session Supabase obligatoire)
   /admin                         → /admin/aujourdhui
   /admin/aujourdhui              tableau de bord « Aujourd'hui »
-  /admin/events[/new|/:id]       événements (?vue=calendrier ; fiche à onglets ?tab=)
-  /admin/bornes                  parc de bornes, matériel, écrans, alertes (?tab=)
+  /admin/events[/new|/:id]       événements (fiche à onglets ?tab=)
+  /admin/bornes                  parc de bornes, écrans, alertes (?tab=)
   /admin/ecrans-borne/:kind      composition d'un écran de la borne
   /admin/reglages                réglages, fonctionnalités activables, clés des services (#section)
   /admin/templates[/new|/:id/edit] modèles

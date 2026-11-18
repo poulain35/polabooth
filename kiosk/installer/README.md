@@ -23,22 +23,53 @@ Le watchdog (démarrage auto + relance si crash) est lancé via le **dossier Dé
 > Ce numéro est lu au runtime par le kiosk (heartbeat, comparaison avec la version demandée), et par
 > `PolaKiosk.iss` dans la `PolaKiosk.dll` publiée : l'installeur ne peut plus porter une autre version.
 
-### 2. Publier l'app en self-contained
+### 2. Construire l'installeur
+
+Depuis `kiosk\` :
 
 ```powershell
-dotnet publish PolaKiosk\PolaKiosk.csproj -c Release -r win-x64 --self-contained true
+powershell -NoProfile -ExecutionPolicy Bypass -File installer\build.ps1
 ```
 
-Sortie : `PolaKiosk\bin\Release\net10.0-windows\win-x64\publish\`
+Le script publie l'app en self-contained (`dotnet publish … -c Release -r win-x64 --self-contained true`,
+sortie `PolaKiosk\bin\Release\net10.0-windows\win-x64\publish\`), la signe si un certificat est
+configuré (étape 3), puis compile `installer\PolaKiosk.iss` avec Inno Setup (variable `ISCC` pour
+un autre chemin). Résultat : `installer\Output\setup-polakiosk.exe`.
 
-### 3. Compiler l'installeur
+À la main, c'est `dotnet publish` puis `ISCC installer\PolaKiosk.iss` (installeur non signé) ; sans
+publication préalable, la compilation s'arrête sur « PolaKiosk.dll introuvable ».
+
+### 3. Signer (facultatif, LAB-424)
+
+Sans signature, Windows SmartScreen affiche « Windows a protégé votre ordinateur » et « éditeur
+inconnu » au premier lancement de `setup-polakiosk.exe` téléchargé (il faut cliquer « Informations
+complémentaires » puis « Exécuter quand même »). Une mise à jour lancée par la borne n'est pas
+concernée : elle n'est pas « téléchargée depuis Internet » au sens de Windows.
+
+Avec un certificat de **signature de code** (Authenticode, OV ou EV, au nom de votre société),
+`build.ps1` signe `PolaKiosk.exe`, `PolaKiosk.dll`, l'installeur et son désinstalleur
+(`installer\sign.ps1`, SHA-256, horodaté). Il suffit de définir **une** de ces variables avant de
+lancer le script :
+
+| Variable | Usage |
+|---|---|
+| `KIOSK_SIGN_CERT_THUMBPRINT` | Empreinte (SHA-1) du certificat dans le magasin Windows (`CurrentUser\My` ou `LocalMachine\My`) : jeton USB fourni par l'autorité, ou certificat importé |
+| `KIOSK_SIGN_CERT_FILE` + `KIOSK_SIGN_CERT_PASSWORD` | Fichier `.pfx` et son mot de passe |
+| `KIOSK_SIGN_COMMAND` | Commande complète d'un service de signature dans le cloud (ex. `signtool sign /fd SHA256 /tr … /td SHA256 /dlib … /dmdf … {file}`) ; `{file}` est remplacé par le chemin du fichier |
+| `KIOSK_SIGN_TIMESTAMP_URL` | Serveur d'horodatage (par défaut `http://timestamp.digicert.com`) ; inutile avec `KIOSK_SIGN_COMMAND` |
 
 ```powershell
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\PolaKiosk.iss
+$env:KIOSK_SIGN_CERT_THUMBPRINT = "0123…"   # empreinte de votre certificat
+powershell -NoProfile -ExecutionPolicy Bypass -File installer\build.ps1
+Get-AuthenticodeSignature installer\Output\setup-polakiosk.exe   # Status : Valid
 ```
 
-Résultat : `installer\Output\setup-polakiosk.exe`. Sans publication préalable (étape 2), la
-compilation s'arrête sur « PolaKiosk.dll introuvable ».
+Ne mettez jamais le certificat ni son mot de passe dans le dépôt. Une signature ratée arrête la
+construction (aucun installeur à moitié signé). Un certificat auto-signé (essai) passe avec un
+avertissement, mais Windows ne l'approuve pas : il ne retire pas l'alerte SmartScreen. Même signé,
+un tout nouveau certificat OV peut encore déclencher l'alerte le temps que sa réputation se forme ;
+un certificat EV la retire d'emblée. Le script de l'installeur public
+(`npm run release-polabooth-kiosk`) utilise `build.ps1` et les mêmes variables.
 
 L'installeur contient toujours `THIRD-PARTY-NOTICES.txt` : si les DLL Canon
 (`PolaKiosk\EDSDK\native\`) étaient présentes au moment de la publication, elles sont dans

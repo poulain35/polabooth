@@ -54,7 +54,9 @@ function assemble(subject, body) {
 export function buildVendorMailto({ tool, message, topic = 'connector', origin = '', version = '' }) {
   const cleanTool = String(tool ?? '').trim();
   const cleanMessage = String(message ?? '').trim().replace(/\r?\n/g, '\r\n');
-  const subject = `Polabooth : demande de connecteur ${cleanTool}`;
+  const subject = parseTopic(topic).kind === 'module'
+    ? `Polabooth : demande du module ${cleanTool}`
+    : `Polabooth : demande de connecteur ${cleanTool}`;
   const parts = { tool: cleanTool, topic, origin, version };
   if (!cleanMessage) return assemble(subject, bodyLines({ ...parts, message: '(aucun)' }));
 

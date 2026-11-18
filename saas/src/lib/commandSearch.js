@@ -237,7 +237,6 @@ export function licenseCommand(lic) {
 
 const BORNES_TAB_DEFS = {
   etat: { label: 'État des bornes', keywords: ['licences', 'en ligne', 'association'] },
-  materiel: { label: 'Matériel', keywords: ['stock', 'parc', 'matériel', 'disponible', 'indisponible', 'réparation', 'vidéobooth', 'livre d’or audio'] },
   ecrans: { label: 'Écrans de la borne', keywords: ['accueil par défaut', 'écran de partage'] },
   alertes: { label: 'Alertes des bornes', keywords: ['imprimante', 'papier'], feature: 'kiosk_alerts' },
   code: { label: 'Écran du code', keywords: ['saisie du code'], appAdminOnly: true },
@@ -278,6 +277,8 @@ const page = (id, title, href, extra = {}) => ({ id: `page:${id}`, group: 'pages
  * ctx : {
  *   isAvailable(feature), isAppAdmin,
  *   salesTabs : [{ id, label }] onglets de « Demandes et devis » fournis par les modules,
+ *   eventViews : [{ id, label, keywords }] vues des Événements fournies par les modules (Calendrier),
+ *   bornesTabs : [{ id, label, keywords }] onglets de Bornes fournis par les modules (Matériel), après État,
  *   createActions : [{ id, label }] créations fournies par les modules (ex. « Nouveau devis »),
  *   hiddenSettings : sections des Réglages cachées (ex. ['offres']),
  *   event : { id, name, tabs: ['resume', …] } fiche ouverte, ou null.
@@ -319,7 +320,7 @@ export function buildPageCommands(ctx = {}) {
   }
   if (navOk('events')) {
     items.push(page('events', 'Événements', '/admin/events', { keywords: ['liste'], suggested: true }));
-    if (isAvailable('planning')) items.push(page('events:calendrier', 'Calendrier', '/admin/events?vue=calendrier', { subtitle: 'Événements', keywords: ['planning', 'agenda'] }));
+    for (const view of ctx.eventViews ?? []) items.push(page(`events:${view.id}`, view.label, `/admin/events?vue=${view.id}`, { subtitle: 'Événements', keywords: view.keywords }));
     for (const stage of EVENT_STAGES) items.push(page(`events:${stage.id}`, stage.label, `/admin/events?etape=${stage.id}`, { subtitle: 'Événements' }));
   }
   if (navOk('bornes')) {
@@ -328,6 +329,10 @@ export function buildPageCommands(ctx = {}) {
       const def = BORNES_TAB_DEFS[tab];
       if (!def || (def.feature && !isAvailable(def.feature)) || (def.appAdminOnly && !ctx.isAppAdmin)) continue;
       items.push(page(`bornes:${tab}`, def.label, `/admin/bornes?tab=${tab}`, { subtitle: 'Bornes', keywords: def.keywords }));
+      if (tab !== 'etat') continue;
+      for (const extra of ctx.bornesTabs ?? []) {
+        items.push(page(`bornes:${extra.id}`, extra.label, `/admin/bornes?tab=${extra.id}`, { subtitle: 'Bornes', keywords: extra.keywords }));
+      }
     }
   }
   if (navOk('reglages')) {

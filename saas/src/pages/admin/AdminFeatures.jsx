@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -14,6 +14,7 @@ import {
 } from '../../features/catalog';
 import { useFeatures } from '../../hooks/useFeatures';
 import { INSTALLED_MODULES } from '../../features/modules';
+import { moduleRequestMailto, onDemandModules } from '../../features/onDemandModules';
 import { keptFeatureChoices } from '../../lib/setupSteps';
 import { Spinner } from '../../components/ui/spinner';
 import { Notice } from '../../components/admin/CardParts';
@@ -39,6 +40,9 @@ const GROUPS = [
     filter: (f) => !f.core && f.visibility === 'private' && INSTALLED_MODULES.has(f.id),
   },
 ];
+
+// Modules privés absents de cette installation (LAB-422) : seul endroit où ils apparaissent.
+const ON_DEMAND = onDemandModules(INSTALLED_MODULES);
 
 const labelOf = (id) => getFeature(id)?.label ?? id;
 const listOf = (ids) => ids.map(labelOf).join(', ');
@@ -91,6 +95,28 @@ function FeatureRow({ feature, enabled, disabled, onToggle }) {
           aria-label={`${enabled ? 'Désactiver' : 'Activer'} ${feature.label}`}
         />
       )}
+    </div>
+  );
+}
+
+/** Un module sur demande : libellé, description et lien pour en parler, sans interrupteur. */
+function OnDemandRow({ feature }) {
+  const href = moduleRequestMailto(feature, {
+    origin: window.location.origin, version: import.meta.env.VITE_APP_VERSION,
+  });
+  return (
+    <div className="flex flex-col gap-2 rounded-xl bg-muted p-3.5 sm:flex-row sm:items-start sm:gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground">{feature.label}</p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">{feature.description}</p>
+      </div>
+      <a
+        href={href}
+        className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-primary-ink hover:underline"
+      >
+        <Mail className="size-3.5" aria-hidden="true" />
+        Contactez-moi pour en parler
+      </a>
     </div>
   );
 }
@@ -163,6 +189,19 @@ export default function AdminFeatures() {
               </Card>
             );
           })}
+          {ON_DEMAND.length > 0 && (
+            <Card className="p-card">
+              <section aria-labelledby="features-on-demand">
+                <CardTitle as="h2" id="features-on-demand">Modules sur demande</CardTitle>
+                <p className="mb-4 mt-0.5 text-[13px] text-muted-foreground">
+                  Modules supplémentaires absents de cette installation. Écrivez-moi pour en parler.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {ON_DEMAND.map((feature) => <OnDemandRow key={feature.id} feature={feature} />)}
+                </div>
+              </section>
+            </Card>
+          )}
         </div>
       )}
 

@@ -102,5 +102,6 @@ test('registre des modules (seule porte) : uniquement les catalogues, chacun san
 
 test('le parcours détecte bien un import indirect (garde-fou du test)', { skip: NO_MODULES }, () => {
   const gcal = join(FUNCTIONS_DIR, 'booking-gcal-sync', 'index.ts');
-  assert.deepEqual(pathToModule(gcal)?.at(-1), '_shared/modules/booking/gcal-booking.ts');
+  // Premier module atteint : la logique Google Agenda (module google_calendar, LAB-421).
+  assert.deepEqual(pathToModule(gcal)?.at(-1), '_shared/modules/google_calendar/gcal-event.ts');
 });

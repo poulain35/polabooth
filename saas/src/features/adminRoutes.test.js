@@ -41,5 +41,5 @@ test('Réglages : chaque lien vers une section mène à une ancre du sommaire', 
 test('Réglages et Bornes : sections et onglets du lot 4 (LAB-338)', () => {
   assert.deepEqual(SETTINGS_SECTIONS.map((s) => s.id),
     ['entreprise', 'offres', 'emails', 'editeur', 'galerie', 'fonctionnalites', 'services']);
-  assert.deepEqual(BORNES_TABS, ['etat', 'materiel', 'ecrans', 'alertes', 'code', 'versions']);
+  assert.deepEqual(BORNES_TABS, ['etat', 'ecrans', 'alertes', 'code', 'versions']);
 });
