@@ -42,7 +42,7 @@ chaque version le dit.
    `SUPABASE_ACCESS_TOKEN=sbp_…`. Créez-le sur https://supabase.com/dashboard/account/tokens
    (« Generate new token ») et copiez-le tout de suite, il n'est affiché qu'une fois. Le script en
    a besoin à chaque mise à jour. Le modèle `saas/instance.env.example` l'explique.
-2. Mettez à jour le SaaS (voir plus haut). Dix-sept nouvelles migrations sont appliquées.
+2. Mettez à jour le SaaS (voir plus haut). Treize nouvelles migrations sont appliquées.
 3. Installez la borne **1.0.19** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
    l'imprimante dans l'Admin de la borne (voir plus bas).
 
