@@ -67,9 +67,12 @@ public class EventCleanupService : IEventCleanupService
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 report = await CleanAsync(db, root, _state.ActiveEventId, RetentionDays(_machine.Current), now, _log);
             }
-            await _log.LogInfoAsync("cleanup",
-                $"Nettoyage du PC : {report.Deleted} événement(s) supprimé(s), {FormatSize(report.FreedBytes)} libéré(s) ; " +
-                $"espace disque libre : {FreeSpace(root)}.");
+            // Bilan seulement si un dossier a été supprimé : sinon une ligne vide à chaque démarrage (LAB-326).
+            // L'espace disque libre figure dans la ligne de démarrage.
+            if (report.Deleted > 0)
+                await _log.LogInfoAsync("cleanup",
+                    $"Nettoyage du PC : {report.Deleted} événement(s) supprimé(s), {FormatSize(report.FreedBytes)} libéré(s) ; " +
+                    $"espace disque libre : {FreeSpace(root)}.");
         }
         catch (Exception ex)
         {

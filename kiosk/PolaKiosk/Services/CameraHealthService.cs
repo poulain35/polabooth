@@ -57,6 +57,15 @@ public static class CameraPresence
         ICanonCameraList canon   => new CanonPresenceCheck(canon),
         _                        => new AlwaysPresentCheck(),     // simulation
     };
+
+    /// <summary>Appareil nommé dans les journaux (LAB-326) : modèle du Canon s'il a été lu.</summary>
+    public static string Describe(ICameraService camera) => camera switch
+    {
+        EdsdkCameraService canon => string.IsNullOrWhiteSpace(canon.ModelName) ? "Canon (modèle non lu)" : canon.ModelName!,
+        WebcamCameraService      => "webcam",
+        MockCameraService        => "caméra simulée",
+        _                        => "inconnu",
+    };
 }
 
 /// <summary>
@@ -89,7 +98,8 @@ public interface ICameraHealthService
 
 /// <summary>
 /// État partagé de l'appareil photo (LAB-263). Une ligne d'erreur (catégorie « camera ») dans les
-/// journaux à chaque passage à absent, pas à chaque vérification.
+/// journaux à chaque passage à absent, pas à chaque vérification ; une ligne d'info avec le modèle à
+/// la première détection du lancement et au retour de l'appareil (LAB-326).
 /// </summary>
 public sealed class CameraHealthService : ICameraHealthService
 {
@@ -103,6 +113,7 @@ public sealed class CameraHealthService : ICameraHealthService
     private readonly IKioskLogService? _log;
     private readonly TimeSpan _timeout;
     private readonly Func<DateTime> _utcNow;
+    private readonly Func<string?>? _describeCamera;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly object _stateLock = new();
 
@@ -110,8 +121,9 @@ public sealed class CameraHealthService : ICameraHealthService
     private DateTime _absentUntil = DateTime.MinValue;
 
     public CameraHealthService(ICameraPresenceCheck check, IKioskLogService? log = null,
-        TimeSpan? timeout = null, Func<DateTime>? utcNow = null)
+        TimeSpan? timeout = null, Func<DateTime>? utcNow = null, Func<string?>? describeCamera = null)
     {
+        _describeCamera = describeCamera;
         _check   = check;
         _log     = log;
         _timeout = timeout ?? DefaultCheckTimeout;
@@ -184,7 +196,15 @@ public sealed class CameraHealthService : ICameraHealthService
         if (next == CameraHealth.Absent && previous != CameraHealth.Absent)
             _ = _log?.LogErrorAsync("camera",
                 "Appareil photo non détecté : la borne affiche « Problème technique ».");
+        else if (next == CameraHealth.Present && previous == CameraHealth.Unknown)
+            _ = _log?.LogInfoAsync("camera", $"Caméra détectée : {DescribeCamera()}.");
         else if (next == CameraHealth.Present && previous == CameraHealth.Absent)
-            _ = _log?.LogInfoAsync("camera", "Appareil photo de nouveau détecté.");
+            _ = _log?.LogInfoAsync("camera", $"Appareil photo de nouveau détecté : {DescribeCamera()}.");
+    }
+
+    private string DescribeCamera()
+    {
+        try { return _describeCamera?.Invoke() is { Length: > 0 } name ? name : "modèle inconnu"; }
+        catch { return "modèle inconnu"; }
     }
 }

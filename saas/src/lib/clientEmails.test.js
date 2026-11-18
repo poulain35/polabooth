@@ -51,10 +51,10 @@ test('enregistrement de la carte : seulement ses clés de business_profile + ses
 test('résumé : ce qui part et quand, dans l\'ordre du parcours', () => {
   const profile = { ...businessProfileForm(STORED_PROFILE), access_email_auto: { enabled: true, days_before: 30 } };
   assert.deepEqual(clientEmailsSummary({ profile, reminders: { enabled: true, milestones: [10, 20] } }), [
-    'J-30 : lien de l\'éditeur', 'J-20, J-10 : relances si le template n\'est pas soumis', 'J+2 : lien des photos',
+    'J-30 : lien de l\'éditeur', 'J-20, J-10 : relances si le cadre photo n\'est pas soumis', 'J+2 : lien des photos',
   ]);
   assert.deepEqual(clientEmailsSummary({ profile: businessProfileForm(null), reminders: { enabled: true, milestones: [7] } }), [
-    'J-7 : relance si le template n\'est pas soumis',
+    'J-7 : relance si le cadre photo n\'est pas soumis',
   ]);
   assert.deepEqual(clientEmailsSummary({ profile: businessProfileForm(null), reminders: designRemindersForm(null) }), []);
 });

@@ -15,9 +15,9 @@ import { ACTIVE_EVENT_STATUSES } from '../_shared/kiosk-photo.ts';
 export const UPLOAD_URL_TTL_SECONDS = 300;
 export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
-export const POSTER_FILENAME = 'poster.jpg';
-export const UPLOAD_KINDS = ['media', 'poster'] as const;
-export type UploadKind = typeof UPLOAD_KINDS[number];
+const POSTER_FILENAME = 'poster.jpg';
+const UPLOAD_KINDS = ['media', 'poster'] as const;
+type UploadKind = typeof UPLOAD_KINDS[number];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILENAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;

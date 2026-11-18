@@ -20,7 +20,7 @@ export function evaluateRateLimit(timestamps: number[], limit: number, windowMs:
   return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + windowMs - now) / 1000)) };
 }
 
-export async function sha256Hex(input: string): Promise<string> {
+async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -30,12 +30,24 @@ export async function hashKey(value: string, salt: string): Promise<string> {
   return await sha256Hex(value + salt);
 }
 
-export const IP_HEADERS = ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const;
+const IP_HEADERS = ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const;
 
 /**
  * IP du client derrière Cloudflare et le proxy Supabase : cf-connecting-ip, puis x-real-ip,
  * puis le DERNIER élément de X-Forwarded-For (le premier est fourni par le client, donc falsifiable).
- * À VALIDER en dev réel : logguer les en-têtes reçus (DEBUG_IP_HEADERS, cf. ipHeaderNames).
+ * Même ordre que la garde SQL des RPC publiques (LAB-116) : les deux doivent rester alignées.
+ *
+ * Confiance (LAB-392) :
+ *   - Supabase hébergé (supabase.co) : les requêtes passent par Cloudflare puis la passerelle
+ *     Supabase. `cf-connecting-ip` est posé par Cloudflare, qui écrase la valeur envoyée par le
+ *     client : c'est l'en-tête de confiance. `x-real-ip` et le dernier élément de X-Forwarded-For
+ *     sont posés par la passerelle (dernier saut), jamais lus en premier si Cloudflare est là.
+ *   - Instance auto-hébergée (sans Cloudflare devant) : ces en-têtes ne sont fiables QUE si le
+ *     reverse proxy (Kong, nginx, Caddy…) les écrase. Sinon un client peut poser `cf-connecting-ip`
+ *     ou `x-real-ip` lui-même et changer d'IP à chaque requête (limites par IP contournées). Le
+ *     proxy doit supprimer `cf-connecting-ip` venu du client et poser `x-real-ip` (docs/installation-instance.md).
+ * Non vérifié empiriquement sur Supabase : DEBUG_IP_HEADERS (booking-request) journalise les noms
+ * des en-têtes reçus, jamais leurs valeurs (ipHeaderNames).
  */
 export function clientIp(headers: Headers): string {
   for (const name of ['cf-connecting-ip', 'x-real-ip']) {

@@ -1,21 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { FilePlus, Loader2, Trash2, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Card } from '../../components/ui/card';
-import { fetchCustomFonts, uploadCustomFont, deleteCustomFont } from '../../lib/supabase';
+import { Card, CardTitle } from '../../components/ui/card';
+import { IconCircle } from '../../components/ui/icon-circle';
+import { registerCustomFonts, uploadCustomFont, deleteCustomFont } from '../../lib/supabase';
+import { cn } from '../../lib/utils';
+import LazyFontText from '../../components/LazyFontText';
+import GoogleFontsCard from './fonts/GoogleFontsCard';
+import { Spinner } from '../../components/ui/spinner';
+import { Notice } from '../../components/admin/CardParts';
 
 const ACCEPTED = '.woff2,.woff,.ttf,.otf';
-
-async function loadFontFace(font) {
-  if ([...document.fonts].some((f) => f.family === font.name)) return;
-  try {
-    const ff = new FontFace(font.name, `url(${font.url})`);
-    await ff.load();
-    document.fonts.add(ff);
-  } catch (_) {}
-}
 
 export default function AdminFonts() {
   const [fonts,    setFonts]    = useState([]);
@@ -34,9 +31,9 @@ export default function AdminFonts() {
 
   async function load() {
     try {
-      const data = await fetchCustomFonts();
+      // Polices déclarées sans être téléchargées : chaque aperçu se charge en s'affichant (LAB-347).
+      const data = await registerCustomFonts();
       setFonts(data);
-      await Promise.allSettled(data.map(loadFontFace));
     } catch (_) {
       setFonts([]);
     } finally {
@@ -60,7 +57,7 @@ export default function AdminFonts() {
     try {
       const record = await uploadCustomFont(pendingFile, fontName.trim());
       setFonts((prev) => [...prev, record]);
-      await loadFontFace(record);
+      await registerCustomFonts().catch(() => {});
       setPendingFile(null);
       setFontName('');
     } catch (err) {
@@ -68,6 +65,11 @@ export default function AdminFonts() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleGoogleImported(record) {
+    setFonts((prev) => [...prev, record]);
+    await registerCustomFonts().catch(() => {});
   }
 
   async function handleDelete(font) {
@@ -84,62 +86,63 @@ export default function AdminFonts() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl space-y-8">
-      <h1 className="text-2xl font-bold text-foreground">Polices personnalisées</h1>
+    // Onglet Polices de la Bibliothèque (titre et onglets : AdminLibrary, LAB-335).
+    <div className="flex flex-col gap-5">
+
+      {/* ── Polices Google : recherche, aperçu, ajout en un clic ── */}
+      <GoogleFontsCard customNames={fonts.map((f) => f.name)} onImported={handleGoogleImported} />
 
       {/* ── Zone upload ── */}
-      <Card className="p-4 sm:p-6">
-        <h2 className="font-semibold text-gray-800 mb-1">Ajouter une police</h2>
-        <p className="text-sm text-gray-500 mb-5">
+      <Card className="p-card">
+        <CardTitle as="h2">Ajouter une police depuis un fichier</CardTitle>
+        <p className="mb-5 mt-0.5 text-[13px] text-muted-foreground">
           Formats acceptés : WOFF2, WOFF, TTF, OTF. La police sera disponible dans l'éditeur pour tous les événements.
         </p>
 
         {!pendingFile ? (
           <div
-            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors
-              ${dragging ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-primary hover:bg-primary/10'}`}
+            role="button"
+            tabIndex={0}
+            className={cn(
+              'flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              dragging ? 'border-primary bg-soft' : 'border-input bg-muted hover:border-primary',
+            )}
             onClick={() => inputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); }
+            }}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileSelect(e.dataTransfer.files); }}
           >
-            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
+            <IconCircle tone="white"><FilePlus /></IconCircle>
             <div className="text-center">
-              <p className="text-sm font-medium text-gray-700">Glissez un fichier ou cliquez pour parcourir</p>
-              <p className="text-xs text-gray-400 mt-0.5">WOFF2 · WOFF · TTF · OTF</p>
+              <p className="text-sm font-medium text-foreground">Glissez un fichier ou cliquez pour parcourir</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">WOFF2 · WOFF · TTF · OTF</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {/* Fichier sélectionné */}
-            <div className="flex items-center gap-3 bg-primary/10 border border-primary/15 rounded-xl p-4">
-              <div className="w-10 h-10 bg-primary/15 rounded-lg flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round"
-                    d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+            <div className="flex items-center gap-3 rounded-xl bg-muted p-3.5">
+              <IconCircle tone="white"><FilePlus /></IconCircle>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{pendingFile.name}</p>
+                <p className="text-xs text-muted-foreground">{(pendingFile.size / 1024).toFixed(0)} Ko</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{pendingFile.name}</p>
-                <p className="text-xs text-gray-400">{(pendingFile.size / 1024).toFixed(0)} Ko</p>
-              </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground"
                 onClick={() => { setPendingFile(null); setFontName(''); }}
-                className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                aria-label="Retirer ce fichier"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <X aria-hidden="true" />
+              </Button>
             </div>
 
             {/* Nom */}
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="fontName">Nom de la police</Label>
               <Input
                 id="fontName"
@@ -154,14 +157,14 @@ export default function AdminFonts() {
             </div>
 
             {uploadError && (
-              <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+              <Notice tone="red" role="alert">
                 {uploadError}
-              </p>
+              </Notice>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={handleUpload} disabled={!fontName.trim() || uploading}>
-                {uploading ? (<><Loader2 className="w-4 h-4 animate-spin" />Upload en cours…</>) : 'Ajouter la police'}
+                {uploading ? (<><Loader2 className="animate-spin" aria-hidden="true" />Upload en cours…</>) : 'Ajouter la police'}
               </Button>
               <Button variant="outline" onClick={() => { setPendingFile(null); setFontName(''); }}>
                 Annuler
@@ -180,61 +183,59 @@ export default function AdminFonts() {
       </Card>
 
       {/* ── Liste des polices installées ── */}
-      <Card className="p-4 sm:p-6">
-        <h2 className="font-semibold text-gray-800 mb-4">
+      <Card className="p-card">
+        <CardTitle as="h2" className="mb-4">
           Polices installées
           {fonts.length > 0 && (
-            <span className="ml-2 text-sm font-normal text-gray-400">({fonts.length})</span>
+            <span className="ml-2 text-[13px] font-normal text-muted-foreground">({fonts.length})</span>
           )}
-        </h2>
+        </CardTitle>
 
         {loading && (
           <div className="flex justify-center py-8">
-            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <Spinner />
           </div>
         )}
 
         {!loading && fonts.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-8">Aucune police installée.</p>
+          <p className="py-8 text-center text-[13px] text-muted-foreground">Aucune police installée.</p>
         )}
 
         {!loading && fonts.length > 0 && (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {fonts.map((font) => (
               <div
                 key={font.id}
-                className="flex items-center justify-between gap-4 p-4 bg-gray-50 border border-gray-100 rounded-xl"
+                className="flex items-center justify-between gap-3 rounded-xl bg-muted py-3 pl-3.5 pr-2"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{font.name}</p>
-                  <p className="text-xl text-gray-700 truncate leading-snug" style={{ fontFamily: font.name }}>
-                    Aa Bb Cc · 0123456789
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 truncate text-xs font-medium text-muted-foreground">{font.name}</p>
+                  {/* L'exemple garde la police qu'il présente. */}
+                  <p className="truncate text-xl leading-snug text-foreground">
+                    <LazyFontText font={font.name}>Aa Bb Cc · 0123456789</LazyFontText>
                   </p>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 text-muted-foreground"
                   onClick={() => handleDelete(font)}
                   disabled={deleting.has(font.id)}
-                  className="p-2 text-gray-300 hover:text-red-500 disabled:opacity-40 transition-colors shrink-0"
                   title="Supprimer cette police"
+                  aria-label={`Supprimer la police ${font.name}`}
                 >
-                  {deleting.has(font.id) ? (
-                    <span className="w-4 h-4 border-2 border-red-300 border-t-transparent rounded-full animate-spin block" />
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  )}
-                </button>
+                  {deleting.has(font.id) ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
+                </Button>
               </div>
             ))}
           </div>
         )}
       </Card>
 
-      {/* ── Setup SQL ── */}
-      <section className="bg-slate-900 rounded-xl p-5 text-slate-300 text-sm">
-        <h2 className="font-semibold text-white mb-2">Configuration requise (une seule fois)</h2>
+      {/* ── Setup SQL : bloc de code sombre dans les deux modes. Ses 5 lignes de couleurs fixes sont comptées
+          par lib/adminColors.test.js (FIXED) : ne pas en ajouter ni en retirer sans ajuster le test. ── */}
+      <section className="rounded-card bg-slate-900 p-card text-sm text-slate-300 dark:ring-1 dark:ring-border">
+        <CardTitle as="h2" className="mb-2 text-white">Configuration requise (une seule fois)</CardTitle>
         <p className="text-xs text-slate-400 mb-3">SQL Editor dans Supabase Dashboard :</p>
         <pre className="text-xs font-mono leading-relaxed overflow-x-auto bg-slate-800 rounded-lg p-3">{`CREATE TABLE IF NOT EXISTS custom_fonts (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

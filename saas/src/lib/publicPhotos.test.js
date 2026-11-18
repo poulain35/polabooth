@@ -34,8 +34,8 @@ const fnSource = (src, fn) => {
 };
 
 // Garde-fou : plus aucune lecture anon directe de `photos` dans les fonctions publiques du front.
-test('supabase.js : galerie et diaporama lisent les photos via la RPC get_public_photos', () => {
-  const src = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
+test('api/photos.js : galerie et diaporama lisent les photos via la RPC get_public_photos', () => {
+  const src = readFileSync(new URL('./api/photos.js', import.meta.url), 'utf8');
   assert.equal(PUBLIC_PHOTOS_RPC, 'get_public_photos');
   assert.match(fnSource(src, 'fetchPublicPhotos'), /rpc\(PUBLIC_PHOTOS_RPC, \{ p_code: code \}\)/);
 

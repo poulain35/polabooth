@@ -17,7 +17,7 @@
 import { handleCors, corsResponse } from '../_shared/cors.ts';
 import { adminClient, sessionUser } from '../_shared/auth.ts';
 import { requireFeature } from '../_shared/features.ts';
-import { authenticate, forbiddenOrg, isServiceRoleRequest } from '../_shared/admin-guard.ts';
+import { authenticate, isServiceRoleRequest, requireOrgAccess } from '../_shared/admin-guard.ts';
 import { sendEventReportEmail } from '../_shared/email.ts';
 import { recordEmailLog } from '../_shared/email-log.ts';
 import { getOrgIdentity, identitySender } from '../_shared/org-identity.ts';
@@ -25,6 +25,7 @@ import { brevoRefusedBody } from '../send-delivery/manual-send.ts';
 import { adminJwtCalls } from './admin-jwt.ts';
 import { INVALID_PHOTOS, REPORT_EMAIL_TYPE, parsePhotoIds, sendEventReport, type PreviousReport } from './logic.ts';
 import { appUrl } from '../_shared/app-url.ts';
+import { clientTrackingUrl } from '../_shared/client-tracking.ts';
 
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const APP_URL        = appUrl().replace(/\/$/, '');
@@ -56,22 +57,21 @@ Deno.serve(async (req) => {
   const user = auth.user;
 
   const db = adminClient();
+  // Propriétaire de l'organisation de l'événement : 404 s'il n'existe pas, 403 sinon (LAB-392).
+  const access = await requireOrgAccess(db, user.id, { kind: 'event', id: eventId });
+  if (access.response) return access.response;
+  const disabled = await requireFeature(db, access.orgId, 'event_report');
+  if (disabled) return disabled;
+
   const { data: event, error: evErr } = await db
     .from('events')
     .select('id, name, org_id, client_name, client_email')
     .eq('id', eventId)
     .maybeSingle();
-  if (evErr || !event) return corsResponse(404, { error: 'Événement introuvable' });
-
-  const { data: org } = await db
-    .from('organizations')
-    .select('id')
-    .eq('id', event.org_id)
-    .eq('owner_id', user.id)
-    .maybeSingle();
-  if (!org) return forbiddenOrg();
-  const disabled = await requireFeature(db, event.org_id, 'event_report');
-  if (disabled) return disabled;
+  if (evErr || !event) {
+    console.error('send-event-report : lecture de l’événement', eventId, evErr);
+    return corsResponse(500, { error: 'Lecture de l’événement impossible, réessayez.' });
+  }
 
   const { data: previous, error: prevErr } = await db
     .from('event_reports')
@@ -87,13 +87,13 @@ Deno.serve(async (req) => {
   const asAdmin = adminJwtCalls(authHeader, eventId);
 
   // Signature : nom commercial du profil, sinon fiche contact, sinon nom de l'organisation (org-identity.ts).
-  const identity = await getOrgIdentity(db, org.id);
+  const identity = await getOrgIdentity(db, access.orgId);
   const recipient = String(event.client_email ?? '').trim();
 
   const result = await sendEventReport({
     freeze: asAdmin.freeze,
     saveSelection: asAdmin.saveSelection,
-    sendEmail: ({ reportUrl, expiresAt }) => sendEventReportEmail({
+    sendEmail: async ({ reportUrl, expiresAt }) => sendEventReportEmail({
       to: recipient,
       clientName: event.client_name || 'Madame, Monsieur',
       eventName: event.name || 'votre événement',
@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
       reportUrl,
       expiresAt,
       sender: identitySender(identity),
+      trackingUrl: await clientTrackingUrl(db, eventId),
     }),
     logEmail: (sent) => recordEmailLog(db, { scope: { eventId }, recipient, type: REPORT_EMAIL_TYPE, ...sent }),
     markSent: (reportId, sentAt) => db.from('event_reports').update({ sent_at: sentAt }).eq('id', reportId),

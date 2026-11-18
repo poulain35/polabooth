@@ -2,7 +2,7 @@
 // bornes, choix des photos, aperçu (la vraie page), envoyer, renvoyer, révoquer. Tous les chiffres
 // viennent de build_event_report ; l'envoi passe par l'edge function send-event-report.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, Check, Copy, Eye, Images, Loader2, RefreshCw, Send, Unlink } from 'lucide-react';
+import { BarChart3, Eye, Images, Loader2, RefreshCw, Send, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildEventReport, fetchPhotos, getEventReportRow, revokeEventReport, sendEventReport, updateEventReportSelection } from '../../lib/supabase';
 import { moduleHook } from '../../features/modules';
@@ -14,16 +14,16 @@ import {
 import EventReportView from '../report/EventReportView';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { CardHeading, Notice } from './CardParts';
+import { StatusPill } from '../ui/status-pill';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
+import { CopyButton } from '../ui/copy-button';
 
-const KIOSK_DOT = { ok: 'bg-emerald-500', pending: 'bg-amber-500', unknown: 'bg-amber-500', not_seen: 'bg-red-500' };
-const STATUS_BADGE = {
-  sent: 'bg-emerald-50 text-emerald-700',
-  draft: 'bg-gray-100 text-gray-600',
-  revoked: 'bg-red-50 text-red-700',
-};
+// Point d'état d'une borne : le texte de la ligne dit l'état, le point l'appuie.
+const KIOSK_DOT = { ok: 'bg-state-green-fg', pending: 'bg-state-amber-fg', unknown: 'bg-state-amber-fg', not_seen: 'bg-destructive' };
+const STATUS_TONE = { sent: 'green', draft: 'gray', revoked: 'red' };
 const sameIds = (a, b) => a.length === b.length && a.every((id, i) => id === b[i]);
 
 export default function EventReportCard({ event, org, appUrl }) {
@@ -43,7 +43,6 @@ export default function EventReportCard({ event, org, appUrl }) {
   const [sendError, setSendError] = useState('');
   const [revoking, setRevoking] = useState(false);
   const [savingPhotos, setSavingPhotos] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const report = prepared?.report ?? null;
   const status = report?.status ?? null;
@@ -149,71 +148,55 @@ export default function EventReportCard({ event, org, appUrl }) {
     }
   }
 
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Copie impossible : sélectionnez le lien à la main.');
-    }
-  }
-
   const sendLabel = status === 'sent' ? 'Actualiser et renvoyer' : 'Envoyer au client';
 
   return (
-    <Card className="p-5 rounded-2xl shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-            <BarChart3 className="w-4 h-4 text-violet-600" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2 flex-wrap">
-              Bilan client
-              {statusInfo.label && (
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[statusInfo.tone] ?? ''}`}>{statusInfo.label}</span>
-              )}
-            </h3>
-            <p className="text-xs text-gray-400">
-              {statusInfo.detail || (proposed
-                ? 'Page de bilan à envoyer au client : séances, impressions, partages et photos choisies.'
-                : 'Pas proposé d’office pour ce client (voir Réglages). Vous pouvez le préparer à la main.')}
-            </p>
-          </div>
-        </div>
-        {!prepared && (
+    <Card className="p-card">
+      <CardHeading
+        as="h3"
+        icon={<BarChart3 />}
+        tone="lilac"
+        titleClassName="flex flex-wrap items-center gap-2"
+        title={<>
+          Bilan client
+          {statusInfo.label && (
+            <StatusPill tone={STATUS_TONE[statusInfo.tone] ?? 'gray'}>{statusInfo.label}</StatusPill>
+          )}
+        </>}
+        description={statusInfo.detail || (proposed
+          ? 'Page de bilan à envoyer au client : séances, impressions, partages et photos choisies.'
+          : 'Pas proposé d’office pour ce client (voir Réglages). Vous pouvez le préparer à la main.')}
+        actions={prepared ? (
+          <Button variant="outline" onClick={() => prepare({ keepSelection: true })} disabled={preparing || sending}
+            title="Recalculer les chiffres et l’état des bornes">
+            {preparing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Actualiser
+          </Button>
+        ) : (
           <Button onClick={() => prepare()} disabled={initLoading || preparing}
-            variant={proposed ? 'default' : 'outline'} className="rounded-xl shrink-0">
-            {preparing ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+            variant={proposed ? 'default' : 'outline'}>
+            {preparing ? <Loader2 className="animate-spin" /> : <BarChart3 />}
             {preparing ? 'Préparation…' : 'Préparer le bilan'}
           </Button>
         )}
-        {prepared && (
-          <Button variant="outline" onClick={() => prepare({ keepSelection: true })} disabled={preparing || sending}
-            className="rounded-xl shrink-0" title="Recalculer les chiffres et l’état des bornes">
-            {preparing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Actualiser
-          </Button>
-        )}
-      </div>
+      />
 
-      {prepareError && <p className="mt-3 text-sm rounded-xl px-3 py-2 bg-red-50 text-red-700">{prepareError}</p>}
+      {prepareError && <Notice tone="red" className="mt-3">{prepareError}</Notice>}
 
       {prepared && (
         <div className="mt-4 space-y-4">
           {/* État des bornes */}
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-1.5">Bornes de l’événement</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Bornes de l’événement</p>
             {kiosks.length === 0 ? (
-              <p className="text-xs text-gray-400">Aucune borne vue pour cet événement.</p>
+              <p className="text-xs text-muted-foreground">Aucune borne vue pour cet événement.</p>
             ) : (
               <ul className="space-y-1">
                 {kiosks.map((k, i) => (
-                  <li key={`${k.label}-${i}`} className="flex items-center gap-2 text-xs text-gray-600">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${KIOSK_DOT[k.state]}`} />
-                    <span className="font-medium text-gray-800">{k.label}</span>
-                    <span className="text-gray-500">{k.text}</span>
+                  <li key={`${k.label}-${i}`} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${KIOSK_DOT[k.state]}`} />
+                    <span className="font-medium text-foreground">{k.label}</span>
+                    <span className="text-muted-foreground">{k.text}</span>
                   </li>
                 ))}
               </ul>
@@ -223,13 +206,13 @@ export default function EventReportCard({ event, org, appUrl }) {
           {/* Photos */}
           <div>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-gray-500">
+              <p className="text-xs font-medium text-muted-foreground">
                 Photos du bilan : {selected.length}/{MAX_PHOTOS}
                 {candidates.length === 0 && ' (aucune photo approuvée)'}
               </p>
               {candidates.length > 0 && (
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowPhotos((v) => !v)}>
-                  <Images className="w-3.5 h-3.5" />
+                <Button variant="ghost" size="xs"  onClick={() => setShowPhotos((v) => !v)}>
+                  <Images />
                   {showPhotos ? 'Fermer le choix' : 'Choisir les photos'}
                 </Button>
               )}
@@ -238,7 +221,7 @@ export default function EventReportCard({ event, org, appUrl }) {
               <div className="mt-2 flex gap-2 flex-wrap">
                 {selected.map((id) => {
                   const p = candidates.find((c) => c.id === id);
-                  return p ? <img key={id} src={photoThumb(p)} alt="" className="w-12 h-12 object-cover rounded-lg border border-gray-100" /> : null;
+                  return p ? <img key={id} src={photoThumb(p)} alt="" className="h-12 w-12 rounded-control border border-border object-cover" /> : null;
                 })}
               </div>
             )}
@@ -250,11 +233,11 @@ export default function EventReportCard({ event, org, appUrl }) {
                     const on = order >= 0;
                     return (
                       <button key={p.id} type="button" onClick={() => handleToggle(p.id)}
-                        className={`relative aspect-square rounded-lg overflow-hidden border-2 ${on ? 'border-violet-600' : 'border-transparent hover:border-gray-200'}`}
+                        className={`relative aspect-square overflow-hidden rounded-control border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-primary' : 'border-transparent hover:border-input'}`}
                         aria-pressed={on} aria-label={on ? `Retirer la photo ${order + 1}` : 'Ajouter cette photo'}>
                         <img src={photoThumb(p)} alt="" loading="lazy" className="w-full h-full object-cover" />
                         {on && (
-                          <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-violet-600 text-white text-[11px] font-semibold flex items-center justify-center">
+                          <span className="absolute left-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
                             {order + 1}
                           </span>
                         )}
@@ -263,17 +246,17 @@ export default function EventReportCard({ event, org, appUrl }) {
                   })}
                 </div>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={handleDefaultPhotos} disabled={savingPhotos}>
+                  <Button variant="outline" size="sm"  onClick={handleDefaultPhotos} disabled={savingPhotos}>
                     6 photos réparties dans la soirée
                   </Button>
                   {status === 'sent' && !sameIds(selected, savedSelection) && (
-                    <Button size="sm" className="h-8 rounded-lg" onClick={() => persistSelection(selected)} disabled={savingPhotos}>
-                      {savingPhotos && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <Button size="sm" onClick={() => persistSelection(selected)} disabled={savingPhotos}>
+                      {savingPhotos && <Loader2 className="animate-spin" />}
                       Mettre à jour les photos en ligne
                     </Button>
                   )}
                   {status === 'sent' && (
-                    <span className="text-xs text-gray-400">Le bilan déjà envoyé montre ces photos dès la mise à jour.</span>
+                    <span className="text-xs text-muted-foreground">Le bilan déjà envoyé montre ces photos dès la mise à jour.</span>
                   )}
                 </div>
               </div>
@@ -282,28 +265,26 @@ export default function EventReportCard({ event, org, appUrl }) {
 
           {/* Lien envoyé */}
           {link && (
-            <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2">
-              <a href={link} target="_blank" rel="noreferrer" className="text-xs text-violet-700 truncate flex-1 hover:underline">{link}</a>
-              <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={handleCopy}>
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copié' : 'Copier'}
-              </Button>
+            <div className="flex items-center gap-2 rounded-xl bg-muted py-1.5 pl-3 pr-1.5">
+              <a href={link} target="_blank" rel="noreferrer" className="flex-1 truncate text-xs text-primary-ink hover:underline">{link}</a>
+              <CopyButton value={link} variant="ghost" className="shrink-0"
+                errorMessage="Copie impossible : sélectionnez le lien à la main." />
             </div>
           )}
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap pt-1">
-            <Button variant="outline" className="rounded-xl" onClick={() => setShowPreview(true)}>
-              <Eye className="w-4 h-4" />
+            <Button variant="outline"  onClick={() => setShowPreview(true)}>
+              <Eye />
               Aperçu
             </Button>
-            <Button className="rounded-xl" onClick={() => { setSendError(''); setConfirmSend(true); }} disabled={!canSend}>
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <Button onClick={() => { setSendError(''); setConfirmSend(true); }} disabled={!canSend}>
+              {sending ? <Loader2 className="animate-spin" /> : <Send />}
               {sending ? 'Envoi…' : sendLabel}
             </Button>
             {status === 'sent' && (
-              <Button variant="ghost" className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => setConfirmRevoke(true)} disabled={revoking}>
-                <Unlink className="w-4 h-4" />
+              <Button variant="ghost" className="text-destructive hover:bg-state-red hover:text-destructive" onClick={() => setConfirmRevoke(true)} disabled={revoking}>
+                <Unlink />
                 Couper le lien
               </Button>
             )}
@@ -311,19 +292,19 @@ export default function EventReportCard({ event, org, appUrl }) {
 
           {reasons.length > 0 && (
             <ul className="space-y-1">
-              {reasons.map((r) => <li key={r} className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{r}</li>)}
+              {reasons.map((r) => <Notice as="li" key={r} tone="amber">{r}</Notice>)}
             </ul>
           )}
-          {sendError && <p className="text-sm rounded-xl px-3 py-2 bg-red-50 text-red-700">{sendError}</p>}
+          {sendError && <Notice tone="red">{sendError}</Notice>}
         </div>
       )}
 
       {/* Aperçu : la vraie page du client, avec les photos choisies */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="block max-w-4xl w-[95vw] h-[90vh] p-0 overflow-y-auto print:hidden">
+        <DialogContent className="light-island block max-w-4xl w-[95vw] h-[90vh] p-0 overflow-y-auto print:hidden">
           <DialogTitle className="sr-only">Aperçu du bilan client</DialogTitle>
           <DialogDescription className="sr-only">La page telle que le client la verra.</DialogDescription>
-          <p className="sticky top-0 z-10 bg-amber-50 text-amber-800 text-xs text-center px-10 py-2">
+          <p className="sticky top-0 z-10 bg-state-amber text-state-amber-fg text-xs text-center px-10 py-2">
             Aperçu : le client verra cette page{status === 'sent' ? '' : ' après l’envoi'}. Les chiffres seront arrêtés au moment de l’envoi.
           </p>
           {report && <EventReportView report={previewReport(report, photos, selected)} appUrl={appUrl} />}
@@ -344,7 +325,7 @@ export default function EventReportCard({ event, org, appUrl }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmSend(false)} disabled={sending}>Annuler</Button>
             <Button onClick={handleSend} disabled={sending}>
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {sending ? <Loader2 className="animate-spin" /> : <Send />}
               {sending ? 'Envoi…' : sendLabel}
             </Button>
           </DialogFooter>
@@ -363,7 +344,7 @@ export default function EventReportCard({ event, org, appUrl }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmRevoke(false)} disabled={revoking}>Annuler</Button>
             <Button variant="destructive" onClick={handleRevoke} disabled={revoking}>
-              {revoking && <Loader2 className="w-4 h-4 animate-spin" />}
+              {revoking && <Loader2 className="animate-spin" />}
               Couper le lien
             </Button>
           </DialogFooter>

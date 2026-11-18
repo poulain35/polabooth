@@ -7,7 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <!-- Version de l'app — incrémenter à chaque release. Lue au runtime pour les MAJ. -->
-    <Version>1.0.16</Version>
+    <Version>1.0.19</Version>
+    <!-- Icône Polabooth de l'exe : raccourcis, barre des tâches, liste des programmes -->
+    <ApplicationIcon>Assets\Brand\polabooth.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Expose les membres internal (logique pure) au projet de test -->
@@ -39,14 +41,17 @@
     <None Update="appsettings.Instance.json" Condition="Exists('appsettings.Instance.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Réglages de développement : copiés pour dotnet run, jamais publiés (ni donc dans l'installeur). -->
     <None Update="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
     <None Update="appsettings.Production.json" Condition="Exists('appsettings.Production.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="appsettings.local.json" Condition="Exists('appsettings.local.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

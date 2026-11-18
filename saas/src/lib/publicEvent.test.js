@@ -21,6 +21,7 @@ test('parsePublicEvent : événement, entreprise et config galerie', () => {
     gallery: { guest_upload_enabled: true, slideshow_enabled: false },
     bookingBanner: true,
     eventType: '',
+    branding: null,
   });
 });
 
@@ -31,6 +32,7 @@ test('parsePublicEvent : champs absents → valeurs neutres', () => {
     gallery: {},
     bookingBanner: true,
     eventType: '',
+    branding: null,
   });
 });
 
@@ -44,9 +46,20 @@ test('parsePublicEvent : bandeau réservation (LAB-130), seul un false explicite
   assert.equal(parsePublicEvent({ ...base, event_type: 42 }).eventType, '');
 });
 
+test('parsePublicEvent : habillage (LAB-301/303), absent ou null → null, sinon refiltré', () => {
+  const base = { id: 'e1', name: 'Mariage' };
+  assert.equal(parsePublicEvent(base).branding, null, 'RPC sans branding');
+  assert.equal(parsePublicEvent({ ...base, branding: null }).branding, null);
+  assert.equal(parsePublicEvent({ ...base, branding: 'x' }).branding, null);
+  assert.deepEqual(parsePublicEvent({ ...base, branding: { color: '#1F4E79', logo_url: 'https://x.fr/l.png', gallery_text: 'Bienvenue' } }).branding,
+    { color: '#1F4E79', logoUrl: 'https://x.fr/l.png', galleryText: 'Bienvenue' });
+  assert.deepEqual(parsePublicEvent({ ...base, branding: { color: 'red', logo_url: 'javascript:alert(1)', gallery_text: null, extra: 1 } }).branding,
+    { color: null, logoUrl: null, galleryText: '' });
+});
+
 // Garde-fou : plus aucune lecture anon directe de `events` dans les fonctions publiques du front.
-test('supabase.js : galerie, diaporama et livre d\'or passent par la RPC, pas par from(\'events\')', () => {
-  const src = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
+test('api/photos.js : galerie, diaporama et livre d\'or passent par la RPC, pas par from(\'events\')', () => {
+  const src = readFileSync(new URL('./api/photos.js', import.meta.url), 'utf8');
   for (const fn of ['fetchCompanyByCode', 'fetchPhotosByAccessCode', 'getGalleryConfig']) {
     const start = src.indexOf(`export async function ${fn}(`);
     assert.ok(start >= 0, `${fn} introuvable`);

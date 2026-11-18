@@ -12,7 +12,7 @@ export const IDENTITY_COLUMNS = [
 ];
 
 /** Marque des emails (open core L7) : en-tête, pied de page et mentions légales de tous les emails. */
-export const EMAIL_BRAND_KEYS = [
+const EMAIL_BRAND_KEYS = [
   'email_logo_url', 'website_url', 'email_reviews_text',
   'social_facebook_url', 'social_instagram_url', 'social_linkedin_url', 'email_legal_footer',
 ];

@@ -12,7 +12,7 @@ public class SupabaseServiceTests
     [InlineData("[]")]
     public void ParseEventRpcResponse_returns_null_when_code_is_unknown(string body)
     {
-        SupabaseService.ParseEventRpcResponse(body).Should().BeNull();
+        SupabaseRpcResponses.ParseEventRpcResponse(body).Should().BeNull();
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class SupabaseServiceTests
         }
         """;
 
-        var dto = SupabaseService.ParseEventRpcResponse(body);
+        var dto = SupabaseRpcResponses.ParseEventRpcResponse(body);
 
         dto.Should().NotBeNull();
         dto!.Id.Should().Be(Guid.Parse("6f1d2c3b-1111-4222-8333-944455556666"));
@@ -46,7 +46,7 @@ public class SupabaseServiceTests
         const string url = "https://photos.example.com/" + path;
 
         var body = Newtonsoft.Json.JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(
-            SupabaseService.BuildRecordPhotoBody("TUQNA5", eventId, path, url,
+            SupabaseRpcBodies.BuildRecordPhotoBody("TUQNA5", eventId, path, url,
                 new DateTime(2026, 11, 4, 21, 10, 5, 123, DateTimeKind.Utc), "MACHINE-1", "s3cret"),
             new Newtonsoft.Json.JsonSerializerSettings { DateParseHandling = Newtonsoft.Json.DateParseHandling.None })!;
 
@@ -67,7 +67,7 @@ public class SupabaseServiceTests
         // SQLite rend les dates sans Kind : elles sont stockées en UTC, on ne les convertit pas.
         var fromDb = new DateTime(2026, 11, 4, 21, 10, 5, 123, DateTimeKind.Unspecified);
 
-        SupabaseService.ToUtcIso(fromDb).Should().Be("2026-11-04T21:10:05.123Z");
+        SupabaseRpcBodies.ToUtcIso(fromDb).Should().Be("2026-11-04T21:10:05.123Z");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class SupabaseServiceTests
     {
         const string body = """{"presigned_url":"https://r2.example/put?sig=1","storage_path":"photos/a-6f1d2c3b/s/c.jpg","public_url":"https://photos.example.com/photos/a-6f1d2c3b/s/c.jpg","content_type":"image/jpeg"}""";
 
-        SupabaseService.ParseUploadTarget(body).Should().Be(new SupabaseService.UploadTarget(
+        SupabaseRpcResponses.ParseUploadTarget(body).Should().Be(new SupabaseRpcResponses.UploadTarget(
             "https://r2.example/put?sig=1", "photos/a-6f1d2c3b/s/c.jpg",
             "https://photos.example.com/photos/a-6f1d2c3b/s/c.jpg", "image/jpeg"));
     }
@@ -87,14 +87,14 @@ public class SupabaseServiceTests
     [InlineData("""{"presigned_url":"x","storage_path":"p","public_url":"u","content_type":3}""")]
     public void ParseUploadTarget_rejects_incomplete_response(string body)
     {
-        var act = () => SupabaseService.ParseUploadTarget(body);
+        var act = () => SupabaseRpcResponses.ParseUploadTarget(body);
         act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
     public void ParsePhotoIdRpcResponse_reads_uuid_scalar()
     {
-        SupabaseService.ParsePhotoIdRpcResponse("\"0a0b0c0d-1111-4222-8333-944455556666\"")
+        SupabaseRpcResponses.ParsePhotoIdRpcResponse("\"0a0b0c0d-1111-4222-8333-944455556666\"")
             .Should().Be(Guid.Parse("0a0b0c0d-1111-4222-8333-944455556666"));
     }
 
@@ -105,7 +105,7 @@ public class SupabaseServiceTests
     [InlineData("[]")]
     public void ParsePhotoIdRpcResponse_returns_empty_on_unexpected_body(string body)
     {
-        SupabaseService.ParsePhotoIdRpcResponse(body).Should().Be(Guid.Empty);
+        SupabaseRpcResponses.ParsePhotoIdRpcResponse(body).Should().Be(Guid.Empty);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class SupabaseServiceTests
     {
         const string body = """{ "id": "6f1d2c3b-1111-4222-8333-944455556666", "name": "", "access_code": "ABC123", "form_config": { "kiosk": null } }""";
 
-        var dto = SupabaseService.ParseEventRpcResponse(body);
+        var dto = SupabaseRpcResponses.ParseEventRpcResponse(body);
 
         dto.Should().NotBeNull();
         dto!.FormConfig!.Kiosk.Should().BeNull();
@@ -136,7 +136,7 @@ public class SupabaseServiceTests
         }
         """;
 
-        var dto = SupabaseService.ParseEventRpcResponse(body);
+        var dto = SupabaseRpcResponses.ParseEventRpcResponse(body);
 
         dto!.StartDate.Should().Be(new DateTimeOffset(2026, 6, 14, 14, 0, 0, TimeSpan.Zero));
         dto.StartDate!.Value.Offset.Should().Be(TimeSpan.FromHours(2), "le fuseau envoyé est gardé tel quel");
@@ -157,7 +157,7 @@ public class SupabaseServiceTests
     {
         var body = $$"""{ "id": "6f1d2c3b-1111-4222-8333-944455556666", "name": "", "access_code": "ABC123", "start_date": {{value}}, "form_config": {} }""";
 
-        var dto = SupabaseService.ParseEventRpcResponse(body);
+        var dto = SupabaseRpcResponses.ParseEventRpcResponse(body);
 
         dto.Should().NotBeNull("une date illisible ne bloque pas le chargement de l'événement");
         dto!.StartDate.Should().BeNull();
@@ -170,7 +170,7 @@ public class SupabaseServiceTests
     [InlineData("""[{"pin_hash":null,"pin_set_at":null}]""")]
     public void ParseAdminPinResponse_returns_null_when_no_pin_was_sent(string body)
     {
-        SupabaseService.ParseAdminPinResponse(body).Should().BeNull();
+        SupabaseRpcResponses.ParseAdminPinResponse(body).Should().BeNull();
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public class SupabaseServiceTests
     {
         const string body = """[{"pin_hash":"pbkdf2$210000$AAECAwQFBgcICQoLDA0ODw==$986qxnMbMmzuHyS3MK9F7gz4EXIuhMjAubUlwLFpHTo=","pin_set_at":"2026-11-03T09:15:00.123456+00:00"}]""";
 
-        var pin = SupabaseService.ParseAdminPinResponse(body);
+        var pin = SupabaseRpcResponses.ParseAdminPinResponse(body);
 
         pin.Should().NotBeNull();
         pin!.Hash.Should().StartWith("pbkdf2$210000$");
@@ -196,7 +196,7 @@ public class SupabaseServiceTests
     [InlineData("""[{ "version": "1.0.16", "exe_url": "https://x.test/a.exe", "sha256": "ab", "requested_at": null }]""")]
     public void ParseUpdateRequestResponse_returns_null_without_a_pending_request(string body)
     {
-        SupabaseService.ParseUpdateRequestResponse(body).Should().BeNull();
+        SupabaseRpcResponses.ParseUpdateRequestResponse(body).Should().BeNull();
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class SupabaseServiceTests
            "sha256": "ABCDEF", "requested_at": "2026-11-03T10:00:00.123456+00:00" }]
         """;
 
-        var request = SupabaseService.ParseUpdateRequestResponse(body);
+        var request = SupabaseRpcResponses.ParseUpdateRequestResponse(body);
 
         request.Should().Be(new UpdateRequest("1.0.16", "https://x.test/setup-1.0.16.exe", "abcdef",
             "2026-11-03T10:00:00.123456+00:00"));
@@ -216,7 +216,7 @@ public class SupabaseServiceTests
     [Fact]
     public void BuildUpdateFailureBody_uses_kiosk_report_update_failure_argument_names()
     {
-        var json = SupabaseService.BuildUpdateFailureBody("MACHINE-1", "s3cret", "1.0.16",
+        var json = SupabaseRpcBodies.BuildUpdateFailureBody("MACHINE-1", "s3cret", "1.0.16",
             "2026-11-03T10:00:00.123456+00:00", new string('x', 800));
 
         using var reader = new Newtonsoft.Json.JsonTextReader(new StringReader(json))
@@ -229,7 +229,7 @@ public class SupabaseServiceTests
         body["p_secret"]!.ToString().Should().Be("s3cret");
         body["p_version"]!.ToString().Should().Be("1.0.16");
         body["p_requested_at"]!.ToString().Should().Be("2026-11-03T10:00:00.123456+00:00");
-        body["p_error"]!.ToString().Should().HaveLength(SupabaseService.MaxUpdateErrorLength);
+        body["p_error"]!.ToString().Should().HaveLength(SupabaseRpcBodies.MaxUpdateErrorLength);
     }
 
     // ── LAB-245 : événement envoyé sur la borne depuis le SaaS ─────────────
@@ -243,7 +243,7 @@ public class SupabaseServiceTests
     [InlineData("""{ "requested_at": "2026-11-05T10:00:00+00:00", "event": { "id": "00000000-0000-0000-0000-000000000000" } }""")]
     public void ParseEventPushResponse_returns_null_without_a_pending_push(string body)
     {
-        SupabaseService.ParseEventPushResponse(body).Should().BeNull();
+        SupabaseRpcResponses.ParseEventPushResponse(body).Should().BeNull();
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class SupabaseServiceTests
                      "form_config": { "kiosk": { "theme": { "primary": "#123456" } } } } }
         """;
 
-        var push = SupabaseService.ParseEventPushResponse(body);
+        var push = SupabaseRpcResponses.ParseEventPushResponse(body);
 
         push.Should().NotBeNull();
         push!.RequestedAt.Should().Be("2026-11-05T10:00:00.123456+00:00");
@@ -271,7 +271,7 @@ public class SupabaseServiceTests
     public void BuildEventPushAckBody_uses_kiosk_ack_event_request_argument_names()
     {
         var eventId = Guid.Parse("6f1d2c3b-1111-4222-8333-944455556666");
-        var json = SupabaseService.BuildEventPushAckBody("MACHINE-1", "s3cret", eventId,
+        var json = SupabaseRpcBodies.BuildEventPushAckBody("MACHINE-1", "s3cret", eventId,
             "2026-11-05T10:00:00.123456+00:00", new string('x', 800));
 
         using var reader = new Newtonsoft.Json.JsonTextReader(new StringReader(json))
@@ -284,7 +284,7 @@ public class SupabaseServiceTests
         body["p_secret"]!.ToString().Should().Be("s3cret");
         body["p_event_id"]!.ToString().Should().Be(eventId.ToString());
         body["p_requested_at"]!.ToString().Should().Be("2026-11-05T10:00:00.123456+00:00");
-        body["p_error"]!.ToString().Should().HaveLength(SupabaseService.MaxUpdateErrorLength);
+        body["p_error"]!.ToString().Should().HaveLength(SupabaseRpcBodies.MaxUpdateErrorLength);
     }
 
     [Theory]
@@ -293,7 +293,7 @@ public class SupabaseServiceTests
     [InlineData("   ")]
     public void BuildEventPushAckBody_sends_no_error_when_the_event_is_displayed(string? error)
     {
-        var json = SupabaseService.BuildEventPushAckBody("MACHINE-1", "s3cret", Guid.NewGuid(),
+        var json = SupabaseRpcBodies.BuildEventPushAckBody("MACHINE-1", "s3cret", Guid.NewGuid(),
             "2026-11-05T10:00:00+00:00", error);
 
         Newtonsoft.Json.Linq.JObject.Parse(json)["p_error"]!.Type.Should().Be(Newtonsoft.Json.Linq.JTokenType.Null);
@@ -304,7 +304,7 @@ public class SupabaseServiceTests
     [Fact]
     public void ParseOrgContact_reads_the_company_the_phone_the_logo_and_the_email()
     {
-        var contact = SupabaseService.ParseOrgContact(
+        var contact = SupabaseRpcResponses.ParseOrgContact(
             """{"contact_company":"Studio Lumière","contact_phone":"06 11 22 33 44","contact_email":"a@b.fr","logo_url":"https://cdn/org/o1/logo.png?v=1"}""");
 
         contact.Should().Be(new PolaKiosk.Models.Supabase.OrgContact("Studio Lumière", "06 11 22 33 44", "https://cdn/org/o1/logo.png?v=1", "a@b.fr"));
@@ -316,7 +316,7 @@ public class SupabaseServiceTests
     [InlineData("""{"contact_company":"Studio"}""")] // RPC d'avant la migration
     public void ParseOrgContact_without_logo_gives_a_null_url(string json)
     {
-        var contact = SupabaseService.ParseOrgContact(json)!;
+        var contact = SupabaseRpcResponses.ParseOrgContact(json)!;
 
         contact.Company.Should().Be("Studio");
         contact.Phone.Should().BeNull();
@@ -326,6 +326,6 @@ public class SupabaseServiceTests
     [Fact]
     public void ParseOrgContact_returns_null_for_an_unknown_event()
     {
-        SupabaseService.ParseOrgContact("null").Should().BeNull("la borne garde alors son contact et son logo");
+        SupabaseRpcResponses.ParseOrgContact("null").Should().BeNull("la borne garde alors son contact et son logo");
     }
 }

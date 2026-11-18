@@ -1,7 +1,13 @@
 import { fabric } from 'fabric';
 import { reapplyTextEffects } from './textEffects';
-import { exportAsHighResPNG } from './export';
-import { preloadCustomFonts } from '../lib/supabase';
+import { exportAsHighResPNG, exportScreenParts } from './export';
+import { kioskFormatByKind } from './formats';
+import { ensureKioskFonts } from './kioskFonts';
+import { registerCustomFonts } from '../lib/supabase';
+import { loadFontsOf } from '../lib/fontUsage';
+import { buildScreenLayoutFromState } from '../lib/kioskScreenLayout';
+import { screenSourceFromParts } from '../lib/kioskDesignedScreen';
+import { withCrossOrigin } from '../lib/designImages';
 
 // Gradient helpers — mirror Editor.jsx so an offscreen render reproduces the
 // same background as the live editor. Keep in sync if the editor's math changes.
@@ -31,6 +37,7 @@ function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
   });
 }
 
+
 /**
  * Re-renders a stored design (canvas_json) into an offscreen Fabric canvas and
  * exports it as a high-res PNG. Unlike the stored final_png_url — which is frozen
@@ -42,34 +49,42 @@ function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
  * either as an object (jsonb from Supabase) or a JSON string.
  */
 export async function renderDesignToPng(canvasJson, format, options = {}) {
+  return withOffscreenDesign(canvasJson, format, (canvas) => exportAsHighResPNG(canvas, format, options));
+}
+
+/**
+ * Écran de la borne composé (LAB-309) rendu hors écran : un état d'éditeur (brouillon, modèle
+ * d'origine) devient la source de l'aperçu « Écran composé », par le même découpage que la
+ * publication (buildScreenLayoutFromState puis exportScreenParts). Null si la borne refuserait
+ * le plan (elle afficherait alors son écran standard).
+ */
+export async function renderScreenSource(canvasJson, kind) {
+  const format = kioskFormatByKind(kind);
+  const state = typeof canvasJson === 'string' ? JSON.parse(canvasJson) : canvasJson;
+  await ensureKioskFonts();
+  return withOffscreenDesign(state, format, (canvas) => {
+    const { layout, parts } = buildScreenLayoutFromState(state, kind, { canvasWidth: format.canvasWidth });
+    return screenSourceFromParts(layout, exportScreenParts(canvas, format, parts));
+  });
+}
+
+/** Charge un état d'éditeur dans un canvas Fabric hors écran, appelle `render(canvas)`, puis le libère. */
+async function withOffscreenDesign(canvasJson, format, render) {
   const state = typeof canvasJson === 'string' ? JSON.parse(canvasJson) : canvasJson;
 
   // Inject crossOrigin before load so remote images don't taint the canvas
   // (toDataURL would throw). The JSON reviver runs too late — the image has
-  // already started loading without the flag.
-  const objects = (state.objects ?? []).map((o) =>
-    o.type === 'image' && typeof o.src === 'string' && o.src.startsWith('http')
-      ? { ...o, crossOrigin: 'anonymous' }
-      : o
-  );
+  // already started loading without the flag. Groupes et masques compris : leurs images sont
+  // aussi rangées dans le stockage (LAB-348).
+  const objects = withCrossOrigin(state.objects);
 
-  // Register custom (uploaded) fonts as FontFaces first — otherwise document.fonts.load
-  // below has no source for them and Fabric falls back to a default font at export.
-  await preloadCustomFonts();
+  // Polices importées déclarées d'abord (sans téléchargement, LAB-347) : sinon document.fonts.load
+  // n'a pas de source pour elles et Fabric exporte avec une police de secours.
+  await registerCustomFonts().catch(() => {});
 
-  // Pre-load referenced fonts so Fabric measures text with correct metrics.
-  const textObjects = objects.filter((o) => o.type === 'i-text' || o.type === 'text');
-  if (textObjects.length > 0) {
-    const fontDescriptors = [...new Set(
-      textObjects.flatMap((o) => {
-        if (!o.fontFamily) return [];
-        const style  = o.fontStyle === 'italic' ? 'italic ' : '';
-        const weight = o.fontWeight || 400;
-        return [`${style}${weight} 16px "${o.fontFamily}"`];
-      })
-    )];
-    await Promise.allSettled(fontDescriptors.map((d) => document.fonts.load(d)));
-  }
+  // Puis seulement les polices des textes du modèle, groupes et zones de texte compris,
+  // pour que Fabric mesure le texte avec les bonnes métriques.
+  await loadFontsOf(objects);
 
   const canvas = new fabric.StaticCanvas(null, {
     width: format.canvasWidth,
@@ -101,7 +116,7 @@ export async function renderDesignToPng(canvasJson, format, options = {}) {
     await document.fonts.ready;
     canvas.renderAll();
 
-    return await exportAsHighResPNG(canvas, format, options);
+    return await render(canvas);
   } finally {
     canvas.dispose();
   }

@@ -15,39 +15,10 @@
 
 import { handleCors, corsResponse } from '../_shared/cors.ts';
 import { adminClient, sessionUser } from '../_shared/auth.ts';
+import { authenticate, requireOrgAccess } from '../_shared/admin-guard.ts';
 import { hashPin, isValidPin } from './pinHash.ts';
 
 const STATUS_COLUMNS = 'admin_pin_set_at, admin_pin_pushed_at, admin_pin_received_at';
-
-type Db = ReturnType<typeof adminClient>;
-
-async function requireSession(authHeader: string | null): Promise<{ response: Response } | { db: Db; userId: string }> {
-  if (!authHeader) return { response: corsResponse(401, { error: 'Non authentifié' }) };
-  const user = await sessionUser(authHeader);
-  if (!user) return { response: corsResponse(401, { error: 'Session invalide' }) };
-  return { db: adminClient(), userId: user.id };
-}
-
-// Super-admin, ou propriétaire du compte de la borne. Une borne retirée n'est plus gérée.
-async function requireLicenseAccess(db: Db, userId: string, licenseId: string): Promise<Response | null> {
-  const [{ data: admin, error: adminError }, { data: license, error: licenseError }] = await Promise.all([
-    db.from('app_admins').select('user_id').eq('user_id', userId).maybeSingle(),
-    db.from('kiosk_licenses').select('org_id').eq('id', licenseId).is('retired_at', null).maybeSingle(),
-  ]);
-  if (adminError || licenseError) return corsResponse(500, { error: 'Vérification des droits impossible' });
-  if (!license) return corsResponse(404, { error: 'Borne introuvable' });
-  if (admin) return null;
-
-  const { data: org, error: orgError } = await db
-    .from('organizations')
-    .select('id')
-    .eq('id', license.org_id)
-    .eq('owner_id', userId)
-    .maybeSingle();
-  if (orgError) return corsResponse(500, { error: 'Vérification des droits impossible' });
-  if (!org) return corsResponse(403, { error: 'Réservé au propriétaire de la borne' });
-  return null;
-}
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
@@ -55,18 +26,21 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') return corsResponse(405, { error: 'Method not allowed' });
 
-  const guard = await requireSession(req.headers.get('Authorization'));
-  if ('response' in guard) return guard.response;
-  const { db, userId } = guard;
+  const auth = await authenticate(req.headers.get('Authorization'), sessionUser);
+  if (auth.response) return auth.response;
+  const userId = auth.user.id;
+  const db = adminClient();
 
   let body: { action?: string; license_id?: string; pin?: unknown };
   try { body = await req.json(); } catch { return corsResponse(400, { error: 'Body JSON invalide' }); }
 
   const { action, license_id } = body;
-  if (!license_id) return corsResponse(400, { error: 'license_id requis' });
+  if (!license_id || typeof license_id !== 'string') return corsResponse(400, { error: 'license_id requis' });
 
-  const denied = await requireLicenseAccess(db, userId, license_id);
-  if (denied) return denied;
+  // Propriétaire de l'organisation de la borne, ou administrateur de l'application (LAB-242).
+  // Une borne retirée n'est plus gérée : l'écriture plus bas filtre retired_at (404).
+  const access = await requireOrgAccess(db, userId, { kind: 'kiosk_license', id: license_id }, { allowAppAdmin: true });
+  if (access.response) return access.response;
 
   const now = new Date().toISOString();
   let patch: Record<string, string>;
@@ -83,7 +57,10 @@ Deno.serve(async (req) => {
   if (action === 'push') query = query.not('admin_pin_hash', 'is', null);
   const { data, error } = await query.select(STATUS_COLUMNS).maybeSingle();
 
-  if (error) return corsResponse(500, { error: error.message });
+  if (error) {
+    console.error('kiosk-admin-pin : écriture impossible', error);
+    return corsResponse(500, { error: 'Enregistrement impossible, réessayez dans un instant.' });
+  }
   if (!data) {
     return corsResponse(404, {
       error: action === 'push' ? 'Définissez d’abord un PIN pour cette borne' : 'Borne introuvable',

@@ -18,22 +18,20 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
-import BrandLogo from '../components/BrandLogo';
+import ProductLogo from '../components/ProductLogo';
+import useProductFavicon from '../hooks/useProductFavicon';
+import { kioskName } from '../lib/kioskLogs';
 
 const NEW_KIOSK = 'new';
 
 function ErrorBox({ children }) {
   if (!children) return null;
   return (
-    <div role="alert" className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2.5 text-sm text-red-700">
+    <div role="alert" className="flex items-start gap-2 rounded-xl bg-state-red px-3 py-2.5 text-sm text-state-red-fg">
       <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
       <span>{children}</span>
     </div>
   );
-}
-
-function kioskName(lic) {
-  return lic.label || lic.machine_name || 'Borne sans nom';
 }
 
 /** Écran après « Associer » : attend que la borne récupère son secret. */
@@ -71,47 +69,47 @@ function PairingDone({ code, result, pinWarning, onAgain }) {
   }[result.mode];
 
   return (
-    <Card className="w-full p-6 rounded-2xl space-y-5">
+    <Card className="w-full p-6 space-y-5">
       {follow === 'connected' ? (
         <div className="text-center space-y-2">
-          <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600" />
-          <h2 className="text-xl font-bold text-gray-900">Borne connectée ✓</h2>
-          <p className="text-sm text-gray-500">« {result.label} » est prête.</p>
+          <CheckCircle2 className="w-12 h-12 mx-auto text-state-green-fg" />
+          <h2 className="text-xl font-medium text-foreground">Borne connectée ✓</h2>
+          <p className="text-sm text-muted-foreground">« {result.label} » est prête.</p>
         </div>
       ) : (
         <div className="text-center space-y-2">
           {follow === 'waiting'
             ? <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin" />
-            : <Monitor className="w-10 h-10 mx-auto text-gray-400" />}
-          <h2 className="text-lg font-bold text-gray-900">
+            : <Monitor className="w-10 h-10 mx-auto text-muted-foreground" />}
+          <h2 className="text-lg font-medium text-foreground">
             C'est fait : la borne affiche le nom « {result.label} » dans quelques secondes
           </h2>
           {follow === 'timeout' && (
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-state-amber-fg">
               La borne n'a pas encore confirmé. Vérifiez qu'elle est allumée et connectée à internet :
               elle se connectera dès son retour en ligne.
             </p>
           )}
           {follow === 'stopped' && (
-            <p className="text-sm text-red-700">
+            <p className="text-sm text-destructive">
               La demande a été annulée sur la borne. Elle affiche un nouveau code : recommencez avec celui-ci.
             </p>
           )}
         </div>
       )}
 
-      {modeLine && <p className="text-xs text-gray-500 text-center">{modeLine}</p>}
+      {modeLine && <p className="text-xs text-muted-foreground text-center">{modeLine}</p>}
       {pinWarning && <ErrorBox>{pinWarning}</ErrorBox>}
 
       <div className="flex flex-col gap-2">
         {/* LAB-245 : section « Événement sur la borne » de sa carte, page Licences. */}
-        <Button asChild className="w-full h-11">
-          <Link to={result?.license_id ? `/admin/licenses#envoyer-${result.license_id}` : '/admin/licenses'}>
+        <Button size="lg" asChild className="w-full">
+          <Link to={result?.license_id ? `/admin/bornes#envoyer-${result.license_id}` : '/admin/bornes'}>
             Envoyer un événement sur cette borne
           </Link>
         </Button>
-        <Button asChild variant="outline" className="w-full h-11">
-          <Link to="/admin/licenses">Voir mes bornes</Link>
+        <Button size="lg" asChild variant="outline" className="w-full">
+          <Link to="/admin/bornes">Voir mes bornes</Link>
         </Button>
         <Button variant="ghost" className="w-full" onClick={onAgain}>Associer une autre borne</Button>
       </div>
@@ -120,6 +118,7 @@ function PairingDone({ code, result, pinWarning, onAgain }) {
 }
 
 export default function AdminPair() {
+  useProductFavicon();
   const [params, setParams] = useSearchParams();
   const [codeInput, setCodeInput] = useState(params.get('code') ?? '');
   const code = normalizePairingCode(codeInput);
@@ -241,7 +240,7 @@ export default function AdminPair() {
           await pushKioskAdminPin(result.license_id);
         } catch (err) {
           pinWarning = `La borne est associée, mais le PIN n'a pas pu être envoyé (${err.message}). `
-            + 'Définissez-le depuis « Parc kiosk ».';
+            + 'Définissez-le depuis « Mes bornes ».';
         }
       }
       setPin(''); setPinConfirm('');
@@ -266,18 +265,18 @@ export default function AdminPair() {
   const inlineHint = problem === 'ambiguous' || problem === 'too_long' ? pairingCodeHint(code) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="px-4 py-4 flex items-center justify-between max-w-md w-full mx-auto">
-        <BrandLogo className="h-8 w-auto" />
-        <Link to="/admin/licenses" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <ProductLogo className="h-8 w-auto" />
+        <Link to="/admin/bornes" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           Mes bornes
         </Link>
       </header>
 
       <main className="flex-1 px-4 pb-10 max-w-md w-full mx-auto space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Associer une borne</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-page-title text-foreground">Associer une borne</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Scannez le QR code affiché sur la borne, ou tapez le code à 6 caractères.
           </p>
         </div>
@@ -286,7 +285,7 @@ export default function AdminPair() {
           <PairingDone code={done.code} result={done.result} pinWarning={done.pinWarning} onAgain={startAgain} />
         ) : (
           <>
-            <Card className="p-5 rounded-2xl space-y-3">
+            <Card className="p-5 space-y-3">
               <Label htmlFor="pairing-code">Code de la borne</Label>
               <Input
                 id="pairing-code"
@@ -302,29 +301,29 @@ export default function AdminPair() {
                 className="h-12 text-center text-2xl font-mono tracking-widest uppercase"
               />
               {checking && (
-                <p className="text-sm text-gray-500 flex items-center gap-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Vérification du code…
                 </p>
               )}
-              {inlineHint && <p className="text-sm text-amber-700">{inlineHint}</p>}
+              {inlineHint && <p className="text-sm text-state-amber-fg">{inlineHint}</p>}
               <ErrorBox>{codeError}</ErrorBox>
 
               {lookup && (
-                <div className="rounded-xl bg-muted/50 border border-gray-100 px-4 py-3 space-y-1">
+                <div className="rounded-xl bg-soft px-4 py-3 space-y-1">
                   <div className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="text-sm font-semibold text-gray-900 truncate">
+                    <Monitor className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium text-foreground truncate">
                       {lookup.machine_name || 'PC sans nom'}
                     </span>
                     {lookup.app_version && (
-                      <span className="text-xs font-mono text-gray-500">v{lookup.app_version}</span>
+                      <span className="text-xs font-mono text-muted-foreground">v{lookup.app_version}</span>
                     )}
                   </div>
-                  <p className={`text-xs ${expired ? 'text-red-600' : 'text-gray-500'}`}>
+                  <p className={`text-xs ${expired ? 'text-destructive' : 'text-muted-foreground'}`}>
                     Code {formatPairingCode(code)} · {expired ? MSG_EXPIRED : `Code valable encore ${left} min`}
                   </p>
                   {lookup.license && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Ce PC est déjà la borne « {lookup.license.label || 'sans nom'} »
                       {lookup.license.retired ? ' (retirée) : elle sera réactivée.' : ' : elle sera reprise.'}
                     </p>
@@ -334,7 +333,7 @@ export default function AdminPair() {
             </Card>
 
             {lookup && (
-              <Card className="p-5 rounded-2xl">
+              <Card className="p-5">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="kiosk-label">Nom de la borne</Label>
@@ -364,7 +363,7 @@ export default function AdminPair() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Pour un PC changé ou réinstallé : la borne garde son nom, sa couleur et son planning.
                     </p>
                   </div>
@@ -412,19 +411,19 @@ export default function AdminPair() {
                       />
                     )}
                     {pinTyped && pin.length < 4 && (
-                      <p className="text-xs text-amber-700">Le PIN compte 4 à 8 chiffres.</p>
+                      <p className="text-xs text-state-amber-fg">Le PIN compte 4 à 8 chiffres.</p>
                     )}
                     {pin.length >= 4 && pinConfirm.length >= 4 && pin !== pinConfirm && (
-                      <p className="text-xs text-red-600">Les deux PIN ne correspondent pas.</p>
+                      <p className="text-xs text-destructive">Les deux PIN ne correspondent pas.</p>
                     )}
                     {!pinTyped && (
-                      <p className="text-xs text-gray-500">Vide : la borne garde son PIN actuel.</p>
+                      <p className="text-xs text-muted-foreground">Vide : la borne garde son PIN actuel.</p>
                     )}
                   </div>
 
                   <ErrorBox>{formError}</ErrorBox>
 
-                  <Button type="submit" className="w-full h-12 text-base" disabled={!canSubmit}>
+                  <Button size="xl" type="submit" className="w-full" disabled={!canSubmit}>
                     {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Association…</> : 'Associer'}
                   </Button>
                 </form>

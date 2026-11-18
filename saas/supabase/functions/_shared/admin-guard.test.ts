@@ -60,10 +60,13 @@ const TABLES: Tables = {
   leads: [{ id: 'ld-a', org_id: 'org-a' }],
   booking_slots: [{ id: 'sl-a', org_id: 'org-a' }],
   prospects: [{ id: 'pr-a', org_id: 'org-a' }],
+  kiosk_licenses: [{ id: 'kl-a', org_id: 'org-a' }, { id: 'kl-b', org_id: 'org-b' }],
+  app_admins: [{ user_id: 'u-app-admin' }],
 };
 
 const OWNED: Record<OrgResourceKind, string> = {
   event: 'ev-a', photo: 'ph-a', audio_track: 'au-a', design: 'ds-a', lead: 'ld-a', slot: 'sl-a', prospect: 'pr-a',
+  kiosk_license: 'kl-a',
 };
 
 const users: Record<string, AuthUser> = {
@@ -107,6 +110,23 @@ test('org admin : panne base → 500, jamais un accès', async () => {
   assert.equal(res.response?.status, 500);
   const org = await requireOrgAccess(fakeDb(TABLES, { table: 'organizations' }), OWNER, { kind: 'event', id: 'ev-a' });
   assert.equal(org.response?.status, 403);
+});
+
+test('org admin : allowAppAdmin laisse passer un administrateur de l’application, pas un intrus', async () => {
+  const db = fakeDb(TABLES);
+  const resource = { kind: 'kiosk_license', id: 'kl-b' } as const;
+  assert.equal((await requireOrgAccess(db, 'u-app-admin', resource)).response?.status, 403);
+  const admin = await requireOrgAccess(db, 'u-app-admin', resource, { allowAppAdmin: true });
+  assert.equal(admin.response, undefined);
+  assert.equal(admin.response ? null : admin.orgId, 'org-b');
+  assert.equal((await requireOrgAccess(db, INTRUDER, resource, { allowAppAdmin: true })).response?.status, 403);
+  // Ressource inconnue : 404 même pour un administrateur de l’application.
+  const unknown = await requireOrgAccess(db, 'u-app-admin', { kind: 'kiosk_license', id: 'nope' }, { allowAppAdmin: true });
+  assert.equal(unknown.response?.status, 404);
+  assert.equal((await body(unknown.response!)).error, 'Borne introuvable');
+  // Lecture de app_admins en échec : 500, jamais un accès.
+  const failed = await requireOrgAccess(fakeDb(TABLES, { table: 'app_admins' }), INTRUDER, resource, { allowAppAdmin: true });
+  assert.equal(failed.response?.status, 500);
 });
 
 test('resolveOrgId : photo / piste / design remontent via l’événement', async () => {

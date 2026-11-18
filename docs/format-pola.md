@@ -32,7 +32,10 @@ gzip -dc < mariage_alice_et_bruno_AB12CD.pola | python -m json.tool | less
   version       entier, vaut 2
   exported_at   date de l'export (ISO 8601)
   event         l'événement
-  design        le design approuvé de l'événement
+  design        le design approuvé de l'événement (le cadre principal)
+  frames        les autres cadres validés, si l'invité choisit son cadre (facultatif)
+  home_design   l'écran d'accueil créé par le client, s'il est validé (facultatif)
+  screens       les écrans de la borne composés par l'admin (facultatif)
   assets        les images, en base64
   contact       le contact du compte, ou null
 }
@@ -57,7 +60,9 @@ Les mêmes champs que la réponse de la fonction `kiosk_get_event`, que la borne
 
 ### `design`
 
-Le design de l'événement, approuvé dans le SaaS. C'est lui qui encadre les photos.
+Le design de l'événement, approuvé dans le SaaS. C'est lui qui encadre les photos. Quand le client a
+plusieurs cadres (voir `frames`), c'est le cadre validé au plus petit numéro (`slot`), comme dans la
+réponse de la fonction `kiosk_get_approved_design`.
 
 | Champ | Type | Obligatoire | Contenu |
 |---|---|---|---|
@@ -65,6 +70,7 @@ Le design de l'événement, approuvé dans le SaaS. C'est lui qui encadre les ph
 | `format` | texte ou null | non | `portrait`, `landscape`, `stripV` ou `stripH`. Absent : `portrait`. |
 | `canvas_json` | objet ou null | non | Le canevas Fabric.js du design. La borne y lit les zones photo (objets `isPhotoZone: true`, aussi dans les groupes). |
 | `final_png_url` | texte | oui | Adresse du PNG final du design (zones photo transparentes). |
+| `label` | texte ou null | non | Nom du cadre sur la borne (24 caractères au plus). Écrit seulement quand `frames` est présent ; `null` = pas de nom. |
 
 Les zones photo sont en pixels du canevas. La borne les convertit vers la taille d'impression
 (300 dpi) avec `échelle = largeur d'impression en px / largeur du canevas en px` :
@@ -76,6 +82,57 @@ Les zones photo sont en pixels du canevas. La borne les convertit vers la taille
 | `stripV` | 200 × 600 | 1200 × 3600 | 5 × 15 |
 | `stripH` | 600 × 200 | 3600 × 1200 | 15 × 5 |
 
+### `home_design` (facultatif)
+
+L'écran d'accueil de la borne créé par le client dans l'éditeur (1920 × 1080, 16:9), puis validé
+dans le SaaS. Même valeur que `home_design` dans la réponse de la fonction
+`kiosk_get_approved_design`, que la borne appelle en ligne.
+
+| Champ | Type | Obligatoire | Contenu |
+|---|---|---|---|
+| `id` | uuid | oui | Identifiant de l'écran d'accueil (`client_designs.id`, `kind = 'home'`). |
+| `final_png_url` | texte | oui | Adresse du PNG de l'écran (1920 × 1080). |
+
+Présent seulement si les trois conditions sont réunies :
+
+- l'écran d'accueil est validé (`status = 'approved'`) ;
+- `form_config.kiosk.home.personalized` vaut `true` ;
+- `form_config.kiosk.home.client_design` vaut `true`.
+
+Sinon le champ est absent (pas `null`), et la borne affiche son accueil habituel. Un fichier sans ce
+champ reste valide : il n'y a pas de changement de version.
+
+### `frames` (facultatif)
+
+Les autres cadres validés de l'événement (spec `docs/specs/choix-cadre-invite.md`), triés par
+`slot`. Même forme que `frames` dans la réponse de la fonction `kiosk_get_approved_design`.
+L'invité choisit sur la borne le cadre à imprimer, parmi `design` et `frames`.
+
+| Champ | Type | Obligatoire | Contenu |
+|---|---|---|---|
+| `id` | uuid | oui | Identifiant du cadre (`client_designs.id`, `kind = 'print'`). |
+| `slot` | entier | oui | Numéro du cadre, de 2 à 4. |
+| `label` | texte ou null | non | Nom du cadre sur la borne (24 caractères au plus). |
+| `format` | texte ou null | non | Comme `design.format`. Les cadres peuvent avoir des formats différents. |
+| `canvas_json` | objet ou null | non | Comme `design.canvas_json`. |
+| `final_png_url` | texte | oui | Adresse du PNG du cadre. Son image est dans `assets`, sous `frame/{id}`. |
+
+Présent seulement si `form_config.kiosk.frame_choice.enabled` vaut `true` (le booléen). C'est alors
+un tableau, vide si l'événement n'a qu'un cadre validé. Sinon le champ est absent, `design` n'a pas
+de `label` : le fichier est le même qu'avant le choix du cadre. Pas de changement de version.
+
+### `screens` (facultatif)
+
+Les écrans de la borne composés par l'admin pour son organisation (accueil par défaut et partage,
+spec `docs/specs/ecrans-borne-admin.md`). Même valeur que la réponse de la fonction
+`kiosk_get_screens`, que la borne appelle en ligne : `{ "home": plan ou null, "result": plan ou null }`.
+Chaque plan est la version publiée, avec les adresses complètes de ses images (voir « Contrat du
+plan » dans la spec). Les images et les polices des textes vivants (`font_file`, TTF ou OTF,
+LAB-331) sont dans `assets`, sous `screens/{nom}` : `{nom}` est le dernier
+segment de l'adresse, sans paramètres.
+
+Un fichier sans ce champ reste valide : il n'y a pas de changement de version.
+
 ### `assets`
 
 | Champ | Obligatoire | Contenu |
@@ -83,6 +140,9 @@ Les zones photo sont en pixels du canevas. La borne les convertit vers la taille
 | `design_png` | oui | Le PNG du design (celui de `final_png_url`), en base64. |
 | `home_background` | non | L'image de fond de l'accueil (`kiosk.home.background_url`). Présent seulement si l'événement en a une et qu'elle a pu être téléchargée. |
 | `logo` | non | Le logo du compte (`contact.logo_url`). Présent seulement si le compte a un logo et qu'il a pu être téléchargé. |
+| `home_design` | non | Le PNG de l'écran d'accueil du client (celui de `home_design.final_png_url`). Présent seulement si `home_design` est présent et que le PNG a pu être téléchargé. |
+| `frame/{id}` | non | Le PNG d'un cadre de `frames` (celui de son `final_png_url`), une entrée par cadre. Présentes avec `frames`. |
+| `screens/{nom}` | non | Une image d'un écran composé (fond, fond neutre, bouton) ou la police d'un texte vivant (`font_file`), une entrée par nom. Présentes avec `screens`. Police absente : la borne écrit le texte en DM Sans. |
 
 ### `contact`
 
@@ -106,6 +166,16 @@ Le contact du compte, affiché sur la borne. Mêmes données que la fonction
   explication.
 - Fond d'accueil, logo ou contact manquants : le fichier est produit quand même, et le SaaS affiche
   un avertissement.
+- Écran d'accueil du client : `home_design` n'est écrit que s'il est validé et que les deux options
+  de l'accueil sont actives. Option active mais écran pas encore validé, ou PNG de l'écran impossible
+  à télécharger : le fichier est produit quand même, avec un avertissement.
+
+- Plusieurs cadres : `design` est le cadre validé au plus petit numéro. `frames` n'est écrit que si
+  le choix du cadre est actif. Un cadre dont le PNG n'a pas pu être téléchargé est retiré de `frames`
+  (et de `assets`), et l'admin est prévenu.
+
+- Écrans composés : `screens` reprend les plans publiés. Si une image d'un écran n'a pas pu être
+  téléchargée, cet écran est retiré du fichier (`null`) et l'admin est prévenu.
 
 **Lecture (borne)**
 
@@ -128,6 +198,31 @@ Le contact du compte, affiché sur la borne. Mêmes données que la fonction
 | renseigné | présent | Affiche ce logo et le garde en cache. |
 | renseigné | absent | Garde le logo qu'elle avait en cache. |
 
+**Écran d'accueil du client**
+
+| `home_design` | `assets.home_design` | Ce que fait la borne |
+|---|---|---|
+| absent | (ignoré) | Accueil habituel. |
+| présent | présent | Affiche cet écran à la place de l'accueil et le garde en cache. |
+| présent | absent | Affiche l'écran qu'elle a en cache s'il a le même `id`, sinon l'accueil habituel. |
+
+Un PNG illisible : accueil habituel.
+
+**Plusieurs cadres**
+
+| `frames` | Ce que fait la borne |
+|---|---|
+| absent | Un seul cadre : `design`. La borne efface les autres cadres qu'elle avait en cache. |
+| présent | L'invité choisit entre `design` et chaque cadre de `frames` (PNG dans `assets["frame/{id}"]`). |
+
+**Écrans composés** (accueil et partage, chacun de son côté)
+
+| `screens.home` ou `screens.result` | Ce que fait la borne |
+|---|---|
+| `screens` absent, ou l'écran `null` | Efface l'écran qu'elle avait en cache : écran standard. |
+| plan lisible, toutes ses images dans `assets` | Met cet écran en cache et l'affiche. |
+| plan refusé, image absente ou illisible | Garde la version qu'elle avait en cache (sinon écran standard), et le note dans son journal. Le fichier n'est pas refusé. |
+
 **Après l'import**
 
 La borne garde une copie du fichier. Sans réseau, quand on tape un code d'événement, elle cherche
@@ -138,7 +233,8 @@ réseau.
 
 ## 4. Exemple abrégé
 
-Les valeurs base64 et la configuration de la borne sont raccourcies.
+Les valeurs base64 et la configuration de la borne sont raccourcies. Ici, l'accueil composé par
+l'admin est publié (v3), l'écran de partage ne l'est pas : la borne garde son écran de partage standard.
 
 ```json
 {
@@ -153,7 +249,7 @@ Les valeurs base64 et la configuration de la borne sont raccourcies.
     "end_date": "2026-06-14T02:00:00+00:00",
     "form_config": {
       "kiosk": {
-        "home": { "background_url": "https://medias.example.com/fonds/accueil.jpg", "personalized": true },
+        "home": { "background_url": "https://medias.example.com/fonds/accueil.jpg", "personalized": true, "client_design": true },
         "capture": { "…": "…" },
         "printer": { "…": "…" },
         "locale": "fr"
@@ -171,10 +267,33 @@ Les valeurs base64 et la configuration de la borne sont raccourcies.
     },
     "final_png_url": "https://example.supabase.co/storage/v1/object/public/designs/c3d4e5f6.png"
   },
+  "home_design": {
+    "id": "8a9b0c1d-2e3f-4a5b-9c6d-7e8f9a0b1c2d",
+    "final_png_url": "https://example.supabase.co/storage/v1/object/public/designs/8a9b0c1d.png"
+  },
+  "screens": {
+    "home": {
+      "version": 3,
+      "kind": "home",
+      "size": { "w": 1920, "h": 1080 },
+      "background": "https://example.supabase.co/storage/v1/object/public/kiosk-backgrounds/org/0b8e4d6a-1f2c-4a3b-8c7d-5e6f7a8b9c0d/screen-home-v3-bg.png",
+      "background_neutral": null,
+      "transparent_background": false,
+      "buttons": [
+        { "action": "start", "x": 760, "y": 640, "w": 400, "h": 120, "image": "https://example.supabase.co/storage/v1/object/public/kiosk-backgrounds/org/0b8e4d6a-1f2c-4a3b-8c7d-5e6f7a8b9c0d/screen-home-v3-btn-start.png" }
+      ],
+      "texts": [],
+      "slots": []
+    },
+    "result": null
+  },
   "assets": {
     "design_png": "iVBORw0KGgoAAAANSUhEUgAA…",
     "home_background": "/9j/4AAQSkZJRgABAQAAAQAB…",
-    "logo": "iVBORw0KGgoAAAANSUhEUgAA…"
+    "logo": "iVBORw0KGgoAAAANSUhEUgAA…",
+    "home_design": "iVBORw0KGgoAAAANSUhEUgAA…",
+    "screens/screen-home-v3-bg.png": "iVBORw0KGgoAAAANSUhEUgAA…",
+    "screens/screen-home-v3-btn-start.png": "iVBORw0KGgoAAAANSUhEUgAA…"
   },
   "contact": {
     "company": "Studio Exemple",

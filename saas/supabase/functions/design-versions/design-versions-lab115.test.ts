@@ -56,10 +56,12 @@ test('edge function : code d\'accès exigé, publicGuard avec échecs de code, �
   assert.match(src, /publicGuard\('design-versions'/);
   assert.match(src, /LIMITS\.designVersionsCode, request\.code\], \[LIMITS\.designVersionsIp, guard\.ip\]/);
   assert.match(src, /\{ codeFailures: true \}/);
-  assert.match(src, /await guard\.codeFailed\(\)/);
-  assert.match(src, /\.eq\('access_code', request\.code\)/);
-  assert.match(src, /event\.status === 'archived'/);
-  assert.match(src, /templateLinkExpired\(event\.end_date\)/);
+  // Événement par code (LAB-392, _shared/event-by-code.ts) : code inconnu compté (guard), archivé
+  // ou expiré refusé, client_design exigé.
+  assert.match(src, /eventByCode\(db, request\.code, \{[^}]*guard,/);
+  assert.match(src, /archived: \{ status: 403, error: 'Événement clôturé' \}/);
+  assert.match(src, /expiry: \{ rule: 'template', refusal: \{ status: 403, error: 'Lien expiré' \} \}/);
+  assert.match(src, /feature: 'client_design',/);
   // L'événement vient du code, jamais d'un event_id fourni par le client.
   assert.doesNotMatch(src, /body\.event_id|event_id:/);
   assert.match(src, /runVersionRequest\(db, event\.id, request\)/);

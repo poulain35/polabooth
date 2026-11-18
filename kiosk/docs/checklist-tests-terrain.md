@@ -55,6 +55,8 @@ Cocher `[x]` quand le test passe. Noter la date et la version testée.
 - [ ] **Imprimante éteinte** : éteindre l'imprimante, cliquer Imprimer → toast rouge non bloquant "Impression indisponible…", les autres boutons restent utilisables.
 - [ ] **Imprimante en pause / plus de papier** : mettre la file d'impression en pause Windows, cliquer Imprimer → au-delà de ~45s, message d'erreur, **pas de gel**, et le compteur d'impressions **n'a pas** décrémenté.
 - [ ] **Reprise** : rallumer/réactiver l'imprimante, réessayer → l'impression repart normalement.
+- [ ] **Bandes coupées (LAB-334)**, sur la DS620 puis la RX1-HS : Admin → Imprimante → « Enregistrer le réglage bandes coupées » (cocher la coupe 2 pouces, valider) puis « Enregistrer le réglage normal » (coupe décochée) → états « enregistré le … ». Une bande stripV → une feuille 10×15 avec deux bandes identiques côte à côte, coupée au milieu exact, rien de rogné ni de décalé ; compteur à 1. Une bande stripH → deux bandes l'une au-dessus de l'autre, idem. Un 10×15 juste après → feuille entière, non coupée. Photo partagée (QR, e-mail) = une seule bande. Sans réglage coupé (machine-settings.json sans `PrinterDriverSettings`) → bande seule en 2x6 et avertissement `print`.
+- [ ] **Papier exact (LAB-320)** : un tirage 10×15 puis une bande (choix du cadre) → journaux `print` : la liste des formats du pilote apparaît une fois, puis le format retenu pour 4x6 et pour 2x6 (relever les noms DS620 / RX1-HS). Le 10×15 n'est ni agrandi ni rogné ; la bande sort sur le papier bande (DNP : une feuille = 2 bandes si « (2x6) x2 » est retenu).
 
 ---
 

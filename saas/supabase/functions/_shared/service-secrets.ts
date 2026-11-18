@@ -1,8 +1,8 @@
 // Clés des services lues par les edge functions (open core, lot L6b) : la valeur saisie dans
 // Paramètres > Clés (Vault, RPC get_service_key), sinon la variable d'environnement du même nom.
 // Un seul client par instance de fonction : le cache de secrets.ts (60 s) y est rattaché, une clé
-// n'est donc pas relue à chaque email ou à chaque appel Pennylane.
-// Aucun import du code privé (open core, lot L3b) : le client Pennylane est dans pennylane.ts.
+// n'est donc pas relue à chaque email ou à chaque appel d'un service.
+// Aucun import du code privé (open core, lot L3b) : les clients des modules privés sont dans leur module.
 // Appel REST direct, sans esm.sh : email.ts l'importe et reste chargeable sous `node --test`.
 // Sans SUPABASE_URL ni clé service (tests) : variable d'environnement seulement.
 // Ne jamais logguer une valeur.

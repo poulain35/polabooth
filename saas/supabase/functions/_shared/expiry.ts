@@ -8,11 +8,18 @@
  */
 
 /** Le lien du modèle est-il expiré ? Basé sur la fin de l'événement. */
-export function templateLinkExpired(endDate: string | null | undefined): boolean {
+export function templateLinkExpired(endDate: string | null | undefined, now: Date = new Date()): boolean {
   if (!endDate) return false;
   const deadline = new Date(endDate);
   deadline.setHours(23, 59, 59, 999);
-  return deadline < new Date();
+  return deadline < now;
+}
+
+/** Le lien photos & audio (galeries, dépôt des invités) est-il expiré ? `expires_at` atteint. */
+export function mediaLinkExpired(expiresAt: string | null | undefined, now: Date = new Date()): boolean {
+  if (!expiresAt) return false;
+  const t = new Date(expiresAt).getTime();
+  return Number.isFinite(t) && t <= now.getTime();
 }
 
 /** Expiration par défaut des liens photos & audio : fin d'événement + 2 mois. */

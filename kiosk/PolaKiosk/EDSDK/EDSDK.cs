@@ -12,6 +12,8 @@ public static class EdsApi
     [DllImport(DllPath)] public static extern uint EdsGetCameraList(out IntPtr outCameraList);
     [DllImport(DllPath)] public static extern uint EdsGetChildCount(IntPtr inRef, out int outCount);
     [DllImport(DllPath)] public static extern uint EdsGetChildAtIndex(IntPtr inRef, int inIndex, out IntPtr outRef);
+    // Modèle de l'appareil (szDeviceDescription), lisible sans session ouverte.
+    [DllImport(DllPath)] public static extern uint EdsGetDeviceInfo(IntPtr inCameraRef, out EdsDeviceInfo outDeviceInfo);
     [DllImport(DllPath)] public static extern uint EdsOpenSession(IntPtr inCameraRef);
     [DllImport(DllPath)] public static extern uint EdsCloseSession(IntPtr inCameraRef);
     [DllImport(DllPath)] public static extern uint EdsRelease(IntPtr inRef);

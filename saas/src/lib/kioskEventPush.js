@@ -2,7 +2,7 @@
 // État affiché d'un envoi, à partir des colonnes event_push_* de kiosk_licenses, et listes de choix.
 
 /** Au-delà de ce délai sans signal (heartbeat toutes les 2 min), la borne est considérée hors ligne. */
-export const KIOSK_OFFLINE_AFTER_MS = 10 * 60 * 1000;
+const KIOSK_OFFLINE_AFTER_MS = 10 * 60 * 1000;
 
 export const EVENT_PUSH_OFFLINE_MESSAGE = "Borne hors ligne : l'événement sera chargé à son prochain démarrage.";
 
@@ -54,7 +54,7 @@ export function eventPushStatus(lic, now = Date.now()) {
 }
 
 /** Heure « HH:MM » en français (fuseau du navigateur, ou celui donné pour les tests). */
-export function formatPushTime(iso, timeZone) {
+function formatPushTime(iso, timeZone) {
   if (!iso) return '';
   return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone }).format(new Date(iso));
 }

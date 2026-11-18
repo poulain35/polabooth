@@ -38,14 +38,17 @@ test('PIN : 4 à 8 chiffres uniquement', async () => {
 });
 
 test('kiosk-admin-pin : session vérifiée, puis super-admin ou propriétaire de la borne avant toute écriture', () => {
-  assert.match(src, /const user = await sessionUser\(authHeader\);/);
-  // LAB-242 : app_admins, ou organisation de la borne dont l'utilisateur est propriétaire.
-  assert.match(src, /\.from\('app_admins'\)[\s\S]*?\.eq\('user_id', userId\)/);
-  assert.match(src, /\.from\('organizations'\)[\s\S]*?\.eq\('id', license\.org_id\)[\s\S]*?\.eq\('owner_id', userId\)/);
+  assert.match(src, /await authenticate\(req\.headers\.get\('Authorization'\), sessionUser\)/);
+  // LAB-242 : organisation de la borne dont l'utilisateur est propriétaire, ou app_admins
+  // (requireOrgAccess partagé depuis LAB-392, testé dans _shared/admin-guard.test.ts).
+  const accessCall = "requireOrgAccess(db, userId, { kind: 'kiosk_license', id: license_id }, { allowAppAdmin: true })";
+  assert.ok(src.includes(accessCall));
   // La session (401) est vérifiée avant la lecture du body ; les droits sur la borne (403/404) avant l'écriture.
-  assert.ok(src.indexOf('requireSession(req.headers') < src.indexOf('req.json()'));
-  assert.ok(src.indexOf('requireLicenseAccess(db, userId, license_id)') < src.indexOf('.update(patch)'));
-  assert.ok(src.indexOf('const denied = await requireLicenseAccess') < src.indexOf('hashPin(body.pin)'));
+  assert.ok(src.indexOf('await authenticate(') < src.indexOf('req.json()'));
+  assert.ok(src.indexOf(accessCall) < src.indexOf('.update(patch)'));
+  assert.ok(src.indexOf(accessCall) < src.indexOf('hashPin(body.pin)'));
+  // Erreur d'écriture : message générique, détail en journal (LAB-392).
+  assert.doesNotMatch(src, /error: error\.message/);
   // Une borne retirée n'est plus gérée.
   assert.match(src, /\.update\(patch\)\.eq\('id', license_id\)\.is\('retired_at', null\)/);
   // Le PIN en clair n'est ni renvoyé ni stocké : seul admin_pin_hash est écrit.

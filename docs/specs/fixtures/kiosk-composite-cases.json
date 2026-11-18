@@ -1,0 +1,411 @@
+{
+  "_doc": [
+    "Cas de test communs du montage du tirage (spec docs/specs/apercu-borne.md, aperçu du modèle photo).",
+    "Lus par saas/src/lib/kioskComposite.test.js et par les tests kiosk de CompositeService (CreateCompositeAsync, CoverSourceRect).",
+    "Entrées : `format` (portrait, landscape, stripV, stripH), `dpi`, `zones` = PhotoZone en px canvas SaaS (left, top, width, height, angle en degrés), `photos` = tailles des photos (width, height) dans l'ordre des prises.",
+    "Règles : taille du tirage = (int)(mm / 25,4 × dpi) ; échelle = largeur du tirage / largeur du canvas (float 32 bits) ; sans zone, une zone plein cadre (0, 0, largeur, hauteur du canvas) et `full_frame` vrai ; zone i → photo min(i, nombre de photos − 1).",
+    "`dest` = [gauche, haut, droite, bas] de la zone × échelle, en px du tirage ; `source` = [gauche, haut, droite, bas] du cover centré dans la photo d'origine ; la photo est tournée de `angle` autour de `pivot` (centre de `dest`).",
+    "Comparaison à 0,01 px près (calcul en float 32 bits des deux côtés), échelle à 1e-5 près."
+  ],
+  "print_sizes": {
+    "portrait": {
+      "dpi": 300,
+      "w": 1181,
+      "h": 1771
+    },
+    "landscape": {
+      "dpi": 300,
+      "w": 1771,
+      "h": 1181
+    },
+    "stripV": {
+      "dpi": 300,
+      "w": 590,
+      "h": 1771
+    },
+    "stripH": {
+      "dpi": 300,
+      "w": 1771,
+      "h": 590
+    }
+  },
+  "cases": [
+    {
+      "name": "portrait, une zone, photo paysage 3:2",
+      "format": "portrait",
+      "dpi": 300,
+      "zones": [
+        {
+          "left": 18,
+          "top": 20,
+          "width": 360,
+          "height": 418.5,
+          "angle": 0
+        }
+      ],
+      "photos": [
+        {
+          "width": 6000,
+          "height": 4000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 1181,
+          "h": 1771
+        },
+        "scale": 2.9525,
+        "full_frame": false,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              53.145,
+              59.05,
+              1116.045,
+              1294.671
+            ],
+            "source": [
+              1279.57,
+              0,
+              4720.43,
+              4000
+            ],
+            "angle": 0,
+            "pivot": [
+              584.595,
+              676.861
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "portrait, deux zones, une photo répétée",
+      "format": "portrait",
+      "dpi": 300,
+      "zones": [
+        {
+          "left": 20,
+          "top": 20,
+          "width": 360,
+          "height": 270,
+          "angle": 0
+        },
+        {
+          "left": 20,
+          "top": 300,
+          "width": 360,
+          "height": 270,
+          "angle": 0
+        }
+      ],
+      "photos": [
+        {
+          "width": 6000,
+          "height": 4000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 1181,
+          "h": 1771
+        },
+        "scale": 2.9525,
+        "full_frame": false,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              59.05,
+              59.05,
+              1121.95,
+              856.225
+            ],
+            "source": [
+              333.333,
+              0,
+              5666.667,
+              4000
+            ],
+            "angle": 0,
+            "pivot": [
+              590.5,
+              457.638
+            ]
+          },
+          {
+            "photo_index": 0,
+            "dest": [
+              59.05,
+              885.75,
+              1121.95,
+              1682.925
+            ],
+            "source": [
+              333.333,
+              0,
+              5666.667,
+              4000
+            ],
+            "angle": 0,
+            "pivot": [
+              590.5,
+              1284.338
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "paysage sans zone : plein cadre",
+      "format": "landscape",
+      "dpi": 300,
+      "zones": [],
+      "photos": [
+        {
+          "width": 6000,
+          "height": 4000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 1771,
+          "h": 1181
+        },
+        "scale": 2.951667,
+        "full_frame": true,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              0,
+              0,
+              1771,
+              1180.667
+            ],
+            "source": [
+              0,
+              0,
+              6000,
+              4000
+            ],
+            "angle": 0,
+            "pivot": [
+              885.5,
+              590.333
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "bande verticale, zone tournée de 30°",
+      "format": "stripV",
+      "dpi": 300,
+      "zones": [
+        {
+          "left": 71.1384,
+          "top": 118.3538,
+          "width": 120,
+          "height": 90,
+          "angle": 30
+        }
+      ],
+      "photos": [
+        {
+          "width": 4000,
+          "height": 6000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 590,
+          "h": 1771
+        },
+        "scale": 2.95,
+        "full_frame": false,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              209.858,
+              349.144,
+              563.858,
+              614.644
+            ],
+            "source": [
+              0,
+              1500,
+              4000,
+              4500
+            ],
+            "angle": 30,
+            "pivot": [
+              386.858,
+              481.894
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "bande horizontale, trois zones, deux photos",
+      "format": "stripH",
+      "dpi": 300,
+      "zones": [
+        {
+          "left": 10,
+          "top": 10,
+          "width": 180,
+          "height": 180,
+          "angle": 0
+        },
+        {
+          "left": 210,
+          "top": 10,
+          "width": 180,
+          "height": 180,
+          "angle": -5
+        },
+        {
+          "left": 410,
+          "top": 10,
+          "width": 180,
+          "height": 180,
+          "angle": 0
+        }
+      ],
+      "photos": [
+        {
+          "width": 6000,
+          "height": 4000
+        },
+        {
+          "width": 4000,
+          "height": 6000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 1771,
+          "h": 590
+        },
+        "scale": 2.951667,
+        "full_frame": false,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              29.517,
+              29.517,
+              560.817,
+              560.817
+            ],
+            "source": [
+              1000,
+              0,
+              5000,
+              4000
+            ],
+            "angle": 0,
+            "pivot": [
+              295.167,
+              295.167
+            ]
+          },
+          {
+            "photo_index": 1,
+            "dest": [
+              619.85,
+              29.517,
+              1151.15,
+              560.817
+            ],
+            "source": [
+              0,
+              1000,
+              4000,
+              5000
+            ],
+            "angle": -5,
+            "pivot": [
+              885.5,
+              295.167
+            ]
+          },
+          {
+            "photo_index": 1,
+            "dest": [
+              1210.183,
+              29.517,
+              1741.483,
+              560.817
+            ],
+            "source": [
+              0,
+              1000,
+              4000,
+              5000
+            ],
+            "angle": 0,
+            "pivot": [
+              1475.833,
+              295.167
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "portrait à 600 dpi, photo carrée",
+      "format": "portrait",
+      "dpi": 600,
+      "zones": [
+        {
+          "left": 50,
+          "top": 60,
+          "width": 300,
+          "height": 200,
+          "angle": 0
+        }
+      ],
+      "photos": [
+        {
+          "width": 3000,
+          "height": 3000
+        }
+      ],
+      "expected": {
+        "print": {
+          "w": 2362,
+          "h": 3543
+        },
+        "scale": 5.905,
+        "full_frame": false,
+        "placements": [
+          {
+            "photo_index": 0,
+            "dest": [
+              295.25,
+              354.3,
+              2066.75,
+              1535.3
+            ],
+            "source": [
+              0,
+              500,
+              3000,
+              2500
+            ],
+            "angle": 0,
+            "pivot": [
+              1181,
+              944.8
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

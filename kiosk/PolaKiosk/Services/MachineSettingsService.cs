@@ -17,7 +17,7 @@ public class MachineSettingsService : IMachineSettingsService
     public MachineSettingsService(string dataDir)
     {
         Directory.CreateDirectory(dataDir);
-        _path = Path.Combine(dataDir, "machine-settings.json");
+        _path = new KioskPaths(dataDir).MachineSettingsFile;
         _current = Load();
     }
 
@@ -73,6 +73,14 @@ public class MachineSettingsService : IMachineSettingsService
     public void ClearSaasAddress()
     {
         _current = _current with { SaasUrl = null, SupabaseUrl = null, SupabaseAnonKey = null };
+        Save();
+    }
+
+    public void SetPrinterDriverSetting(PrinterDriverSetting setting)
+    {
+        var kept = (_current.PrinterDriverSettings ?? [])
+            .Where(s => s != null && !(s.Kind == setting.Kind && DriverSettingCheck.SamePrinter(s.PrinterName, setting.PrinterName)));
+        _current = _current with { PrinterDriverSettings = [.. kept, setting] };
         Save();
     }
 

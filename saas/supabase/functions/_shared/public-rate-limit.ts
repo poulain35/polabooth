@@ -3,8 +3,11 @@
 // purgés à 48 h par le cron `purge-booking-rate-limits` (qui ne filtre pas sur le préfixe) :
 // aucune fenêtre ci-dessous ne dépasse 48 h.
 //
-// FAIL-OPEN, contrairement au tunnel de réservation (503) : sans RATE_LIMIT_SALT, sans IP client
-// ou si la table ne répond pas, la requête est servie normalement et l'incident part en console.error.
+// Sans RATE_LIMIT_SALT (secret obligatoire, généré par le script d'installation) : FAIL-CLOSED,
+// `check` répond 503 avec un message générique et l'incident part en console.error (LAB-392 ;
+// avant, la limitation était coupée sans bruit). Sans IP client ou si la table ne répond pas :
+// FAIL-OPEN, la requête est servie normalement et l'incident part en console.error.
+// IP du client : voir clientIp (rate-limit.ts), en-têtes pris en compte et confiance à leur accorder.
 // Sans import Deno/esm.sh : testable sous `node --test` (public-rate-limit.test.ts).
 
 import { corsHeaders } from './cors.ts';
@@ -55,6 +58,13 @@ export const LIMITS = {
   removeBgCode: { bucket: 'remove-bg:code', limit: 40, windowSeconds: HOUR },
   removeBgCodeDay: { bucket: 'remove-bg:code-day', limit: 150, windowSeconds: DAY },
 
+  // Images des modèles rangées dans le stockage (LAB-348) : une par image restée dans le modèle
+  // (photo importée, décoration, détourage, teinte), envoi groupé après 1,5 s d'inactivité. Un client
+  // qui compose activement en ajoute quelques dizaines par séance ; l'admin (JWT) n'est soumis qu'à l'IP.
+  designImageCode: { bucket: 'design-image:code', limit: 120, windowSeconds: 10 * MIN },
+  designImageCodeDay: { bucket: 'design-image:code-day', limit: 600, windowSeconds: DAY },
+  designImageIp: { bucket: 'design-image:ip', limit: 300, windowSeconds: 10 * MIN },
+
   // 2 URL par photo invité (pleine + miniature). 300 photos/min ≈ 600 Mo/min (~80 Mbit/s soutenus),
   // au-delà du débit d'une salle de réception : jamais atteint en usage réel, même à 150 invités.
   guestUploadCode: { bucket: 'guest-upload:code', limit: 600, windowSeconds: MIN },
@@ -75,9 +85,6 @@ export const LIMITS = {
   // ≤ 240 emails/h par borne au rythme maximal : 600/h par événement couvre 2 bornes avec marge.
   kioskEmailEvent: { bucket: 'kiosk-email:event', limit: 600, windowSeconds: HOUR },
 
-  // Logiciel photobooth tiers (dslrBooth…) : ~8 photos/min au plus par borne (séances de 4 vues).
-  photoWebhookIp: { bucket: 'photo-webhook:ip', limit: 300, windowSeconds: 10 * MIN },
-
   // Email au loueur à chaque message : un client en difficulté en envoie un ou deux.
   supportIp: { bucket: 'support:ip', limit: 10, windowSeconds: HOUR },
   supportIpDay: { bucket: 'support:ip-day', limit: 30, windowSeconds: DAY },
@@ -96,6 +103,12 @@ export const LIMITS = {
   // Resynchro du suivi d'un email (email-sync, LAB-123) : un clic par email, appel à l'API Brevo
   // (quota partagé avec les envois). 20/10 min par admin suffit pour une page de lead ou d'événement.
   emailSyncUser: { bucket: 'email-sync:user', limit: 20, windowSeconds: 10 * MIN },
+
+  // Email de test de l'email de la borne (kiosk-email-preview, LAB-300) : envoyé à l'admin lui-même.
+  kioskEmailTestUser: { bucket: 'kiosk-email-test:user', limit: 10, windowSeconds: HOUR },
+
+  // Email de test des réglages d'envoi (send-test-email, LAB-345) : envoyé à l'administrateur lui-même.
+  testEmailUser: { bucket: 'test-email:user', limit: 10, windowSeconds: HOUR },
 } as const;
 
 /** Clé des compteurs globaux (une seule entrée de bucket pour toute la fonction). */
@@ -131,6 +144,19 @@ export function tooManyRequests(retryAfterSeconds: number): Response {
       },
     },
   );
+}
+
+/** Corps du refus quand la limitation de débit n'est pas configurée : aucun détail technique. */
+export const SERVICE_UNAVAILABLE_BODY = {
+  error: 'Service momentanément indisponible. Réessayez plus tard.',
+  code: 'service_indisponible',
+} as const;
+
+function serviceUnavailable(): Response {
+  return new Response(JSON.stringify(SERVICE_UNAVAILABLE_BODY), {
+    status: 503,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
 
 // Sous-ensemble du client supabase-js (cf. rate-limit.ts).
@@ -174,8 +200,13 @@ export class PublicGuard {
    * Contrôle groupé : si une règle est dépassée, 429 et rien n'est compté ; sinon la requête est
    * comptée sur chaque règle. `codeFailures` : refuse aussi si l'IP cumule trop de codes inconnus
    * (sans compter cette requête comme un échec). Renvoie null quand la requête peut être servie.
+   * Sans RATE_LIMIT_SALT : 503 générique (fail-closed), aucun accès base, incident en console.error.
    */
   async check(checks: readonly Check[], opts: { codeFailures?: boolean } = {}): Promise<Response | null> {
+    if (!this.opts.salt) {
+      console.error(`${this.fn} : RATE_LIMIT_SALT manquant, requête refusée (503, fail-closed). Secret à définir, voir docs/installation-instance.md.`);
+      return serviceUnavailable();
+    }
     return await this.failOpen(null, async (salt) => {
       const now = this.opts.now?.() ?? Date.now();
       const all: Check[] = checks.filter(([, key]) => !!key);
@@ -207,12 +238,10 @@ export class PublicGuard {
     });
   }
 
+  /** Table en panne : requête servie. Sans sel, rien n'est compté (`check` a déjà refusé). */
   private async failOpen<T>(fallback: T, run: (salt: string) => Promise<T>): Promise<T> {
     const salt = this.opts.salt ?? '';
-    if (!salt) {
-      warnOnce(`salt:${this.fn}`, `${this.fn} : RATE_LIMIT_SALT manquant, limitation de débit désactivée (fail-open)`);
-      return fallback;
-    }
+    if (!salt) return fallback;
     try {
       return await run(salt);
     } catch (e) {

@@ -1,0 +1,21 @@
+Photos d'exemple de l'aperçu sur la borne (éditeur, bouton « Aperçu sur la borne »)
+=================================================================================
+
+Les six photos de ce dossier sont sous licence Creative Commons CC0 1.0 (dédicace au domaine
+public) : https://creativecommons.org/publicdomain/zero/1.0/
+Source : StockSnap (https://stocksnap.io/license : « every single image on StockSnap [is]
+governed exclusively by the [...] Creative Commons CC0 license »). Chaque page source porte la
+mention CC0. Aucune attribution n'est exigée ; elle est donnée ici pour la traçabilité.
+
+Fichiers recadrés en 3:2 et réduits à 1800 x 1200 (JPEG, métadonnées retirées). Aucune photo de
+client, aucune marque ni logo visible.
+
+Fichier       Titre                  Auteur          Page source                                                  Licence
+photo-1.jpg   Family Portrait        Family Moments  https://stocksnap.io/photo/family-portrait-OIUD9DEKPG        CC0 1.0
+photo-2.jpg   Christmas Couple       PS Imaging      https://stocksnap.io/photo/christmas-couple-6VMDVAWS4C       CC0 1.0
+photo-3.jpg   Family Portrait        Family Moments  https://stocksnap.io/photo/family-portrait-6G9JL1XVYS        CC0 1.0
+photo-4.jpg   Couple Dancing         Senior Living   https://stocksnap.io/photo/couple-dancing-2CMQGMCQCK         CC0 1.0
+photo-5.jpg   Family Portrait        Family Moments  https://stocksnap.io/photo/family-portrait-PMFIFSSCHD        CC0 1.0
+photo-6.jpg   Black Family           Family First    https://stocksnap.io/photo/black-family-6KRBT8MYES           CC0 1.0
+
+Licences vérifiées le 2026-11-15 sur chaque page source.

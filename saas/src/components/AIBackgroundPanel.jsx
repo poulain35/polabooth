@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Button } from './ui/button';
+import { Spinner } from './ui/spinner';
 
 const MODELS = [
   { id: 'flux-1.1-pro',       label: 'Flux 1.1 Pro',      badge: 'Rapide' },
@@ -175,17 +177,17 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
   const allGenerated = MULTI_FORMATS.every((f) => previews[f.id]);
 
   return (
-    <div className="w-[240px] bg-card border-r border-[#E5E5EA] flex flex-col shrink-0 overflow-hidden">
+    <div className="w-[240px] bg-card border-r border-border flex flex-col shrink-0 overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#E5E5EA] shrink-0">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5 text-primary" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
           </svg>
-          <span className="text-xs font-semibold text-[#1D1D1F]">Fond IA</span>
+          <span className="text-[13px] font-medium text-foreground">Fond IA</span>
         </div>
-        <button onClick={onClose} className="p-1 rounded-lg text-[#6E6E73] hover:bg-[#F2F2F7] transition-colors">
+        <button onClick={onClose} aria-label="Fermer le panneau" className="p-1 rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -193,29 +195,32 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
       </div>
 
       {/* Mode toggle */}
-      <div className="flex p-2 gap-1 shrink-0 border-b border-[#E5E5EA]">
-        {[['single', 'Format actuel'], ['multi', '4 formats']].map(([id, label]) => (
-          <button key={id} onClick={() => setMode(id)}
-            className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-colors
-              ${mode === id ? 'bg-primary text-white' : 'bg-[#F2F2F7] text-[#6E6E73] hover:bg-[#E8E8ED]'}`}>
-            {label}
-          </button>
-        ))}
+      <div className="p-2 shrink-0 border-b border-border">
+        <div className="flex gap-0.5 rounded-full bg-muted p-0.5" role="group" aria-label="Formats à générer">
+          {[['single', 'Format actuel'], ['multi', '4 formats']].map(([id, label]) => (
+            <button key={id} onClick={() => setMode(id)} aria-pressed={mode === id}
+              className={`flex-1 py-1.5 text-[11px] font-medium rounded-full transition-colors
+                ${mode === id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
 
         {/* Modèle */}
         <div>
-          <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider mb-1.5">Modèle</p>
+          <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Modèle d’IA</p>
           <div className="flex flex-col gap-1">
             {MODELS.map((m) => (
               <button key={m.id} onClick={() => setModel(m.id)}
-                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors
-                  ${model === m.id ? 'bg-primary/10 text-primary ring-1 ring-primary' : 'bg-[#F9F9FB] text-[#3C3C43] hover:bg-[#F2F2F7]'}`}>
+                aria-pressed={model === m.id}
+                className={`flex items-center justify-between px-2.5 py-1.5 rounded-sm text-xs transition-colors
+                  ${model === m.id ? 'bg-primary-soft text-primary-ink ring-1 ring-primary' : 'bg-soft text-ink hover:bg-muted'}`}>
                 <span className="font-medium">{m.label}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold
-                  ${model === m.id ? 'bg-primary/20 text-primary' : 'bg-[#E5E5EA] text-[#6E6E73]'}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium
+                  ${model === m.id ? 'bg-card text-primary-ink' : 'bg-muted text-muted-foreground'}`}>
                   {m.badge}
                 </span>
               </button>
@@ -225,26 +230,26 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
 
         {/* Prompt */}
         <div>
-          <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider mb-1.5">Prompt</p>
+          <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Prompt</p>
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)}
             placeholder="Ex: fond floral aquarelle pastel, tons roses et dorés…"
             rows={4}
-            className="w-full text-xs text-[#1D1D1F] placeholder-[#AEAEB2] bg-[#F9F9FB] border border-[#E5E5EA]
-              rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
+            className="w-full text-xs text-foreground placeholder:text-muted-foreground bg-card border border-input
+              rounded-sm px-2.5 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent" />
         </div>
 
         {/* Suggestions */}
         <div>
-          <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider mb-1.5">Suggestions</p>
+          <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Suggestions</p>
           <div className="flex flex-col gap-2">
             {PROMPT_CATEGORIES.map((cat) => (
               <div key={cat.label}>
-                <p className="text-[9px] font-semibold text-[#AEAEB2] uppercase tracking-wider mb-1 px-1">{cat.label}</p>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1 px-1">{cat.label}</p>
                 <div className="flex flex-col gap-0.5">
                   {cat.items.map((s, i) => (
                     <button key={i} onClick={() => setPrompt(s)}
-                      className={`text-left text-[10px] leading-tight px-2 py-1.5 rounded-lg transition-colors
-                        ${prompt === s ? 'bg-primary/15 text-primary' : 'text-[#6E6E73] hover:text-primary bg-[#F9F9FB] hover:bg-primary/10'}`}>
+                      className={`text-left text-[11px] leading-tight px-2 py-1.5 rounded-sm transition-colors
+                        ${prompt === s ? 'bg-primary-soft text-primary-ink' : 'text-ink bg-soft hover:bg-muted hover:text-foreground'}`}>
                       <span className="line-clamp-2">{s.split(',')[0]}</span>
                     </button>
                   ))}
@@ -258,18 +263,17 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
         {mode === 'single' && (
           <>
             {errorSingle && (
-              <p className="text-[10px] text-red-600 bg-red-50 rounded-lg px-2.5 py-2">{errorSingle}</p>
+              <p role="alert" className="text-[11px] bg-state-red text-state-red-fg rounded-sm px-2.5 py-2">{errorSingle}</p>
             )}
             {previewSingle && (
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider">Aperçu</p>
-                <div className="rounded-xl overflow-hidden border border-[#E5E5EA]">
+                <p className="text-[11px] font-medium text-muted-foreground">Aperçu</p>
+                <div className="rounded-sm overflow-hidden border border-border">
                   <img src={previewSingle} alt="Fond généré" className="w-full object-cover" />
                 </div>
-                <button onClick={() => onApply(previewSingle)}
-                  className="w-full py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary transition-colors">
+                <Button size="sm" variant="strong" className="w-full" onClick={() => onApply(previewSingle)}>
                   Appliquer comme fond
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -279,18 +283,18 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
         {mode === 'multi' && (
           <>
             {errorMulti && (
-              <p className="text-[10px] text-red-600 bg-red-50 rounded-lg px-2.5 py-2">{errorMulti}</p>
+              <p role="alert" className="text-[11px] bg-state-red text-state-red-fg rounded-sm px-2.5 py-2">{errorMulti}</p>
             )}
 
             {/* Grille 2×2 des aperçus */}
             {Object.keys(progress).length > 0 && (
               <div>
-                <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider mb-1.5">Génération</p>
+                <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Génération</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {MULTI_FORMATS.map((fmt) => (
                     <div key={fmt.id} className="flex flex-col gap-0.5">
                       <div
-                        className="relative rounded-lg overflow-hidden border border-[#E5E5EA] bg-[#F9F9FB]"
+                        className="relative rounded-sm overflow-hidden border border-border bg-soft"
                         style={{ aspectRatio: fmt.ratio }}
                       >
                         {previews[fmt.id] ? (
@@ -298,16 +302,16 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center">
                             {progress[fmt.id] === 'loading' ? (
-                              <span className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                              <Spinner className="h-4 w-4" label="Génération en cours" />
                             ) : progress[fmt.id] === 'error' ? (
-                              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg role="img" aria-label="Échec de la génération" className="w-4 h-4 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                               </svg>
                             ) : null}
                           </div>
                         )}
                       </div>
-                      <p className="text-[9px] text-[#6E6E73] text-center font-medium">{fmt.label}</p>
+                      <p className="text-[10px] text-muted-foreground text-center font-medium">{fmt.label}</p>
                     </div>
                   ))}
                 </div>
@@ -317,27 +321,24 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
             {/* Sauvegarde une fois les 4 générés */}
             {allGenerated && onSaveAllFormats && (
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-wider">Nom du modèle</p>
+                <p className="text-[11px] font-medium text-muted-foreground">Nom du cadre photo</p>
                 <input
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   placeholder="Ex: Floral Mariage"
-                  className="w-full text-xs text-[#1D1D1F] placeholder-[#AEAEB2] bg-[#F9F9FB] border border-[#E5E5EA]
-                    rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full text-xs text-foreground placeholder:text-muted-foreground bg-card border border-input
+                    rounded-sm px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
-                <button onClick={handleSaveAll} disabled={!templateName.trim() || savingMulti}
-                  className="w-full py-2 bg-green-600 text-white text-xs font-semibold rounded-lg
-                    hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors
-                    flex items-center justify-center gap-1.5">
+                <Button size="sm" variant="strong" className="w-full" onClick={handleSaveAll} disabled={!templateName.trim() || savingMulti}>
                   {savingMulti ? (
-                    <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />Sauvegarde…</>
+                    <><Spinner className="h-3 w-3 border-current" label="Sauvegarde en cours" />Sauvegarde…</>
                   ) : (
                     <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                      </svg>Sauvegarder 4 modèles</>
+                      </svg>Sauvegarder 4 cadres photo</>
                   )}
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -345,15 +346,14 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
       </div>
 
       {/* Bouton générer */}
-      <div className="p-3 border-t border-[#E5E5EA] shrink-0">
-        <button
+      <div className="p-3 border-t border-border shrink-0">
+        <Button
+          size="sm"
+          className="w-full"
           onClick={mode === 'single' ? handleGenerateSingle : handleGenerateMulti}
-          disabled={!prompt.trim() || loadingSingle || loadingMulti}
-          className="w-full py-2.5 bg-primary text-white text-xs font-semibold rounded-xl
-            hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors
-            flex items-center justify-center gap-2">
+          disabled={!prompt.trim() || loadingSingle || loadingMulti}>
           {(loadingSingle || loadingMulti) ? (
-            <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+            <><Spinner className="h-3.5 w-3.5 shrink-0 border-current" label="Génération en cours" />
             {mode === 'multi' ? 'Génération en cours (×4)…' : 'Génération en cours…'}</>
           ) : (
             <><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -361,8 +361,8 @@ export default function AIBackgroundPanel({ formatId, onApply, onSaveAllFormats,
               </svg>
               {mode === 'multi' ? 'Générer pour 4 formats' : 'Générer'}</>
           )}
-        </button>
-        <p className="text-[9px] text-[#AEAEB2] text-center mt-1.5">
+        </Button>
+        <p className="text-[10px] text-muted-foreground text-center mt-1.5">
           {mode === 'multi' ? '4 images en parallèle · ~30s' : 'Replicate · ~10–30s'}
         </p>
       </div>

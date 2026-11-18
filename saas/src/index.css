@@ -2,9 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens shadcn/ui — thème clair (base slate). Change --primary pour re-skinner. */
+/* Design tokens shadcn/ui. Trois portées (règles et liste complète : « Thème de l'admin », saas/CLAUDE.md) :
+   - `:root, .light-island` : pages client, et aperçus de ce que voit le client ou la borne dans l'admin ;
+   - `.admin-ui` (classe de <html>, LAB-363) : palette claire de l'admin ;
+   - `.dark` (classe de <html>, LAB-340) : palette graphite de l'admin.
+   Une couleur pleine s'écrit en triplet HSL, lu par `hsl(var(--x))` (les opacités `/50` de Tailwind marchent). */
 @layer base {
-  :root {
+  :root,
+  .light-island {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -25,13 +30,336 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
+
+    /* Réglages lus par les composants de base (components/ui) : ici, le rendu des pages client. */
+    --font-ui: 'Inter';
+    --radius-control: calc(var(--radius) - 2px);
+    --radius-dialog: var(--radius);
+    --control-sm: 2rem;
+    --control-sm-text: 0.875rem;
+    --shadow-float: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --page-background: 210 40% 96.1%;      /* #F1F5F9 */
+    --scrollbar: 212.7 26.8% 83.9%;        /* #CBD5E1 */
+    --scrollbar-hover: 215 20.2% 65.1%;    /* #94A3B8 */
+    --switch-thumb: 0 0% 100%;
+
+    /* Tokens propres à l'admin, valeurs claires (LAB-363). Un aperçu `.light-island` les retrouve claires
+       dans l'admin en sombre. */
+    --soft: 228 45.5% 97.8%;               /* doux #F7F8FC */
+    --ink: 230 16.4% 21.6%;                /* encre #2E3140 */
+    --primary-soft: 230 90% 96.1%;         /* bleu doux #ECEFFE */
+    --primary-ink: 233.2 60.2% 49.2%;      /* texte bleu #3243C9 */
+    --strong: 232.5 18.2% 8.6%;            /* fort #12131A */
+    --strong-foreground: 0 0% 100%;
+    --pastel-peach: 26.7 100% 91.2%;       /* #FFE6D2 */
+    --pastel-peach-ink: 24.5 76.9% 30.6%;  /* #8A4312 */
+    --pastel-mint: 142.5 50% 90.6%;        /* #DBF3E4 */
+    --pastel-mint-ink: 148.8 61.3% 23.3%;  /* #17603A */
+    --pastel-sky: 205.2 79.5% 92.4%;       /* #DCEEFB */
+    --pastel-sky-ink: 205.8 66.5% 31.6%;   /* #1B5886 */
+    --pastel-lilac: 254.4 80.6% 93.9%;     /* #E9E3FC */
+    --pastel-lilac-ink: 251.7 48.2% 43.9%; /* #4F3AA6 */
+    --pastel-lemon: 50.1 89.3% 85.3%;      /* #FBF0B8 */
+    --pastel-lemon-ink: 46.9 100% 21.6%;   /* #6E5600 */
+    --pastel-rose: 342.9 82.4% 93.3%;      /* #FCE0E8 */
+    --pastel-rose-ink: 341.8 57.1% 38.4%;  /* #9A2A4C */
+    /* États : le fond est une couleur complète (translucide en sombre), le texte un triplet. */
+    --state-amber: #FFF1D6;
+    --state-amber-fg: 36.1 100% 27.1%;     /* #8A5300 */
+    --state-green: #DDF5E6;
+    --state-green-fg: 148.1 63.2% 24.5%;   /* #17663C */
+    --state-violet: #EBE5FD;
+    --state-violet-fg: 252.7 53.3% 47.1%;  /* #5338B8 */
+    --state-blue: #DDEBFF;
+    --state-blue-fg: 216.7 71.7% 40.2%;    /* #1D56B0 */
+    --state-red: #FFE1E1;
+    --state-red-fg: 3.2 71.3% 41%;         /* #B3261E */
+    --state-gray: #EEF0F6;
+    --state-gray-fg: 225.7 10.9% 37.8%;    /* #565B6B */
+    --chart-1: 233.3 72.2% 56.3%;          /* #3F51E0 */
+    --chart-2: 24.6 80.5% 53.7%;           /* #E8782A */
+    --chart-grid: 225 26.7% 94.1%;         /* #ECEEF4 */
+    --shadow-card: 0 1px 2px rgba(20, 24, 60, 0.04), 0 8px 24px rgba(20, 24, 60, 0.05);
+  }
+
+  /* Palette claire de l'admin (LAB-363). `.admin-editor > .light-island` : la racine d'un éditeur plein
+     écran de l'admin (cadre photo de la Bibliothèque, écrans de la borne) reste claire avec la palette de
+     l'admin, pas avec celle des pages client. */
+  .admin-ui,
+  .admin-editor > .light-island {
+    color-scheme: light;
+    --background: 230 37.5% 96.9%;         /* fond #F4F5FA */
+    --foreground: 232.5 18.2% 8.6%;        /* texte #12131A */
+    --card: 0 0% 100%;                     /* surface #FFFFFF */
+    --card-foreground: 232.5 18.2% 8.6%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 232.5 18.2% 8.6%;
+    --primary: 233.3 72.2% 56.3%;          /* bleu d'action #3F51E0 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 30.8% 94.9%;          /* surface 2 #EEF0F6 */
+    --secondary-foreground: 232.5 18.2% 8.6%;
+    --muted: 225 30.8% 94.9%;              /* surface 2 #EEF0F6 */
+    --muted-foreground: 225 8.9% 43.9%;    /* atténué #666B7A */
+    --accent: 225 30.8% 94.9%;             /* survol : surface 2 */
+    --accent-foreground: 232.5 18.2% 8.6%;
+    --destructive: 3.2 71.3% 41%;          /* rouge #B3261E */
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 25% 92.2%;               /* ligne #E6E8F0 */
+    --input: 225.9 20.5% 83.7%;            /* ligne 2 #CDD1DE */
+    --ring: 233.3 72.2% 56.3%;
+    --radius: 0.75rem;
+
+    --font-ui: 'Lexend';
+    --radius-control: var(--radius);
+    --radius-dialog: 1.25rem;
+    --control-sm: 2.125rem;
+    --control-sm-text: 0.8125rem;
+    --shadow-float: 0 12px 40px rgba(20, 24, 60, 0.16);
+    --page-background: var(--background);
+    --scrollbar: var(--input);
+    --scrollbar-hover: var(--muted-foreground);
+  }
+
+  /* Mode sombre de l'admin (LAB-340, palette de LAB-363) : graphite, gris neutre, jamais de brun. Classe
+     `dark` sur <html> posée par AdminLayout (et par le script de index.html), toujours avec `admin-ui`. */
+  .dark {
+    color-scheme: dark;
+    --background: 240 5.6% 7.1%;           /* fond #111113 */
+    --foreground: 240 5.9% 93.3%;          /* texte #EDEDEF */
+    --card: 240 7.1% 11%;                  /* surface #1A1A1E */
+    --card-foreground: 240 5.9% 93.3%;
+    --popover: 240 7.1% 11%;
+    --popover-foreground: 240 5.9% 93.3%;
+    --primary: 233.1 100% 74.3%;           /* bleu d'action #7C8BFF */
+    --primary-foreground: 236.5 54.8% 12.2%; /* #0E1030 */
+    --secondary: 240 6.2% 15.9%;           /* surface 2 #26262B */
+    --secondary-foreground: 240 5.9% 93.3%;
+    --muted: 240 6.2% 15.9%;               /* surface 2 #26262B */
+    --muted-foreground: 240 6.5% 63.5%;    /* atténué #9C9CA8 */
+    --accent: 240 6.2% 15.9%;              /* survol : surface 2 */
+    --accent-foreground: 240 5.9% 93.3%;
+    --destructive: 3.9 100% 79%;           /* rouge #FF9B94 */
+    --destructive-foreground: 240 5.6% 7.1%;
+    --border: 240 7.4% 18.6%;              /* ligne #2C2C33 */
+    --input: 240 6.2% 28.4%;               /* ligne 2 #44444D */
+    --ring: 233.1 100% 74.3%;
+
+    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --switch-thumb: 240 5.9% 93.3%;
+
+    --soft: 240 5.9% 13.3%;                /* doux #202024 */
+    --ink: 240 7.1% 83.5%;                 /* encre #D2D2D8 */
+    --primary-soft: 234 37% 21.2%;         /* bleu doux #22264A */
+    --primary-ink: 233 100% 83.1%;         /* texte bleu #A9B3FF */
+    --strong: 240 5.9% 93.3%;              /* fort #EDEDEF */
+    --strong-foreground: 240 5.6% 7.1%;    /* #111113 */
+    --pastel-peach: 285 8.9% 17.6%;        /* #2F2931 */
+    --pastel-peach-ink: 20.2 100% 79%;     /* #FFB894 */
+    --pastel-mint: 158.8 22.1% 15.1%;      /* #1E2F29 */
+    --pastel-mint-ink: 146.2 55.3% 66.7%;  /* #7BD9A4 */
+    --pastel-sky: 208.9 31.8% 16.7%;       /* #1D2B38 */
+    --pastel-sky-ink: 204.7 79.7% 74.9%;   /* #8CC8F2 */
+    --pastel-lilac: 246.2 27.1% 21%;       /* #2A2744 */
+    --pastel-lilac-ink: 251.7 100% 82.9%;  /* #B9A8FF */
+    --pastel-lemon: 222.9 7.7% 17.8%;      /* #2A2C31 */
+    --pastel-lemon-ink: 46.2 83.9% 68.4%;  /* #F2D36B */
+    --pastel-rose: 325.7 15.9% 17.3%;      /* #33252D */
+    --pastel-rose-ink: 343.5 100% 80.8%;   /* #FF9DB8 */
+    --state-amber: rgba(245, 197, 107, 0.14);
+    --state-amber-fg: 39.1 87.3% 69%;      /* #F5C56B */
+    --state-green: rgba(123, 217, 164, 0.13);
+    --state-green-fg: 146.2 55.3% 66.7%;   /* #7BD9A4 */
+    --state-violet: rgba(185, 168, 255, 0.15);
+    --state-violet-fg: 251.7 100% 82.9%;   /* #B9A8FF */
+    --state-blue: rgba(141, 185, 255, 0.14);
+    --state-blue-fg: 216.8 100% 77.6%;     /* #8DB9FF */
+    --state-red: rgba(255, 155, 148, 0.14);
+    --state-red-fg: 3.9 100% 79%;          /* #FF9B94 */
+    --state-gray: #2A2A30;
+    --state-gray-fg: 240 7.1% 72.5%;       /* #B4B4BE */
+    --chart-1: 232.9 80% 66.7%;            /* #6676EE */
+    --chart-2: 24.6 66.4% 51%;             /* #D5732F */
+    --chart-grid: 240 6.2% 15.9%;          /* #26262B */
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Un aperçu `.light-island` reprend aussi la couleur de texte de ses jetons et la police de base des
+     pages client (celle de `body` hors de l'admin) ; l'éditeur plein écran de l'admin garde Lexend. */
+  .admin-ui .light-island,
+  .dark .light-island {
+    color-scheme: light;
+    color: hsl(var(--foreground));
+    font-family: 'Roboto', sans-serif;
+  }
+  .admin-ui .admin-editor > .light-island {
+    font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* Éditeur plein écran (cadre photo, écrans de la borne), LAB-395 : un seul jeton par rôle, qui suit la
+     portée. Pages client (et éditeur ouvert par le client) : gris clairs de l'éditeur, accent `--primary`
+     (noyer sous `.pola-client`). Admin : jetons de l'admin, donc clair ou graphite selon le thème.
+     Une classe `bg-editor-panel` remplace ainsi `bg-white admin:bg-card` (liste : saas/CLAUDE.md, « Socle
+     partagé »). Triplets HSL, sauf `--editor-selected` (couleur complète, pas d'opacité Tailwind). */
+  :root,
+  .light-island,
+  .pola-client {
+    --editor-workspace: 240 23.8% 95.9%;   /* fond de travail #F2F2F7 */
+    --editor-panel: 0 0% 100%;             /* panneaux, barres #FFFFFF */
+    --editor-soft: 240 6.7% 97.1%;         /* encart doux #F7F7F8 */
+    --editor-hover: 240 23.8% 95.9%;       /* survol #F2F2F7 */
+    --editor-pressed: 240 12.2% 92%;       /* survol appuyé #E8E8ED */
+    --editor-selected: hsl(var(--primary) / 0.1); /* élément choisi */
+    --editor-line: 240 10.6% 90.8%;        /* ligne #E5E5EA */
+    --editor-line-strong: 217.9 10.6% 64.9%; /* ligne au survol #9CA3AF */
+    --editor-line-soft: 240 23.8% 95.9%;   /* séparation discrète #F2F2F7 */
+    --editor-fg: 240 3.3% 11.8%;           /* texte #1D1D1F */
+    --editor-ink: 240 5.5% 24.9%;          /* texte secondaire #3C3C43 */
+    --editor-muted: 240 2.2% 44.1%;        /* texte atténué #6E6E73 */
+    --editor-faint: 217.9 10.6% 64.9%;     /* texte discret, icônes #9CA3AF */
+    --editor-accent-fg: var(--primary);    /* texte d'accent */
+    --editor-track: #E5E5EA;               /* piste des curseurs */
+    --editor-warning: #FEF3C7;             /* fond d'alerte (objet verrouillé) */
+    --editor-warning-fg: 32.1 94.6% 43.7%; /* texte d'alerte #D97706 */
+    --editor-item-hover: hsl(var(--primary) / 0.1); /* survol d'une ligne de menu, d'un outil flottant */
+    --editor-item-hover-fg: var(--primary);
+    /* Forme et texte (LAB-396) : côté client plus gras et en capitales, côté admin plus calme. */
+    --editor-weight-strong: 600;           /* libellés */
+    --editor-weight-bold: 700;             /* texte gras des boutons */
+    --editor-weight-heading: 700;          /* titres de section */
+    --editor-text-2xs: 9px;                /* libellés des outils */
+    --editor-text-xs: 10px;                /* onglets, petits titres */
+    --editor-text-sm: 12px;                /* titres de panneau */
+    --editor-overline-case: uppercase;     /* petits titres de section */
+    --editor-overline-tracking: 0.05em;
+    --editor-radius-popover: 1rem;         /* menus, panneaux flottants */
+    --editor-radius-tool: 0.75rem;         /* boutons d'outil flottants */
+    --editor-radius-item: 6px;             /* lignes de menu, petits boutons */
+    --editor-shadow-float: 0 25px 50px -12px rgb(0 0 0 / 0.25); /* menus, panneaux flottants */
+    --editor-shadow-raised: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* tiroirs mobiles */
+    --editor-shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* groupe de zoom */
+  }
+  .admin-ui,
+  .admin-ui .light-island,
+  .admin-ui .pola-client {
+    --editor-workspace: var(--background);
+    --editor-panel: var(--card);
+    --editor-soft: var(--soft);
+    --editor-hover: var(--muted);
+    --editor-pressed: var(--border);
+    --editor-selected: hsl(var(--primary-soft));
+    --editor-line: var(--border);
+    --editor-line-strong: var(--input);
+    --editor-line-soft: var(--border);
+    --editor-fg: var(--foreground);
+    --editor-ink: var(--ink);
+    --editor-muted: var(--muted-foreground);
+    --editor-faint: var(--muted-foreground);
+    --editor-accent-fg: var(--primary-ink);
+    --editor-track: hsl(var(--border));
+    --editor-warning: var(--state-amber);
+    --editor-warning-fg: var(--state-amber-fg);
+    --editor-item-hover: hsl(var(--accent));
+    --editor-item-hover-fg: var(--accent-foreground);
+    --editor-weight-strong: 500;
+    --editor-weight-bold: 600;
+    --editor-weight-heading: 500;
+    --editor-text-2xs: 10px;
+    --editor-text-xs: 11px;
+    --editor-text-sm: 13px;
+    --editor-overline-case: none;
+    --editor-overline-tracking: 0;
+    --editor-radius-popover: var(--radius-control);
+    --editor-radius-tool: 0.5rem;
+    --editor-radius-item: 0.5rem;
+    --editor-shadow-float: var(--shadow-float);
+    --editor-shadow-raised: var(--shadow-float);
+    --editor-shadow-subtle: 0 0 #0000;
+  }
+
+  /* Bordures sans couleur (`border`, `divide-y`, fenêtres et menus shadcn) : dans l'admin, la couleur
+     par défaut de Tailwind (gris clair) devient la ligne du thème. Les classes de couleur gagnent
+     toujours (couche utilities), et un `.light-island` garde la bordure claire de ses jetons. */
+  .admin-ui *,
+  .admin-ui ::before,
+  .admin-ui ::after,
+  .dark *,
+  .dark ::before,
+  .dark ::after {
+    border-color: hsl(var(--border));
   }
 }
 
 body {
   margin: 0;
   font-family: 'Roboto', sans-serif;
-  background: #f1f5f9;
+  background: hsl(var(--page-background));
+}
+.admin-ui body {
+  color: hsl(var(--foreground));
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Touches de la marque du logiciel, Polabooth (admin, connexion, /associer ; jamais les pages client).
+   Couleurs du logo, fixes dans les deux modes, sauf le bleu nuit qui devient crème en sombre. Les
+   tokens de la palette de l'admin ne changent pas : la marque reste un accent (filet, repères, jauges).
+   Règles : « Thème de l'admin », saas/CLAUDE.md. Composants : src/components/PolaboothBrand.jsx. */
+:root {
+  --pb-yellow: #FFD452;
+  --pb-orange: #FFB224;
+  --pb-red: #E63946;
+  --pb-navy: #1F1A3D;
+  --pb-cream: #FFF4D6;
+  --pb-n: var(--pb-navy);
+}
+.dark { --pb-n: var(--pb-cream); }
+.dark .light-island { --pb-n: var(--pb-navy); }
+
+/* Filet en 4 couleurs (haut de l'admin, haut de l'écran de chargement). */
+.pb-stripe {
+  height: 4px;
+  background: linear-gradient(90deg, var(--pb-yellow) 0 25%, var(--pb-orange) 25% 50%, var(--pb-red) 50% 75%, var(--pb-n) 75%);
+}
+/* Repère sous le titre d'une page : 4 traits. */
+.pb-mark { display: flex; gap: 4px; }
+.pb-mark > span { width: 14px; height: 4px; border-radius: 2px; }
+.pb-mark > span:nth-child(1), .pb-segments > span:nth-child(1) { background: var(--pb-yellow); }
+.pb-mark > span:nth-child(2), .pb-segments > span:nth-child(2) { background: var(--pb-orange); }
+.pb-mark > span:nth-child(3), .pb-segments > span:nth-child(3) { background: var(--pb-red); }
+.pb-mark > span:nth-child(4), .pb-segments > span:nth-child(4) { background: var(--pb-n); }
+/* Entrée active du menu : trait vertical au bord gauche du menu (le menu a 16 px de marge). */
+.pb-nav-active { position: relative; }
+.pb-nav-active::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 7px;
+  bottom: 7px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(var(--pb-yellow) 0 25%, var(--pb-orange) 25% 50%, var(--pb-red) 50% 75%, var(--pb-n) 75%);
+}
+/* Jauge d'avancement (Meter tone="brand") : dégradé jaune → rouge. */
+.pb-meter-fill { background: linear-gradient(90deg, var(--pb-yellow), var(--pb-orange) 55%, var(--pb-red)); }
+
+/* Écran de chargement animé (PolaboothLoader). Sans animation si l'appareil le demande. */
+@keyframes pb-fan-back { 0%, 100% { transform: rotate(-11deg); } 35%, 75% { transform: rotate(0deg); } }
+@keyframes pb-fan-front { 0%, 100% { transform: rotate(8deg); } 35%, 75% { transform: rotate(0deg); } }
+@keyframes pb-curtain { 0%, 100% { transform: skewX(0deg); } 50% { transform: skewX(-5deg); } }
+@keyframes pb-spark { 0%, 100% { transform: scale(.55); opacity: .5; } 45% { transform: scale(1.12); opacity: 1; } 60% { transform: scale(1); opacity: 1; } }
+@keyframes pb-seg { 0%, 100% { opacity: .22; transform: scaleY(.7); } 25%, 45% { opacity: 1; transform: scaleY(1); } }
+@keyframes pb-pop { 0% { transform: scale(.92); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.pb-loader-icon { animation: pb-pop .5s cubic-bezier(.2, .8, .2, 1.2) both; }
+.pb-loader-back { transform-box: view-box; transform-origin: 128px 214px; animation: pb-fan-back 2.4s cubic-bezier(.45, 0, .2, 1) infinite; }
+.pb-loader-front { transform-box: view-box; transform-origin: 128px 214px; animation: pb-fan-front 2.4s cubic-bezier(.45, 0, .2, 1) infinite; }
+.pb-loader-curtain { transform-box: fill-box; transform-origin: 100% 0; animation: pb-curtain 2.4s ease-in-out infinite; }
+.pb-loader-spark { transform-box: fill-box; transform-origin: 50% 50%; animation: pb-spark 1.2s ease-in-out infinite; }
+.pb-segments { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pb-segments > span { border-radius: 9999px; transform-origin: 50% 50%; animation: pb-seg 1.6s ease-in-out infinite; }
+.pb-segments > span:nth-child(2) { animation-delay: .2s; }
+.pb-segments > span:nth-child(3) { animation-delay: .4s; }
+.pb-segments > span:nth-child(4) { animation-delay: .6s; }
+@media (prefers-reduced-motion: reduce) {
+  .pb-loader-icon, .pb-loader-back, .pb-loader-front, .pb-loader-curtain, .pb-loader-spark, .pb-segments > span { animation: none; }
 }
 
 #root {
@@ -43,33 +371,41 @@ body {
   min-height: 100vh;
 }
 
-/* ── FullCalendar custom theme ────────────────────────────────────────────── */
-.fc { font-family: inherit; }
+/* ── FullCalendar (planning de l'admin) : couleurs du thème, en clair comme en sombre ── */
+.fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-page-bg-color: hsl(var(--card));
+  --fc-neutral-bg-color: hsl(var(--muted));
+  --fc-list-event-hover-bg-color: hsl(var(--accent));
+  font-family: inherit;
+  color: hsl(var(--foreground));
+}
 .fc .fc-scrollgrid { border: none !important; }
 .fc .fc-scrollgrid-section > * { border: none !important; }
-.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: #f1f5f9 !important; }
-.fc .fc-col-header { background: #fff; }
-.fc .fc-col-header-cell { border-bottom: 1px solid #e2e8f0 !important; }
+.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: hsl(var(--border)) !important; }
+.fc .fc-col-header { background: hsl(var(--card)); }
+.fc .fc-col-header-cell { border-bottom: 1px solid hsl(var(--border)) !important; }
 .fc .fc-col-header-cell-cushion {
   padding: 10px 4px 8px !important;
   font-size: 12px;
   font-weight: 500;
-  color: #6b7280;
+  color: hsl(var(--muted-foreground));
   text-decoration: none !important;
   text-transform: capitalize;
 }
-.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion { color: #4f46e5; }
-.fc .fc-timegrid-slot { height: 48px !important; border-color: #f1f5f9 !important; }
-.fc .fc-timegrid-slot-label { font-size: 11px; color: #9ca3af; padding-right: 8px !important; }
-.fc .fc-timegrid-slot-minor { border-top-style: dashed !important; border-color: #f1f5f9 !important; }
-.fc .fc-timegrid-col.fc-day-today { background: rgba(238, 242, 255, 0.4) !important; }
-.fc .fc-daygrid-day.fc-day-today { background: rgba(238, 242, 255, 0.4) !important; }
-.fc .fc-daygrid-day-number, .fc .fc-daygrid-more-link { color: #374151; text-decoration: none !important; font-size: 12px; }
+.fc .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion { color: hsl(var(--primary-ink)); }
+.fc .fc-timegrid-slot { height: 48px !important; border-color: hsl(var(--border)) !important; }
+.fc .fc-timegrid-slot-label { font-size: 11px; color: hsl(var(--muted-foreground)); padding-right: 8px !important; }
+.fc .fc-timegrid-slot-minor { border-top-style: dashed !important; border-color: hsl(var(--border)) !important; }
+.fc .fc-timegrid-col.fc-day-today { background: hsl(var(--primary-soft) / 0.5) !important; }
+.fc .fc-daygrid-day.fc-day-today { background: hsl(var(--primary-soft) / 0.5) !important; }
+.fc .fc-daygrid-day-number, .fc .fc-daygrid-more-link { color: hsl(var(--ink)); text-decoration: none !important; font-size: 12px; }
 .fc .fc-day-today .fc-daygrid-day-number {
-  background: #4f46e5; color: #fff;
+  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
 }
+.fc .fc-day-other .fc-daygrid-day-top { opacity: 0.5; }
 .fc .fc-event {
   border-radius: 8px !important;
   border: none !important;
@@ -78,34 +414,103 @@ body {
 }
 .fc .fc-event-main { padding: 3px 6px !important; }
 .fc .fc-timegrid-event .fc-event-main { padding: 4px 6px !important; }
-.fc .fc-now-indicator-line { border-color: #4f46e5 !important; border-width: 2px !important; }
-.fc .fc-now-indicator-arrow { border-top-color: #4f46e5 !important; }
-.fc .fc-highlight { background: rgba(99,102,241,.08) !important; border-radius: 8px; }
-.fc .fc-more-link { color: #4f46e5 !important; font-size: 11px !important; }
-.fc .fc-daygrid-day-frame { min-height: 80px !important; }
-
-/* Checkerboard for photo zones */
-.checkerboard {
-  background-image:
-    linear-gradient(45deg, #ccc 25%, transparent 25%),
-    linear-gradient(-45deg, #ccc 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ccc 75%),
-    linear-gradient(-45deg, transparent 75%, #ccc 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-  background-color: #fff;
+/* Colonne des heures : « Toute la journée » à la taille des heures, sur deux lignes au besoin. */
+.fc .fc-timegrid-axis-cushion {
+  max-width: 56px;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+  color: hsl(var(--muted-foreground));
 }
+/* Repère de l'heure courante : trait et flèche à la couleur d'action (la flèche est un triangle de bordures). */
+.fc .fc-timegrid-now-indicator-line { border-color: hsl(var(--primary)) !important; border-width: 2px 0 0 !important; }
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: hsl(var(--primary)) !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+.fc .fc-highlight { background: hsl(var(--primary) / 0.1) !important; border-radius: 8px; }
+.fc .fc-more-link { color: hsl(var(--primary-ink)) !important; font-size: 11px !important; }
+.fc .fc-daygrid-day-frame { min-height: 80px !important; }
+.fc .fc-popover { background: hsl(var(--popover)); border-color: hsl(var(--border)); }
+.fc .fc-popover-header { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+/* Vue Mois : événements à heure fixe affichés en point, texte en couleur du thème (pas de fond). */
+.fc .fc-daygrid-dot-event { color: hsl(var(--foreground)); }
+.fc .fc-daygrid-dot-event .fc-event-time { color: hsl(var(--muted-foreground)); }
+.fc .fc-daygrid-dot-event:hover { background: hsl(var(--accent)); }
 
-/* Canvas container */
-.canvas-area {
-  background-image:
-    linear-gradient(45deg, #d1d5db 25%, transparent 25%),
-    linear-gradient(-45deg, #d1d5db 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #d1d5db 75%),
-    linear-gradient(-45deg, transparent 75%, #d1d5db 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-  background-color: #e5e7eb;
+/* ── Classes partagées (LAB-395) : référence dans saas/CLAUDE.md, « Socle partagé ». ──
+   Couche components : une classe utilitaire ajoutée à côté (`w-full`, `mt-4`, `px-4`) l'emporte toujours. */
+@layer components {
+  /* Pages client, style du site. */
+  .pola-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pola-green focus-visible:ring-offset-2 focus-visible:ring-offset-pola-bg;
+  }
+  .pola-btn-primary {
+    @apply pola-focus inline-flex items-center justify-center gap-2.5 rounded-full bg-pola-green text-white text-[17px] font-medium leading-tight px-7 py-4 hover:bg-pola-green-dark transition-colors disabled:opacity-70 disabled:cursor-wait;
+  }
+  .pola-btn-secondary {
+    @apply pola-focus inline-flex items-center justify-center gap-2 rounded-full border-2 border-pola-green text-pola-green-dark text-base font-medium leading-tight px-6 py-3 hover:bg-pola-green hover:text-white transition-colors disabled:opacity-70 disabled:cursor-wait;
+  }
+  .pola-btn-destructive {
+    @apply pola-focus inline-flex items-center justify-center gap-2 rounded-full bg-pola-error text-white text-[17px] font-medium leading-tight px-7 py-4 hover:bg-[#7d2318] transition-colors disabled:opacity-70 disabled:cursor-wait;
+  }
+  .pola-link {
+    @apply pola-focus font-medium text-pola-green-dark underline underline-offset-4 decoration-pola-green/60 hover:decoration-pola-green-dark rounded-sm;
+  }
+  .pola-checkbox {
+    @apply pola-focus h-6 w-6 mt-0.5 shrink-0 rounded accent-[#5e745d] cursor-pointer;
+  }
+
+  /* Écrans client de l'éditeur, palette F « noyer & sauge ».
+     « pola-pf-page » va avec « pola-client » (accent noyer) sur la racine de la page. */
+  .pola-pf-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pf-noyer focus-visible:ring-offset-2 focus-visible:ring-offset-pf-bg;
+  }
+  .pola-pf-page {
+    @apply bg-pf-bg text-pf-text font-pola antialiased;
+  }
+  .pola-pf-card {
+    @apply w-full bg-white rounded-[28px] border border-pf-line shadow-sm;
+  }
+  .pola-pf-title {
+    @apply font-pf-serif font-normal text-pf-text leading-tight;
+  }
+  .pola-pf-label {
+    @apply block text-sm font-medium text-pf-text;
+  }
+  .pola-pf-input {
+    @apply w-full rounded-2xl border-2 border-pf-line bg-white px-4 py-3 text-base text-pf-text placeholder:text-pf-muted outline-none transition-colors focus:border-pf-noyer;
+  }
+  .pola-pf-icon-circle {
+    @apply w-14 h-14 rounded-full bg-pf-noyer text-white flex items-center justify-center;
+  }
+  .pola-pf-btn-primary {
+    @apply pola-pf-focus inline-flex items-center justify-center gap-2 rounded-full bg-pf-noyer text-white text-base font-medium leading-tight px-7 py-3.5 hover:bg-pf-noyer-h transition-colors disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+  .pola-pf-btn-secondary {
+    @apply pola-pf-focus inline-flex items-center justify-center gap-2 rounded-full border-2 border-pf-noyer text-pf-noyer text-base font-medium leading-tight px-6 py-3 hover:bg-pf-noyer hover:text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed;
+  }
+  .pola-pf-link {
+    @apply pola-pf-focus font-medium text-pf-noyer underline underline-offset-4 decoration-pf-noyer/50 hover:decoration-pf-noyer rounded-sm;
+  }
+  .pola-pf-error {
+    @apply text-sm text-pola-error bg-pola-error-soft rounded-2xl px-4 py-2.5 flex items-center gap-2;
+  }
+
+  /* Petit titre de section de l'éditeur : capitales espacées côté client, casse normale dans l'admin. */
+  .editor-overline {
+    text-transform: var(--editor-overline-case);
+    letter-spacing: var(--editor-overline-tracking);
+  }
+
+  /* Damier sous une image transparente (canevas, autocollants, aperçu PNG). Réglable en style en ligne :
+     --checker-size (côté d'un motif = 2 cases, 16px), --checker-dark, --checker-light. */
+  .checkerboard {
+    background-color: var(--checker-light, #fff);
+    background-image: repeating-conic-gradient(var(--checker-dark, #e5e7eb) 0% 25%, var(--checker-light, #fff) 0% 50%);
+    background-size: var(--checker-size, 16px) var(--checker-size, 16px);
+  }
 }
 
 /* Fabric canvas wrapper */
@@ -119,6 +524,10 @@ body {
 .react-colorful__hue { height: 14px; border-radius: 7px; margin: 10px 0 0; }
 .react-colorful__saturation-pointer,
 .react-colorful__hue-pointer { width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,0.35); }
+/* En sombre : liseré pour détacher le sélecteur du fond, ombre du curseur plus marquée. */
+.dark .react-colorful { box-shadow: 0 0 0 1px hsl(var(--border)); }
+.dark .react-colorful__saturation-pointer,
+.dark .react-colorful__hue-pointer { box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 1px 6px rgba(0,0,0,0.6); }
 
 /* Lightbox galerie — animations d'entrée des photos */
 @keyframes lb-fade { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
@@ -128,11 +537,16 @@ body {
 .lb-anim-next { animation: lb-next 0.25s ease-out; }
 .lb-anim-prev { animation: lb-prev 0.25s ease-out; }
 
-/* ── react-day-picker — thème unifié "Pola" (fond blanc, accent violet) ────── */
+/* Aperçu de l'écran d'accueil de la borne (kiosk-preview/HomePreview.jsx) : onde du point lumineux. */
+@keyframes kiosk-preview-pulse { from { transform: scale(1); opacity: .6 } to { transform: scale(2.6); opacity: 0 } }
+.kiosk-preview-pulse { animation: kiosk-preview-pulse 1.6s cubic-bezier(.33,1,.68,1) infinite; }
+@media (prefers-reduced-motion: reduce) { .kiosk-preview-pulse { animation: none; opacity: 0 } }
+
+/* ── react-day-picker (DateTimePicker de l'admin) : couleurs du thème, en clair comme en sombre ── */
 /* La mise en page (mois centré + flèches sur les bords) vient de navLayout="around". */
 .pola-calendar .rdp-root {
-  --rdp-accent-color: #7c3aed;
-  --rdp-accent-background-color: #f5f3ff;
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-accent-background-color: hsl(var(--primary-soft));
   --rdp-day-width: 40px;
   --rdp-day-height: 40px;
   --rdp-day_button-width: 40px;
@@ -143,35 +557,35 @@ body {
   --rdp-weekday-opacity: 1;
   margin: 0;
   font-size: 14px;
-  color: #111827;
+  color: hsl(var(--foreground));
 }
 .pola-calendar .rdp-month_caption { margin-bottom: 6px; }
-.pola-calendar .rdp-caption_label { font-size: 15px; font-weight: 600; color: #111827; text-transform: capitalize; }
+.pola-calendar .rdp-caption_label { font-size: 15px; font-weight: 500; color: hsl(var(--foreground)); text-transform: capitalize; }
 .pola-calendar .rdp-button_previous, .pola-calendar .rdp-button_next {
-  border-radius: 9999px; color: #6b7280; transition: background .15s, color .15s;
+  border-radius: 9999px; color: hsl(var(--muted-foreground)); transition: background .15s, color .15s;
 }
-.pola-calendar .rdp-button_previous:hover, .pola-calendar .rdp-button_next:hover { background: #f3f4f6; color: #111827; }
+.pola-calendar .rdp-button_previous:hover, .pola-calendar .rdp-button_next:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
 .pola-calendar .rdp-chevron { fill: currentColor; }
 /* Jours de la semaine */
-.pola-calendar .rdp-weekday { font-size: 12px; font-weight: 600; color: #9ca3af; text-transform: none; }
+.pola-calendar .rdp-weekday { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); text-transform: none; }
 /* Jours */
-.pola-calendar .rdp-day_button { font-size: 14px; color: #374151; border: none; border-radius: 9999px; transition: background .15s, color .15s; }
-.pola-calendar .rdp-day_button:hover { background: #f3f4f6; }
-.pola-calendar .rdp-today:not(.rdp-selected) .rdp-day_button { color: #7c3aed; font-weight: 700; }
-.pola-calendar .rdp-outside .rdp-day_button { color: #d1d5db; }
-.pola-calendar .rdp-disabled .rdp-day_button { color: #e5e7eb; }
+.pola-calendar .rdp-day_button { font-size: 14px; color: hsl(var(--foreground)); border: none; border-radius: 9999px; transition: background .15s, color .15s; }
+.pola-calendar .rdp-day_button:hover { background: hsl(var(--accent)); }
+.pola-calendar .rdp-today:not(.rdp-selected) .rdp-day_button { color: hsl(var(--primary-ink)); font-weight: 600; }
+.pola-calendar .rdp-outside .rdp-day_button { color: hsl(var(--muted-foreground) / 0.5); }
+.pola-calendar .rdp-disabled .rdp-day_button { color: hsl(var(--muted-foreground) / 0.3); }
 /* Jour sélectionné — cercle plein */
-.pola-calendar .rdp-selected .rdp-day_button { background: var(--rdp-accent-color); color: #fff; font-weight: 600; border: none; }
-.pola-calendar .rdp-selected .rdp-day_button:hover { background: #6d28d9; }
+.pola-calendar .rdp-selected .rdp-day_button { background: var(--rdp-accent-color); color: hsl(var(--primary-foreground)); font-weight: 500; border: none; }
+.pola-calendar .rdp-selected .rdp-day_button:hover { background: hsl(var(--primary) / 0.9); }
 /* Plage (AdminEvents) */
-.pola-calendar .rdp-range_middle .rdp-day_button { background: var(--rdp-accent-background-color); color: #6d28d9; border-radius: 0; }
-.pola-calendar .rdp-range_start .rdp-day_button, .pola-calendar .rdp-range_end .rdp-day_button { background: var(--rdp-accent-color); color: #fff; }
+.pola-calendar .rdp-range_middle .rdp-day_button { background: var(--rdp-accent-background-color); color: hsl(var(--primary-ink)); border-radius: 0; }
+.pola-calendar .rdp-range_start .rdp-day_button, .pola-calendar .rdp-range_end .rdp-day_button { background: var(--rdp-accent-color); color: hsl(var(--primary-foreground)); }
 
-/* Scrollbar styling */
+/* Barres de défilement : couleurs de la portée (pages client, admin clair, admin sombre, aperçu clair). */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-thumb { background: hsl(var(--scrollbar)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--scrollbar-hover)); }
 
 /* ── Pages client publiques (LAB-62, maquette reservation-recap v3.3) ── */
 .pola-public .tnum { font-variant-numeric: tabular-nums; }
@@ -197,6 +611,16 @@ body {
   .brand-loader .brand-rays, .brand-loader .brand-word { animation: none; opacity: 1; transform: none; }
 }
 
+/* Éditeur du client (LAB-355) : couleur d'accent noyer au lieu du bleu nuit de l'admin, pour tous les
+   `bg-primary` / `text-primary` / `ring` des écrans client et de l'éditeur ouvert par le client. */
+.pola-client,
+.pola-client .light-island {
+  --primary: 22.7 45.2% 28.6%;          /* noyer #6A4128 */
+  --primary-foreground: 0 0% 100%;
+  --ring: 22.7 45.2% 28.6%;
+  --editor-accent: #6A4128;
+}
+
 /* Conditions générales (page /cgl) : HTML généré par src/modules/booking/legal/build-cgl.mjs. */
 .pola-legal { font-size: 17px; line-height: 1.65; overflow-wrap: anywhere; }
 .pola-legal h1 { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 36px; line-height: 1.1; font-weight: 400; margin: 0 0 .75rem; }
@@ -213,3 +637,17 @@ body {
 .pola-legal th, .pola-legal td { border: 1px solid #e9e9e9; padding: .4rem .6rem; text-align: left; vertical-align: top; }
 .pola-legal th { background: #f5f2ec; font-weight: 600; }
 @media (min-width: 768px) { .pola-legal h1 { font-size: 48px; } }
+
+/* Safari sur iPhone zoome dès qu'on touche un champ de moins de 16 px (LAB-352) : sur écran étroit,
+   les champs de saisie passent à 16 px, sauf ceux écrits plus gros (code d'accès en text-3xl…).
+   `!important` l'emporte sur les classes de taille et sur les tailles en style en ligne (textarea caché
+   de Fabric pour écrire un texte sur le canevas). */
+@media (max-width: 767px) {
+  :is(
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="image"]),
+    textarea,
+    select
+  ):not(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl) {
+    font-size: 16px !important;
+  }
+}

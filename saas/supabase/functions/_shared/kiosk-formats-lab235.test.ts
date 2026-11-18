@@ -24,6 +24,7 @@ const sql = strip(readPrivateHistory(new URL(MIGRATION, DIR)));
 const all = readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort();
 const front = (p: string) => readFileSync(new URL(`../../../src/${p}`, import.meta.url), 'utf8');
 const fnSrc = readFileSync(new URL('../send-kiosk-photo/index.ts', import.meta.url), 'utf8');
+const kioskEmailSrc = readFileSync(new URL('./kiosk-email.ts', import.meta.url), 'utf8');
 
 function fakeDb(rows: Record<string, unknown>[]) {
   return {
@@ -97,10 +98,13 @@ test('email animation : nom, message, affiche et lien échappés', () => {
 });
 
 test('send-kiosk-photo : lit access_code, construit le média, aucune pièce jointe', () => {
-  assert.match(fnSrc, /\.select\('id, org_id, name, status, access_code, form_config'\)/);
-  assert.match(fnSrc, /kioskEmailMedia\(\{ photo: photoCheck\.photo, photoUrl: photo_url, appUrl: APP_URL, accessCode: event\.access_code \}\)/);
-  assert.match(fnSrc, /renderKioskPhotoEmail\(\{ eventName: event\.name, photoUrl: photo_url, message, media \}\)/);
+  assert.match(fnSrc, /\.select\('id, org_id, name, status, access_code, start_date, client_name, form_config'\)/);
+  // Média et rendu dans _shared/kiosk-email.ts depuis LAB-300 (partagé avec l'aperçu de l'admin).
+  assert.match(fnSrc, /photo: photoCheck\.photo, photoUrl: photo_url, appUrl: APP_URL/);
+  assert.match(kioskEmailSrc, /kioskEmailMedia\(\{ photo: p\.photo, photoUrl: p\.photoUrl, appUrl: p\.appUrl, accessCode: p\.event\.access_code \}\)/);
+  assert.match(kioskEmailSrc, /renderKioskPhotoEmail\(\{\s+eventName: p\.event\.name,\s+photoUrl: p\.photoUrl,[\s\S]*media,/);
   assert.doesNotMatch(fnSrc, /attachment/i);
+  assert.doesNotMatch(kioskEmailSrc, /attachment/i);
 });
 
 test('migration : horodatage unique après LAB-233, SQL sans accent, rechargement du schéma', { skip: PRIVATE_HISTORY }, () => {

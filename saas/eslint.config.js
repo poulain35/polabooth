@@ -37,15 +37,16 @@ export default defineConfig([
     },
   },
   // Open core (L2b) : le code ouvert n'importe jamais un module privé (src/modules/<id>/).
-  // Seul src/features/modules.js lit le registre src/modules/index.js (et src/lib/instanceBrand.js
-  // la marque privée src/modules/brand.js, open core L7).
+  // Seul src/features/modules.js lit le registre src/modules/index.js (src/lib/instanceBrand.js la marque
+  // privée src/modules/brand.js, open core L7 ; src/features/catalog.js et serviceKeys.js les catalogues
+  // de données src/modules/catalog.js, LAB-403).
   {
     files: ['src/**/*.{js,jsx}'],
     ignores: ['src/modules/**'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [{
-          group: ['**/modules/*/**', '**/modules/*', '!**/modules/index.js', '!**/modules/brand.js'],
+          group: ['**/modules/*/**', '**/modules/*', '!**/modules/index.js', '!**/modules/brand.js', '!**/modules/catalog.js'],
           message: 'Module privé : passez par le registre (src/features/modules.js, <ModuleSlot>, moduleHook).',
         }],
       }],

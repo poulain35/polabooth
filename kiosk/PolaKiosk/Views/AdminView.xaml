@@ -45,6 +45,10 @@
             <!-- En-tête -->
             <Grid Margin="0,0,0,40">
                 <StackPanel>
+                    <!-- Logo du logiciel (Polabooth), version pour fond sombre -->
+                    <Image Source="pack://application:,,,/Assets/Brand/polabooth-logo-horizontal-blanc.png"
+                           Height="44" HorizontalAlignment="Left" Margin="0,0,0,20"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="Administration" Style="{StaticResource KioskTitleText}" FontSize="36"
                                Foreground="{StaticResource KioskOnDarkBrush}" Margin="0,0,0,8"/>
                     <TextBlock Text="Gestion des événements et paramètres du kiosk"
@@ -99,6 +103,40 @@
                     </StackPanel>
                     <TextBlock Text="{Binding PolaStatusMsg}" Style="{StaticResource AdminHint}"
                                Visibility="{Binding PolaStatusMsg, Converter={StaticResource BoolToVisibility}}"/>
+
+                    <!-- .pola déjà importés (LAB-321) : recharger un événement sans le fichier d'origine -->
+                    <TextBlock Text=".pola déjà importés" Style="{StaticResource AdminCardTitle}" Margin="0,24,0,4"/>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,0,0,12"
+                               Text="Les 20 derniers fichiers importés restent sur la borne. « Recharger » refait l'import : l'événement redevient l'événement actif, sans réseau ni clé USB."/>
+                    <TextBlock Text="Aucun fichier importé pour l'instant." Style="{StaticResource AdminHint}" FontStyle="Italic"
+                               Visibility="{Binding HasPolaHistory, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"/>
+                    <ItemsControl ItemsSource="{Binding PolaHistory}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource KioskDarkBrush}" BorderBrush="{StaticResource KioskOnDarkLineBrush}"
+                                        BorderThickness="1" CornerRadius="12" Padding="20,14" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <TextBlock Text="{Binding EventName}" FontSize="20" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource KioskOnDarkBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding EventDates}" FontSize="16" Margin="0,4,0,0"
+                                                       Foreground="{StaticResource KioskOnDarkBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding ImportedText}" Style="{StaticResource AdminHint}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource AdminButton}"
+                                                MinHeight="64" MinWidth="180" FontSize="18" VerticalAlignment="Center"
+                                                Command="{Binding DataContext.ReloadPolaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Content="Recharger"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
 
@@ -117,6 +155,29 @@
                     </StackPanel>
                     <TextBlock Text="{Binding PrinterStatusMsg}" Style="{StaticResource AdminHint}" Margin="0,8,0,0"
                                Visibility="{Binding PrinterStatusMsg, Converter={StaticResource BoolToVisibility}}"/>
+
+                    <!-- Bandes 5x15 (LAB-334) : réglages du pilote enregistrés une fois depuis sa fenêtre -->
+                    <TextBlock Text="Bandes 5x15" Margin="0,22,0,6" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource KioskOnDarkBrush}"/>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,0,0,12"
+                               Text="Une bande s'imprime deux fois sur une feuille 10x15, que l'imprimante coupe en deux. Enregistrez une fois chaque réglage du pilote de l'imprimante choisie ci-dessus (enregistrez d'abord l'imprimante)."/>
+
+                    <Button Command="{Binding RecordStripCutSettingCommand}" Style="{StaticResource AdminButton}"
+                            HorizontalAlignment="Left" Content="Enregistrer le réglage bandes coupées"/>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,6,0,4"
+                               Text="Dans la fenêtre qui s'ouvre, cochez la coupe 2 pouces (2inch cut) puis validez."/>
+                    <TextBlock Text="{Binding StripCutSettingStatus}" Style="{StaticResource AdminHint}" Margin="0,0,0,14"
+                               Foreground="{StaticResource KioskOnDarkBrush}"/>
+
+                    <Button Command="{Binding RecordNormalSettingCommand}" Style="{StaticResource AdminButton}"
+                            HorizontalAlignment="Left" Content="Enregistrer le réglage normal"/>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,6,0,4"
+                               Text="Facultatif. Dans la fenêtre qui s'ouvre, vérifiez que la coupe 2 pouces (2inch cut) est décochée puis validez. Sans ce réglage, les 10x15 utilisent le réglage par défaut du pilote."/>
+                    <TextBlock Text="{Binding NormalSettingStatus}" Style="{StaticResource AdminHint}"
+                               Foreground="{StaticResource KioskOnDarkBrush}"/>
+
+                    <TextBlock Text="{Binding DriverSettingMsg}" Style="{StaticResource AdminHint}" Margin="0,12,0,0"
+                               Visibility="{Binding DriverSettingMsg, Converter={StaticResource BoolToVisibility}}"/>
                 </StackPanel>
             </Border>
 

@@ -1,6 +1,7 @@
 // Images du bucket kiosk-backgrounds (LAB-282) : fond d'accueil d'un événement et fond de l'écran
 // de saisie du code. Règles pures (pas de réseau ni de DOM), testées dans kioskBackground.test.js.
 // Le bucket n'accepte que PNG, JPEG (et le JSON de setup_config), 10 Mo au maximum.
+import { NETWORK_ERROR_MESSAGE, isFetchFailure } from './networkError.js';
 
 export const KIOSK_BG_MAX_BYTES = 10 * 1024 * 1024;
 export const KIOSK_BG_ACCEPT = 'image/png,image/jpeg';
@@ -60,5 +61,6 @@ export function kioskStorageErrorMessage(error) {
   if (/exceeded the maximum allowed size|entity too large|payload too large/i.test(raw) || status === '413') {
     return 'Image trop lourde : 10 Mo au maximum. Réduisez sa taille et réessayez.';
   }
+  if (isFetchFailure(error)) return NETWORK_ERROR_MESSAGE;
   return raw || "L'envoi a échoué. Réessayez.";
 }

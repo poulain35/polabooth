@@ -3,16 +3,21 @@
 // Noms d'événements : ceux normalisés par supabase/functions/_shared/email-tracking.ts.
 
 import { retryHint } from './httpErrors.js';
+import { safeHttpUrl } from './urls.js';
 
-const GRAY = { cls: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
-const RED = { cls: 'bg-red-100 text-red-700', dot: 'bg-red-500' };
-const AMBER = { cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' };
+export { safeHttpUrl };
+
+// `tone` = ton de la pastille (`StatusPill`) : gris = envoyé, bleu = reçu, violet = ouvert, vert = cliqué,
+// ambre = à surveiller, rouge = échec.
+const GRAY = { tone: 'gray' };
+const RED = { tone: 'red' };
+const AMBER = { tone: 'amber' };
 
 export const EMAIL_STATUS = {
   sent:         { label: 'Envoyé',            ...GRAY },
-  delivered:    { label: 'Reçu',              cls: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500' },
-  opened:       { label: 'Ouvert',            cls: 'bg-violet-100 text-violet-700',   dot: 'bg-violet-500' },
-  clicked:      { label: 'Cliqué',            cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  delivered:    { label: 'Reçu',              tone: 'blue' },
+  opened:       { label: 'Ouvert',            tone: 'violet' },
+  clicked:      { label: 'Cliqué',            tone: 'green' },
   soft_bounce:  { label: 'Rebond temporaire', ...AMBER },
   hard_bounce:  { label: 'Rebond définitif',  ...RED },
   blocked:      { label: 'Bloqué',            ...RED },
@@ -61,11 +66,13 @@ export function emailBadgeMeta(status, provider = EMAIL_PROVIDER) {
 
 // ── Types (email_logs.type, écrits par les edge functions) ───────────────────
 
-export const EMAIL_TYPE_LABELS = {
+const EMAIL_TYPE_LABELS = {
   access_code:               'Code d\'accès',
   delivery:                  'Livraison des photos',
-  design_approved:           'Design validé',
-  design_rejected:           'Design refusé',
+  design_approved:           'Cadre photo validé',
+  design_rejected:           'Cadre photo refusé',
+  home_design_approved:      'Écran d’accueil validé',
+  home_design_rejected:      'Écran d’accueil à corriger',
   booking_request_received:  'Demande reçue',
   booking_new_request_admin: 'Nouvelle demande (alerte admin)',
   booking_recap_link:        'Lien de réservation',
@@ -93,10 +100,10 @@ export const EMAIL_TYPE_LABELS = {
 };
 
 /** Types suffixés par un nombre de jours variable (`…_j3`, `…_j14`). */
-export const EMAIL_TYPE_PATTERNS = [
+const EMAIL_TYPE_PATTERNS = [
   { prefix: 'quote_reminder_j',          family: 'Relance devis',            label: (n) => `Relance devis (J+${n})` },
   { prefix: 'booking_recap_reminder_j',  family: 'Relance devis en ligne',   label: (n) => `Relance devis en ligne (J+${n})` },
-  { prefix: 'design_reminder_j',         family: 'Relance design',           label: (n) => `Relance design (J-${n})` },
+  { prefix: 'design_reminder_j',         family: 'Relance cadre photo',           label: (n) => `Relance cadre photo (J-${n})` },
   { prefix: 'booking_slot_reminder_j',   family: 'Rappel créneaux',          label: (n) => `Rappel créneaux (J-${n})` },
 ];
 
@@ -120,7 +127,7 @@ export const EMAIL_TYPE_FILTERS = [
 
 // ── Événements (email_events.event) ──────────────────────────────────────────
 
-export const EMAIL_EVENT_LABELS = {
+const EMAIL_EVENT_LABELS = {
   request:      'Envoyé',
   delivered:    'Reçu',
   deferred:     'Remise différée',
@@ -136,7 +143,7 @@ export const EMAIL_EVENT_LABELS = {
   unsubscribed: 'Désinscription',
 };
 
-export const emailEventLabel = (event) => EMAIL_EVENT_LABELS[event] ?? (event ? String(event) : 'Événement');
+const emailEventLabel = (event) => EMAIL_EVENT_LABELS[event] ?? (event ? String(event) : 'Événement');
 
 /** Dernière activité connue : dernier événement Brevo, sinon l'envoi. */
 export function lastActivity(log) {
@@ -175,7 +182,7 @@ export function emailContextLink(log, modules = NO_MODULES) {
     const label = [lead?.booking_number, lead?.client_name].filter(Boolean).join(' · ') || 'Devis';
     const to = lead?.source === 'booking' && lead?.booking_status
       ? `/admin/demandes/${log.lead_id}`
-      : `/admin/leads?lead=${log.lead_id}`;
+      : `/admin/ventes?tab=devis&lead=${log.lead_id}`;
     return { to, label, kind: 'lead' };
   }
   if (log?.event_id) {
@@ -211,7 +218,7 @@ export const EMAIL_PAGE_SIZE = 25;
 export const escapeLike = (s) => String(s).replace(/[\\%_]/g, (c) => `\\${c}`).replace(/\*/g, '_');
 
 /** N° de réservation saisi (« POLA-7K3M », « pola 7k3m », « POLA-7K ») normalisé, sinon null. */
-export function bookingRefOf(term) {
+function bookingRefOf(term) {
   const m = /^POLA([A-Z0-9]{1,4})$/.exec(String(term ?? '').toUpperCase().replace(/[\s-]+/g, ''));
   return m ? `POLA-${m[1]}` : null;
 }
@@ -320,17 +327,6 @@ const SAME_SECOND_ORDER = {
   request: 0, deferred: 1, soft_bounce: 2, delivered: 3, proxy_open: 4, opened: 5, click: 6,
   hard_bounce: 7, blocked: 8, invalid: 9, error: 10, spam: 11, unsubscribed: 12,
 };
-
-/** URL cliquable seulement en http(s) : un lien `javascript:` ou `data:` reste du texte. */
-export function safeHttpUrl(url) {
-  if (typeof url !== 'string') return null;
-  try {
-    const u = new URL(url.trim());
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Frise d'un email : l'envoi (email_logs.sent_at), puis l'historique Brevo dans l'ordre. Les

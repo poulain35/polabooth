@@ -11,6 +11,6 @@ public sealed class TempDir : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(Path, recursive: true); } catch { }
+        try { Directory.Delete(Path, recursive: true); } catch { /* nettoyage d'un dossier temporaire */ }
     }
 }

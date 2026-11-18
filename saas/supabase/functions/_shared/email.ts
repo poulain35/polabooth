@@ -25,6 +25,11 @@ const APP_URL    = appUrl();
 const instanceBrand = instanceBrandLoader();
 const EMAIL_GUARD = parseEmailGuardConfig((k) => Deno.env.get(k));
 
+/** HTML tel qu'il part (marque de l'instance appliquée), pour l'aperçu d'un email (LAB-300). */
+export async function brandEmailHtml(html: string): Promise<string> {
+  return applyEmailBrand(html, await instanceBrand());
+}
+
 /**
  * Pièce jointe Brevo : soit un fichier accessible par URL ({ url, name? }),
  * soit un contenu inline base64 ({ content, name }).
@@ -89,7 +94,7 @@ async function postEmail(provider: EmailProvider, payload: Record<string, unknow
 
 async function prepare(payload: Record<string, unknown>, provider: EmailProvider) {
   if (typeof payload.htmlContent === 'string') {
-    payload = { ...payload, htmlContent: applyEmailBrand(payload.htmlContent, await instanceBrand()) };
+    payload = { ...payload, htmlContent: await brandEmailHtml(payload.htmlContent) };
   }
   if (Array.isArray(payload.attachment)) {
     const attachment = await inlineAttachments(payload.attachment as BrevoAttachment[], fetch);
@@ -264,10 +269,12 @@ export async function sendAccessCodeEmail(params: {
   expiresAt?: string;
   templateId?: number;
   sender?: EmailSender;
+  /** Lien « Suivre ma réservation » (_shared/client-tracking.ts) ; null = email d'avant, TRACKING_URL vide. */
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
-  const { to, clientName, eventName, accessCode, expiresAt, templateId, sender } = params;
+  const { to, clientName, eventName, accessCode, expiresAt, templateId, sender, trackingUrl } = params;
   const editorUrl = `${APP_URL}/e/${accessCode}`;
-  const rendered = renderAccessCodeEmail({ clientName, eventName, accessCode, editorUrl, expiresAt });
+  const rendered = renderAccessCodeEmail({ clientName, eventName, accessCode, editorUrl, expiresAt, trackingUrl });
 
   return await sendClientTemplate(to, rendered, templateId, {
     CLIENT_NAME:  clientName,
@@ -275,6 +282,7 @@ export async function sendAccessCodeEmail(params: {
     ACCESS_CODE:  accessCode,
     EDITOR_URL:   editorUrl,
     EXPIRES_DATE: expiresAt ? new Date(expiresAt).toLocaleDateString('fr-FR') : '',
+    TRACKING_URL: trackingUrl ?? '',
   }, sender);
 }
 
@@ -283,7 +291,9 @@ export async function sendApprovalEmail(params: {
   to: string;
   clientName: string;
   eventName: string;
+  frameLabel?: string | null;
   sender?: EmailSender;
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
   const { subject, html } = renderApprovalEmail(params);
   return await sendClientHtml(params.to, subject, html, undefined, params.sender);
@@ -296,7 +306,9 @@ export async function sendRejectionEmail(params: {
   eventName: string;
   editorUrl: string;
   feedback: string;
+  frameLabel?: string | null;
   sender?: EmailSender;
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
   const { subject, html } = renderRejectionEmail(params);
   return await sendClientHtml(params.to, subject, html, undefined, params.sender);
@@ -332,19 +344,26 @@ export async function sendSupportNotificationEmail(params: {
   await sendEmail(params.to, subject, html, undefined, params.sender);
 }
 
-/** Relance client : le design du template n'a pas encore été soumis. */
+/**
+ * Relance client : le design du template n'a pas encore été soumis. `framesLeft` (LAB-322) : cadres
+ * restant à envoyer quand d'autres sont déjà partis ; le texte de l'app est alors toujours utilisé
+ * (le modèle Brevo de la relance parle d'un template pas encore envoyé).
+ */
 export async function sendDesignReminderEmail(params: {
   to: string;
   clientName: string;
   eventName: string;
   accessCode: string;
   daysLeft: number;
+  framesLeft?: number;
   templateId?: number;
   sender?: EmailSender;
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
-  const { to, clientName, eventName, accessCode, daysLeft, templateId, sender } = params;
+  const { to, clientName, eventName, accessCode, daysLeft, framesLeft, sender, trackingUrl } = params;
+  const templateId = framesLeft ? undefined : params.templateId;
   const editorUrl = `${APP_URL}/e/${accessCode}`;
-  const rendered = renderDesignReminderEmail({ clientName, eventName, accessCode, editorUrl, daysLeft });
+  const rendered = renderDesignReminderEmail({ clientName, eventName, accessCode, editorUrl, daysLeft, framesLeft, trackingUrl });
 
   return await sendClientTemplate(to, rendered, templateId, {
     CLIENT_NAME: clientName,
@@ -352,10 +371,11 @@ export async function sendDesignReminderEmail(params: {
     ACCESS_CODE: accessCode,
     EDITOR_URL:  editorUrl,
     DAYS_LEFT:   String(daysLeft),
+    TRACKING_URL: trackingUrl ?? '',
   }, sender);
 }
 
-/** Notification admin quand un client soumet son template. */
+/** Notification admin quand un client envoie son design. */
 export async function sendSubmitNotificationEmail(params: {
   to: string;
   eventName: string;
@@ -383,11 +403,13 @@ export async function sendDeliveryEmail(params: {
   /** Document joint (events.delivery_attachment_url). */
   attachmentUrl?: string;
   sender?: EmailSender;
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
-  const { to, clientName, eventName, companyName, photoGalleryUrl, links, reviewUrl, attachmentUrl, sender } = params;
+  const { to, clientName, eventName, companyName, photoGalleryUrl, links, reviewUrl, attachmentUrl, sender, trackingUrl } = params;
   const attachment = attachmentUrl ? [{ url: attachmentUrl, name: deliveryAttachmentName(attachmentUrl) }] : undefined;
   const { subject, html } = renderDeliveryEmail({
     clientName, eventName, brand: companyName || FROM_NAME, photoGalleryUrl, links, reviewUrl, hasAttachment: !!attachmentUrl,
+    trackingUrl,
   });
   return await sendClientHtml(to, subject, html, attachment, sender);
 }
@@ -401,9 +423,12 @@ export async function sendEventReportEmail(params: {
   reportUrl: string;
   expiresAt?: string | null;
   sender?: EmailSender;
+  trackingUrl?: string | null;
 }): Promise<SentEmail> {
-  const { to, clientName, eventName, companyName, reportUrl, expiresAt, sender } = params;
-  const { subject, html } = renderEventReportEmail({ clientName, eventName, brand: companyName || FROM_NAME, reportUrl, expiresAt });
+  const { to, clientName, eventName, companyName, reportUrl, expiresAt, sender, trackingUrl } = params;
+  const { subject, html } = renderEventReportEmail({
+    clientName, eventName, brand: companyName || FROM_NAME, reportUrl, expiresAt, trackingUrl,
+  });
   return await sendClientHtml(to, subject, html, undefined, sender);
 }
 

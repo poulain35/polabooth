@@ -3,259 +3,40 @@ import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import {
   supabase,
   getEventByCode, getGlobalFormConfig, getEventFormEnabled,
-  autosaveDesign, saveDesignVersion, listDesignVersions, getDesignVersion,
-  getFormatBleed, setEventName, getPublicFeatures,
+  autosaveDesign,
+  getFormatBleed, setEventName, getPublicFeatures, submitDesign, deleteDesignFrame, storeDesignImages,
 } from '../lib/supabase';
 import { FEATURE_UNAVAILABLE_MESSAGE, hasPublicFeature, isFeatureDisabledError } from '../features/featureGate';
 import Editor from '../components/Editor';
 import ClientForm from '../components/ClientForm';
-import { FORMATS } from '../utils/formats';
-import BrandLogo from '../components/BrandLogo';
-
-// ── Format picker ─────────────────────────────────────────────────────────────
-
-const FORMAT_VISUALS = {
-  portrait:  { w: 48, h: 72, sections: 1 },
-  landscape: { w: 72, h: 48, sections: 1 },
-  stripV:    { w: 28, h: 72, sections: 3, vertical: true },
-  stripH:    { w: 72, h: 28, sections: 3, vertical: false },
-};
-
-function FormatPicker({ allowedFormats, onSelect }) {
-  const formats = allowedFormats.map((id) => FORMATS[id]).filter(Boolean);
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="mb-8"><BrandLogo variant="square" className="h-12 w-auto" /></div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2 text-center">Choisissez votre format</h1>
-      <p className="text-gray-400 text-sm mb-10 text-center">Vous pourrez personnaliser votre template dans l'étape suivante.</p>
-      <div className={`grid gap-6 ${formats.length <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'} max-w-2xl w-full`}>
-        {formats.map((fmt) => {
-          const v = FORMAT_VISUALS[fmt.id] ?? { w: 48, h: 64, sections: 1 };
-          return (
-            <button key={fmt.id} onClick={() => onSelect(fmt)}
-              className="group flex flex-col items-center gap-4 p-5 bg-card border-2 border-gray-200
-                rounded-2xl hover:border-primary hover:shadow-md transition-all">
-              <div className="flex items-center justify-center" style={{ width: 80, height: 80 }}>
-                <div className="border-2 border-gray-300 group-hover:border-primary bg-gray-50 group-hover:bg-primary/10
-                  rounded transition-colors overflow-hidden flex"
-                  style={{ width: v.w, height: v.h, flexDirection: v.vertical ? 'column' : 'row' }}>
-                  {v.sections > 1
-                    ? Array.from({ length: v.sections }).map((_, i) => (
-                        <div key={i} className={`flex-1 bg-gray-200 group-hover:bg-primary/20 transition-colors ${
-                          v.vertical
-                            ? i < v.sections - 1 ? 'border-b border-gray-300 group-hover:border-primary' : ''
-                            : i < v.sections - 1 ? 'border-r border-gray-300 group-hover:border-primary' : ''
-                        }`} />
-                      ))
-                    : <div className="flex-1 bg-gray-200 group-hover:bg-primary/20 transition-colors rounded-sm" />}
-                </div>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">{fmt.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{fmt.subtitle}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Modale "quitter sans sauvegarder" ────────────────────────────────────────
-
-function UnsavedChangesModal({ onSave, onLeave, onCancel }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} />
-      <div className="relative bg-card rounded-2xl shadow-2xl p-6 w-80 mx-4">
-        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round"
-              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-        </div>
-        <h3 className="font-semibold text-gray-900 mb-2 text-center">Modifications non sauvegardées</h3>
-        <p className="text-sm text-gray-500 text-center mb-5">
-          Vous avez des modifications qui n'ont pas encore été sauvegardées. Que souhaitez-vous faire ?
-        </p>
-        <div className="flex flex-col gap-2">
-          <button onClick={onSave}
-            className="w-full py-2.5 bg-primary hover:bg-primary text-white text-sm font-semibold rounded-xl transition-colors">
-            Sauvegarder et quitter
-          </button>
-          <button onClick={onLeave}
-            className="w-full py-2.5 border border-gray-200 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-            Quitter sans sauvegarder
-          </button>
-          <button onClick={onCancel}
-            className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            Annuler
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Panneau historique ────────────────────────────────────────────────────────
-
-function HistoryPanel({ code, onRestore, onClose }) {
-  const [versions, setVersions] = useState(null);
-  const [restoring, setRestoring] = useState(null);
-
-  useEffect(() => {
-    if (!code) return;
-    listDesignVersions(code)
-      .then(setVersions)
-      .catch(() => setVersions([]));
-  }, [code]);
-
-  async function handleRestore(v) {
-    setRestoring(v.id);
-    try {
-      const full = await getDesignVersion(code, v.id);
-      onRestore(full);
-    } catch {
-      alert('Erreur lors de la restauration.');
-    } finally {
-      setRestoring(null);
-    }
-  }
-
-  function formatDate(iso) {
-    const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-      + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-80 max-w-full bg-card shadow-2xl flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <div>
-            <h2 className="font-semibold text-gray-900 text-sm">Historique des versions</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Cliquez sur une version pour la restaurer</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Liste */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-          {versions === null && (
-            <div className="flex justify-center pt-8">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
-          {versions?.length === 0 && (
-            <p className="text-sm text-gray-400 text-center pt-8">
-              Aucune version sauvegardée.<br />
-              Utilisez le bouton "Sauvegarder" pour créer une version.
-            </p>
-          )}
-          {versions?.map((v, i) => (
-            <div key={v.id}
-              className="bg-gray-50 border border-gray-100 rounded-xl p-3 hover:border-primary/20 hover:bg-primary/10 transition-colors">
-              <div className="flex items-start gap-2">
-                <div className="w-7 h-7 bg-primary/15 text-primary rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                  {versions.length - i}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {v.label || `Version ${versions.length - i}`}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatDate(v.created_at)}</p>
-                  <span className="inline-block mt-1 text-[10px] bg-gray-200 text-gray-600 rounded px-1.5 py-0.5">
-                    {v.format}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleRestore(v)}
-                  disabled={restoring === v.id}
-                  className="shrink-0 mt-1 px-2.5 py-1 text-xs font-medium bg-primary hover:bg-primary
-                    text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-1"
-                >
-                  {restoring === v.id
-                    ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                    : null}
-                  Restaurer
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Saisie du nom de l'événement (première connexion) ────────────────────────
-
-function EventNameStep({ onSubmit }) {
-  const [name, setName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!name.trim() || saving) return;
-    setSaving(true);
-    setError('');
-    try {
-      await onSubmit(name.trim());
-    } catch (err) {
-      setError(err.message ?? "Impossible d'enregistrer le nom, réessayez.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-      <div className="mb-8"><BrandLogo variant="square" className="h-12 w-auto" /></div>
-      <div className="bg-card rounded-2xl shadow-lg p-8 max-w-sm w-full">
-        <h1 className="text-xl font-semibold text-gray-900 mb-2 text-center">Bienvenue !</h1>
-        <p className="text-gray-400 text-sm mb-6 text-center">
-          Comment souhaitez-vous appeler votre événement ?
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ex : Mariage Marie & Pierre"
-            autoFocus
-            className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none
-              focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
-          />
-          {error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
-          )}
-          <button
-            type="submit"
-            disabled={!name.trim() || saving}
-            className="w-full py-3 bg-primary text-white text-sm font-semibold rounded-xl
-              hover:bg-primary transition-colors disabled:opacity-50"
-          >
-            {saving ? 'Enregistrement…' : 'Continuer →'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
+import ClientFrameBar, { FramesSendModal } from '../components/ClientFrameBar';
+import { FORMATS, HOME_FORMAT, formatById } from '../utils/formats';
+import { HOME_LOCKED_MESSAGE, PRINT_LOCKED_MESSAGE, designTabView, formatAllowedForKind } from '../lib/designKind';
+import { SAVE_RETRY_MESSAGE } from '../lib/saveQueue';
+import { userErrorMessage } from '../lib/networkError';
+import { clientFormNeeded } from '../lib/clientFormStep';
+import {
+  canAddFrame, canDeleteFrame, clampFrameLabel, designKey, editorFrameChoice, frameDisplayName, frameDraft,
+  frameFormatChoices, frameLabelForRequest, framesToSubmit, initialFrames, newFrame, nextFrameSlot,
+  parseDesignKey, slotAfterDelete,
+} from '../lib/clientDesignFrames';
+import UnsavedChangesModal from '../components/UnsavedChangesModal';
+import { useClientEditorScope } from '../components/public/clientEditorStyles';
+import DesignTabs from './editor/DesignTabs';
+import { DesignStatusPanel, SuccessIcon } from './editor/DesignStatusPanel';
+import FormatPicker from './editor/FormatPicker';
+import HistoryPanel from './editor/HistoryPanel';
+import EventNameStep from './editor/EventNameStep';
+import { Spinner } from '../components/ui/spinner';
 
 // ── EditorPage ────────────────────────────────────────────────────────────────
+
+const EMPTY_DRAFT = { key: 0, json: null, format: null };
 
 export default function EditorPage() {
   const { code }   = useParams();
   const navigate   = useNavigate();
+  useClientEditorScope();
 
   const [state,           setState]          = useState('loading');
   const [event,           setEvent]          = useState(null);
@@ -267,21 +48,44 @@ export default function EditorPage() {
   const [isAdmin,         setIsAdmin]        = useState(false);
   const [publicFeatures,  setPublicFeatures] = useState(null);
 
+  // Écran d'accueil de la borne (LAB-289) : onglet affiché seulement si l'événement l'ouvre
+  const [homeEditor, setHomeEditor] = useState(false);
+  const [homeDesign, setHomeDesign] = useState(null);
+  const [activeKind, setActiveKind] = useState('print');
+
   // Zones perdues (bleed) — chargées depuis l'org
   const [formatBleedOverrides, setFormatBleedOverrides] = useState({});
 
-  // Sauvegarde / historique
-  const [isDirty,     setIsDirty]     = useState(false);
-  const [isSaving,    setIsSaving]    = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  // Plusieurs cadres (LAB-313) : seulement si get-event renvoie frame_choice.enabled et frames
+  const [frameChoice, setFrameChoice] = useState({ enabled: false, max_frames: 1 });
+  const [frames,      setFrames]      = useState([]);
+  const [activeSlot,  setActiveSlot]  = useState(1);
+  const [addingFrame, setAddingFrame] = useState(false);
+  const [sendState,   setSendState]   = useState(null);
+  const frameMode = frameChoice.enabled;
 
-  // Restauration : key force le remontage de Editor avec le nouveau JSON
-  const [editorKey,        setEditorKey]        = useState(0);
-  const [editorInitJson,   setEditorInitJson]   = useState(null);
-  const [editorInitFormat, setEditorInitFormat] = useState(null);
+  // Sauvegarde / historique (un état par design, clé designKey : 'print:n' ou 'home' ;
+  // l'éditeur inactif est démonté)
+  const [dirty,       setDirty]       = useState({});
+  const [isSaving,    setIsSaving]    = useState(false);
+  // Nouvel essai ou échec de la sauvegarde (LAB-323) : { tone: 'warning' | 'error', message }
+  const [saveNotice,  setSaveNotice]  = useState(null);
+  // Nombre de modifications par design : une modification faite pendant l'envoi garde l'état « modifié ».
+  const editRevRef = useRef({});
+  const [showHistory, setShowHistory] = useState(false);
+  const isDirty = Object.values(dirty).some(Boolean);
+
+  // Contenu de départ de chaque éditeur : key force le remontage (restauration d'une version)
+  const [drafts, setDrafts] = useState({ 'print:1': EMPTY_DRAFT, home: EMPTY_DRAFT });
 
   // Ref vers Editor pour récupérer son état courant
   const editorRef = useRef(null);
+  // Envoi groupé des cadres : éditeur attendu ({ key, resolve }) et dernier éditeur prêt
+  const readyRef = useRef(null);
+  const lastReadyKeyRef = useRef(null);
+
+  const currentKind = homeEditor ? activeKind : 'print';
+  const activeKey = designKey(currentKind, frameMode && currentKind === 'print' ? activeSlot : 1);
 
   // Callback "sauvegarder et quitter" (pour le garde de navigation)
   const saveAndProceedRef = useRef(null);
@@ -292,15 +96,22 @@ export default function EditorPage() {
     getFormatBleed().then(setFormatBleedOverrides).catch(() => {});
   }, []);
 
-  async function proceedToEditor(evt, design, admin = false) {
+  // Formulaire de l'événement (null s'il n'en a pas) : gardé pour « Modifier mes réponses ».
+  async function loadClientForm() {
+    const eventFormEnabled = await getEventFormEnabled(code).catch(() => false);
+    if (!eventFormEnabled) return null;
+    const cfg = await getGlobalFormConfig().catch(() => null);
+    if (cfg?.questions?.length) setGlobalForm(cfg);
+    return cfg ?? {};
+  }
+
+  async function proceedToEditor(evt, design, admin = false, answers = prevFormAnswers) {
     // L'admin qui vérifie va directement à l'éditeur (pas de formulaire ni choix de format)
     if (admin) { setState('ready'); return; }
 
-    const eventFormEnabled = await getEventFormEnabled(code).catch(() => false);
-    if (eventFormEnabled) {
-      const cfg = await getGlobalFormConfig().catch(() => null);
-      if (cfg?.questions?.length) { setGlobalForm(cfg); setState('form'); return; }
-    }
+    const cfg = await loadClientForm();
+    // Déjà rempli (réponses obligatoires présentes) : pas redemandé à chaque visite (LAB-354).
+    if (cfg && clientFormNeeded({ enabled: true, questions: cfg.questions, answers })) { setState('form'); return; }
     const allowedFmts = evt?.allowed_formats ?? ['portrait', 'landscape', 'stripV', 'stripH'];
     if (!design && allowedFmts.length > 1) setState('format');
     else setState('ready');
@@ -312,20 +123,35 @@ export default function EditorPage() {
       .then(({ data }) => { admin = !!data.session; setIsAdmin(admin); })
       .catch(() => {})
       .then(() => Promise.all([getEventByCode(code), getPublicFeatures(code)]))
-      .then(async ([{ event: evt, design, form_answers }, features]) => {
+      .then(async ([response, features]) => {
+        const { event: evt, design, form_answers, home_editor, home_design } = response;
         // Design par le client désactivé pour l'organisation (fonctionnalité client_design).
         if (!hasPublicFeature(features, 'client_design')) { setState('unavailable'); return; }
         setPublicFeatures(features);
-        // Le client voit l'écran "soumis" — l'admin connecté accède à l'éditeur pour vérifier
-        if (evt.status === 'submitted' && !admin) { setState('submitted'); return; }
+        // Le client voit l'écran "soumis" — l'admin connecté accède à l'éditeur pour vérifier.
+        // Avec l'onglet écran d'accueil, le modèle photo soumis s'affiche dans son onglet seulement.
+        // Un cadre unique validé s'affiche en lecture seule dans l'éditeur (LAB-294).
+        const choice = editorFrameChoice(response);
+        const printPending = evt.status === 'submitted' && !admin;
+        const printLocked = !choice.enabled && design?.status === 'approved';
+        if (printPending && !home_editor && !printLocked) { setState('submitted'); return; }
         setEvent(evt);
         setExistingDesign(design);
-        setEditorInitJson(design?.canvas_json ?? null);
+        setHomeEditor(Boolean(home_editor));
+        setHomeDesign(home_design ?? null);
+        setFrameChoice(choice);
+        const printDrafts = { 'print:1': { ...EMPTY_DRAFT, json: design?.canvas_json ?? null } };
+        if (choice.enabled) {
+          setFrames(initialFrames(response.frames));
+          for (const f of response.frames) printDrafts[designKey('print', f.slot)] = frameDraft(f, FORMATS);
+        }
+        setDrafts({ ...printDrafts, home: { ...EMPTY_DRAFT, json: home_design?.canvas_json ?? null } });
         if (form_answers) setPrevFormAnswers(form_answers);
+        if (printPending) { loadClientForm().catch(() => {}); setState('ready'); return; }
 
         if (!evt.name?.trim() && !admin) { setState('collect_name'); return; }
 
-        await proceedToEditor(evt, design, admin && !!design);
+        await proceedToEditor(evt, design, admin && !!design, form_answers ?? null);
       })
       .catch((err) => {
         if (isFeatureDisabledError(err)) { setState('unavailable'); return; }
@@ -352,27 +178,190 @@ export default function EditorPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // ── Vue de chaque onglet ─────────────────────────────────────────────────────
+
+  // Avec plusieurs cadres, l'onglet modèle photo suit events.status (comme avant) et un cadre
+  // validé n'est plus modifiable par le client (il reste sur la borne).
+  function designView(kind, slot = 1) {
+    if (kind === 'print' && frameMode) {
+      const view = designTabView({ kind, designStatus: null, eventStatus: event?.status, isAdmin });
+      if (view !== 'editor') return view;
+      const frame = frames.find((f) => f.slot === slot);
+      // Validé : lecture seule pour tous, admin compris (le serveur refuse l'écriture, LAB-294).
+      return frame?.status === 'approved' ? 'frameLocked' : 'editor';
+    }
+    return designTabView({
+      kind,
+      designStatus: kind === 'home' ? homeDesign?.status : existingDesign?.status,
+      eventStatus:  event?.status,
+      isAdmin,
+    });
+  }
+
+  function keyWritable(key) {
+    const { kind, slot } = parseDesignKey(key);
+    if (kind === 'print' && frameMode && slot > frameChoice.max_frames) return false;
+    return designView(kind, slot) === 'editor';
+  }
+
+  function setKeyDirty(key, value) {
+    if (value) editRevRef.current[key] = (editRevRef.current[key] ?? 0) + 1;
+    setDirty((prev) => (Boolean(prev[key]) === value ? prev : { ...prev, [key]: value }));
+  }
+
+  // Garde le travail de l'éditeur quitté (non sauvegardé) pour le retrouver au retour.
+  function stashDraft(key) {
+    const current = editorRef.current?.getState();
+    if (!current) return;
+    setDrafts((d) => ({
+      ...d,
+      [key]: { ...(d[key] ?? EMPTY_DRAFT), json: current.canvasJson, format: formatById(current.formatId) },
+    }));
+  }
+
+  function switchTab(kind) {
+    if (kind === activeKind) return;
+    stashDraft(activeKey);
+    lastReadyKeyRef.current = null;
+    setShowHistory(false);
+    setAddingFrame(false);
+    setActiveKind(kind);
+  }
+
+  // ── Cadres (LAB-313) ─────────────────────────────────────────────────────────
+
+  function selectFrame(slot) {
+    if (slot === activeSlot && !addingFrame) return;
+    if (!addingFrame) stashDraft(activeKey);
+    lastReadyKeyRef.current = null;
+    setShowHistory(false);
+    setAddingFrame(false);
+    setActiveSlot(slot);
+  }
+
+  function createFrame(format) {
+    const slot = nextFrameSlot(frames, frameChoice.max_frames);
+    if (slot === null || !format) return;
+    setFrames((prev) => [...prev, newFrame(slot, format.id)].sort((a, b) => a.slot - b.slot));
+    setDrafts((d) => ({ ...d, [designKey('print', slot)]: { ...EMPTY_DRAFT, format } }));
+    lastReadyKeyRef.current = null;
+    setAddingFrame(false);
+    setActiveSlot(slot);
+  }
+
+  function handleAddFrame() {
+    if (!canAddFrame(frames, frameChoice.max_frames)) return;
+    const choices = frameFormatChoices(event?.allowed_formats);
+    if (!addingFrame) stashDraft(activeKey);
+    if (choices.length === 1) { createFrame(FORMATS[choices[0]]); return; }
+    setShowHistory(false);
+    setAddingFrame(true);
+  }
+
+  function handleRenameFrame(slot, value) {
+    setFrames((prev) => prev.map((f) => (f.slot === slot ? { ...f, label: clampFrameLabel(value) } : f)));
+    editorRef.current?.markDirty();   // le nom part avec la prochaine sauvegarde
+  }
+
+  async function handleDeleteFrame(slot) {
+    const frame = frames.find((f) => f.slot === slot);
+    if (!canDeleteFrame(frame)) return;
+    if (!window.confirm(`Supprimer « ${frameDisplayName(frame)} » ? Ce cadre et son historique seront effacés.`)) return;
+    try {
+      if (frame.saved || frame.id) await deleteDesignFrame({ code, slot });
+    } catch (err) {
+      alert(err.message ?? 'Erreur lors de la suppression du cadre');
+      return;
+    }
+    const key = designKey('print', slot);
+    const next = slotAfterDelete(frames, slot);
+    setFrames((prev) => prev.filter((f) => f.slot !== slot));
+    setDrafts((d) => { const rest = { ...d }; delete rest[key]; return rest; });
+    setDirty((prev) => { const rest = { ...prev }; delete rest[key]; return rest; });
+    lastReadyKeyRef.current = null;
+    setShowHistory(false);
+    setAddingFrame(false);
+    setActiveSlot(next);
+  }
+
+  // ── « Modifier mes réponses » (menu ⋯ de l'éditeur) ──────────────────────────
+
+  // Le travail en cours est gardé (toujours « modifié ») et retrouvé au retour de formulaire.
+  const answersFromEditorRef = useRef(false);
+  function handleEditAnswers() {
+    stashDraft(activeKey);
+    lastReadyKeyRef.current = null;
+    setShowHistory(false);
+    answersFromEditorRef.current = true;
+    setState('form');
+  }
+
   // ── Sauvegarde manuelle ──────────────────────────────────────────────────────
 
-  async function handleSave() {
-    if (!editorRef.current || isSaving) return;
-    const editorState = editorRef.current.getState();
-    if (!editorState) return;
-    const { canvasJson, formatId } = editorState;
+  // Sans choix du cadre, slot et label restent undefined : corps des appels identiques à avant.
+  // Un seul envoi (LAB-323) : autosave-design enregistre le brouillon et sa version d'historique.
+  async function saveDesign(key, editorJson, formatId) {
+    const { kind, slot: keySlot } = parseDesignKey(key);
+    const slot = frameMode && kind === 'print' ? keySlot : undefined;
+    const label = slot === undefined ? undefined : frameLabelForRequest(frames.find((f) => f.slot === slot)?.label);
+    // LAB-348 : images rangées dans le stockage (déjà envoyées dès leur ajout, le plus souvent) ;
+    // une image qui n'a pas pu partir reste intégrée, la sauvegarde passe quand même.
+    const canvasJson = await storeDesignImages(editorJson, code);
+    await autosaveDesign({
+      code, canvasJson, format: formatId, kind, slot, label, withVersion: true,
+      onRetry: () => setSaveNotice({ tone: 'warning', message: SAVE_RETRY_MESSAGE }),
+    });
+    setSaveNotice(null);
+    if (slot !== undefined) {
+      setFrames((prev) => prev.map((f) => (f.slot === slot ? { ...f, saved: true, format: formatId, status: 'draft' } : f)));
+    }
+  }
+
+  // withOther : « sauvegarder et quitter » enregistre aussi les autres designs modifiés.
+  async function handleSave({ withOther = false } = {}) {
+    if (isSaving) return;
+    const current = editorRef.current?.getState() ?? null;
+    const others = withOther
+      ? Object.keys(dirty).filter((key) => key !== activeKey && dirty[key]
+        && drafts[key]?.json && drafts[key]?.format && keyWritable(key))
+      : [];
+    if (!current && !others.length) {
+      saveAndProceedRef.current?.();
+      saveAndProceedRef.current = null;
+      return;
+    }
 
     setIsSaving(true);
+    setSaveNotice(null);
+    const savedKey = activeKey;
+    const editor = editorRef.current;
+    const revisions = { ...editRevRef.current };
+    // Modifié pendant l'envoi : le contenu envoyé n'est plus le dernier, l'état « modifié » reste.
+    const unchanged = (key) => (editRevRef.current[key] ?? 0) === (revisions[key] ?? 0);
     try {
-      await autosaveDesign({ code, canvasJson, format: formatId });
-      await saveDesignVersion({ code, canvasJson, format: formatId, label: null });
-      editorRef.current.markClean();
-      setIsDirty(false);
+      if (current) {
+        await saveDesign(savedKey, current.canvasJson, current.formatId);
+        if (unchanged(savedKey)) {
+          editor?.markClean();
+          setKeyDirty(savedKey, false);
+        }
+      }
+      for (const key of others) {
+        await saveDesign(key, drafts[key].json, drafts[key].format.id);
+        if (unchanged(key)) setKeyDirty(key, false);
+      }
 
       if (saveAndProceedRef.current) {
         saveAndProceedRef.current();
         saveAndProceedRef.current = null;
       }
     } catch (err) {
-      alert(`Erreur lors de la sauvegarde : ${err.message}`);
+      // Rien n'est effacé : le contenu reste dans l'éditeur, marqué « modifié ».
+      setSaveNotice({ tone: 'error', message: userErrorMessage(err, 'Erreur lors de la sauvegarde.') });
+      if (saveAndProceedRef.current) {
+        saveAndProceedRef.current = null;
+        if (blocker.state === 'blocked') blocker.reset();
+      }
     } finally {
       setIsSaving(false);
     }
@@ -381,28 +370,116 @@ export default function EditorPage() {
   // ── Restauration d'une version ───────────────────────────────────────────────
 
   function handleRestore(version) {
-    setEditorInitJson(version.canvas_json);
-    setEditorInitFormat(FORMATS[version.format] ?? null);
-    setEditorKey((k) => k + 1);   // force remontage Editor
-    setIsDirty(true);              // la version restaurée n'est pas encore sauvegardée
+    const format = formatById(version.format);
+    setDrafts((d) => ({
+      ...d,
+      [activeKey]: {
+        key:    (d[activeKey]?.key ?? 0) + 1,   // force remontage Editor
+        json:   version.canvas_json,
+        format: format && formatAllowedForKind(currentKind, format.id) ? format : null,
+      },
+    }));
+    lastReadyKeyRef.current = null;
+    setKeyDirty(activeKey, true);     // la version restaurée n'est pas encore sauvegardée
     setShowHistory(false);
+  }
+
+  function handleSubmitSuccess() {
+    setKeyDirty(activeKey, false);
+    if (activeKind === 'home') {
+      setHomeDesign((d) => ({ ...d, status: 'submitted', final_png_url: null }));
+    } else if (homeEditor) {
+      setEvent((e) => ({ ...e, status: 'submitted' }));
+    } else {
+      setState('submitted');
+    }
+  }
+
+  // ── « Envoyer mes cadres » (LAB-313) ─────────────────────────────────────────
+
+  function handleEditorReady(key) {
+    lastReadyKeyRef.current = key;
+    const waiting = readyRef.current;
+    if (waiting?.key === key) { readyRef.current = null; waiting.resolve(); }
+  }
+
+  function waitForEditor(key) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        readyRef.current = null;
+        reject(new Error("Le cadre n'a pas pu être chargé. Réessayez."));
+      }, 30000);
+      readyRef.current = { key, resolve: () => { clearTimeout(timer); resolve(); } };
+    });
+  }
+
+  // Chaque cadre non validé est ouvert dans l'éditeur, exporté puis envoyé (submit-design, slot = n).
+  // Sur une erreur, l'envoi s'arrête ; « Réessayer » reprend aux cadres pas encore envoyés.
+  // Un seul email à l'admin (LAB-322) : seul le dernier cadre de la file le demande.
+  async function sendFrames() {
+    const already = sendState?.sent ?? [];
+    const queue = framesToSubmit(frames, frameChoice.max_frames).filter((s) => !already.includes(s));
+    if (!queue.length) return;
+    const labels = Object.fromEntries(frames.map((f) => [f.slot, f.label]));
+    const sent = [...already];
+    const total = sent.length + queue.length;
+    let current = activeSlot;
+    setShowHistory(false);
+    try {
+      for (const [index, slot] of queue.entries()) {
+        setSendState({ phase: 'sending', sent: [...sent], done: sent.length, total });
+        const key = designKey('print', slot);
+        if (slot !== current || lastReadyKeyRef.current !== key) {
+          const ready = waitForEditor(key);
+          if (slot !== current) {
+            stashDraft(designKey('print', current));
+            lastReadyKeyRef.current = null;
+            setActiveSlot(slot);
+            current = slot;
+          }
+          await ready;
+        }
+        const editor = editorRef.current;
+        const snapshot = editor?.getState();
+        if (!snapshot) throw new Error("Le cadre n'a pas pu être chargé. Réessayez.");
+        const pngBase64 = await editor.exportPng();
+        const canvasJson = await storeDesignImages(snapshot.canvasJson, code);
+        await submitDesign({
+          code, canvasJson, format: snapshot.formatId, pngBase64,
+          kind: 'print', slot, label: frameLabelForRequest(labels[slot]),
+          notify: index === queue.length - 1,
+        });
+        editor.markClean();
+        setKeyDirty(key, false);
+        setFrames((prev) => prev.map((f) => (f.slot === slot
+          ? { ...f, saved: true, status: 'submitted', format: snapshot.formatId } : f)));
+        sent.push(slot);
+      }
+    } catch (err) {
+      setSendState({ phase: 'error', sent, message: err.message ?? "L'envoi a échoué." });
+      return;
+    }
+    setSendState(null);
+    setDirty((prev) => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, k === 'home' ? v : false])));
+    if (homeEditor) setEvent((e) => ({ ...e, status: 'submitted' }));
+    else setState('submitted');
   }
 
   // ── Garde de navigation : "sauvegarder et quitter" ──────────────────────────
 
   function handleSaveAndLeave() {
     saveAndProceedRef.current = () => blocker.proceed?.();
-    handleSave();
+    handleSave({ withOther: true });
   }
 
   // ── États de la page ─────────────────────────────────────────────────────────
 
   if (state === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Chargement de votre espace…</p>
+      <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center">
+        <div className="text-center" role="status">
+          <Spinner className="mx-auto mb-4 block h-10 w-10 border-pf-noyer" aria-hidden="true" />
+          <p className="text-pf-muted text-base">Chargement de votre espace…</p>
         </div>
       </div>
     );
@@ -410,9 +487,9 @@ export default function EditorPage() {
 
   if (state === 'unavailable') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-card rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
-          <p className="text-gray-700 text-sm">{FEATURE_UNAVAILABLE_MESSAGE}</p>
+      <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center p-4">
+        <div className="pola-pf-card p-8 max-w-sm text-center">
+          <p className="text-pf-text text-base">{FEATURE_UNAVAILABLE_MESSAGE}</p>
         </div>
       </div>
     );
@@ -420,17 +497,16 @@ export default function EditorPage() {
 
   if (state === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-card rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
-          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center p-4">
+        <div className="pola-pf-card p-8 max-w-sm text-center">
+          <div className="w-14 h-14 bg-pola-error text-white rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Accès refusé</h2>
-          <p className="text-gray-500 text-sm mb-6">{errorMsg}</p>
-          <button onClick={() => navigate('/')}
-            className="w-full py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary transition-colors">
+          <h2 className="pola-pf-title text-[28px] mb-2">Accès refusé</h2>
+          <p className="text-pf-muted text-base mb-6">{errorMsg}</p>
+          <button onClick={() => navigate('/')} className="pola-pf-btn-primary w-full">
             Retour à l'accueil
           </button>
         </div>
@@ -458,7 +534,9 @@ export default function EditorPage() {
         event={event}
         formConfig={globalForm}
         initialAnswers={prevFormAnswers}
-        onDone={() => {
+        onDone={(answers) => {
+          setPrevFormAnswers(answers);
+          if (answersFromEditorRef.current) { answersFromEditorRef.current = false; setState('ready'); return; }
           const allowedFmts = event?.allowed_formats ?? ['portrait', 'landscape', 'stripV', 'stripH'];
           if (!existingDesign && allowedFmts.length > 1) setState('format');
           else setState('ready');
@@ -472,71 +550,186 @@ export default function EditorPage() {
       <FormatPicker
         allowedFormats={event?.allowed_formats ?? ['portrait', 'landscape', 'stripV', 'stripH']}
         onSelect={(fmt) => { setChosenFormat(fmt); setState('ready'); }}
+        onEditAnswers={globalForm ? () => setState('form') : null}
       />
     );
   }
 
   if (state === 'submitted') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 p-4">
-        <div className="bg-card rounded-2xl shadow-lg p-8 max-w-sm w-full text-center">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Template soumis !</h2>
-          <p className="text-gray-500 text-sm">
-            Votre template a déjà été soumis et est en cours de traitement.
-            Vous recevrez une confirmation par email.
+      <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center p-4">
+        <div className="pola-pf-card p-8 max-w-sm text-center">
+          <SuccessIcon />
+          <h2 className="pola-pf-title text-[28px] mb-2">{frameMode ? 'Cadres envoyés !' : 'Cadre envoyé !'}</h2>
+          <p className="text-pf-muted text-base">
+            {frameMode
+              ? 'Vos cadres ont été envoyés et sont en cours de validation.'
+              : 'Votre cadre a bien été envoyé, nous le vérifions.'}
+            {' '}Vous recevrez une confirmation par e-mail.
           </p>
         </div>
       </div>
     );
   }
 
-  const defaultFormatId = existingDesign?.format ?? event?.allowed_formats?.[0] ?? 'portrait';
-  const defaultFormat   = editorInitFormat ?? chosenFormat ?? FORMATS[defaultFormatId] ?? FORMATS.portrait;
+  const kind = currentKind;
+  const slot = frameMode && kind === 'print' ? activeSlot : 1;
+  const view = designView(kind, slot);
+  const draft = drafts[activeKey] ?? EMPTY_DRAFT;
+  const activeFrame = frameMode && kind === 'print' ? frames.find((f) => f.slot === slot) ?? null : null;
+  const showFrameBar = Boolean(activeFrame) && (view === 'editor' || view === 'frameLocked');
+  const printDesign = frameMode ? activeFrame : existingDesign;
 
-  const isVerifying = isAdmin && (event?.status === 'submitted' || existingDesign?.status === 'approved');
+  const defaultFormatId = printDesign?.format ?? event?.allowed_formats?.[0] ?? 'portrait';
+  const printFormat = draft.format ?? (slot === 1 ? chosenFormat : null) ?? FORMATS[defaultFormatId] ?? FORMATS.portrait;
+  const initialFormat = kind === 'home' ? HOME_FORMAT : printFormat;
+
+  // Un design validé n'est plus modifiable, admin compris : pas de bandeau de vérification.
+  const isVerifying = isAdmin && view === 'editor' && (kind === 'home'
+    ? homeDesign?.status === 'submitted'
+    : event?.status === 'submitted');
+
+  let content;
+  if (view === 'locked' && kind === 'print') {
+    content = <DesignStatusPanel title="Cadre validé" message={PRINT_LOCKED_MESSAGE} />;
+  } else if (view === 'locked') {
+    content = (
+      <DesignStatusPanel
+        title="Écran d'accueil validé"
+        message={HOME_LOCKED_MESSAGE}
+        previewUrl={homeDesign?.final_png_url}
+      />
+    );
+  } else if (view === 'pending' && kind === 'home') {
+    content = (
+      <DesignStatusPanel
+        title="Écran d'accueil envoyé !"
+        message="Votre écran d'accueil est en attente de validation. Vous pouvez continuer votre modèle photo dans l'autre onglet."
+        previewUrl={homeDesign?.final_png_url}
+      />
+    );
+  } else if (view === 'pending') {
+    content = frameMode ? (
+      <DesignStatusPanel
+        title="Cadres envoyés !"
+        message="Vos cadres ont été envoyés et sont en cours de validation. Vous recevrez une confirmation par e-mail."
+      />
+    ) : (
+      <DesignStatusPanel
+        title="Cadre envoyé !"
+        message="Votre cadre a bien été envoyé, nous le vérifions. Vous recevrez une confirmation par e-mail."
+      />
+    );
+  } else if (addingFrame && activeFrame) {
+    content = (
+      <FormatPicker
+        embedded
+        allowedFormats={frameFormatChoices(event?.allowed_formats)}
+        onSelect={createFrame}
+        onCancel={() => { lastReadyKeyRef.current = null; setAddingFrame(false); }}
+      />
+    );
+  } else if (view === 'frameLocked') {
+    content = <DesignStatusPanel title="Cadre validé" message={PRINT_LOCKED_MESSAGE} />;
+  } else {
+    content = (
+      <Editor
+        key={`${code}-${activeKey}-${draft.key}`}
+        ref={editorRef}
+        eventCode={code}
+        eventName={event?.name}
+        allowedFormats={kind === 'home' ? [HOME_FORMAT.id] : (event?.allowed_formats ?? ['portrait', 'landscape', 'stripV', 'stripH'])}
+        initialFormat={initialFormat}
+        initialCanvasJson={draft.json}
+        formatBleedOverrides={kind === 'home' ? {} : formatBleedOverrides}
+        onSubmitSuccess={handleSubmitSuccess}
+        onDirtyChange={(value) => setKeyDirty(activeKey, value)}
+        onReady={() => handleEditorReady(activeKey)}
+        onSubmitRequest={activeFrame ? () => setSendState({ phase: 'confirm', sent: [] }) : null}
+        submitLabel={activeFrame ? 'Envoyer mes cadres' : null}
+        welcome={!activeFrame || slot === 1}
+        onSaveRequest={handleSave}
+        onHistoryOpen={() => setShowHistory(true)}
+        onEditAnswers={globalForm && !isAdmin ? handleEditAnswers : null}
+        aiVisuals={hasPublicFeature(publicFeatures, 'ai_visuals')}
+      />
+    );
+  }
 
   return (
     <>
-      {isVerifying && (
-        <div className="fixed top-0 inset-x-0 z-40 bg-amber-500 text-white text-xs font-medium
-          px-4 py-1.5 flex items-center justify-center gap-2 shadow">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          Mode admin — vérification du template soumis. Vos modifications écrasent le template du client.
-        </div>
-      )}
-      <div className="h-screen">
-        <Editor
-          key={`${code}-${editorKey}`}
-          ref={editorRef}
-          eventCode={code}
-          eventName={event?.name}
-          allowedFormats={event?.allowed_formats ?? ['portrait', 'landscape', 'stripV', 'stripH']}
-          initialFormat={defaultFormat}
-          initialCanvasJson={editorInitJson}
-          formatBleedOverrides={formatBleedOverrides}
-          onSubmitSuccess={() => setState('submitted')}
-          onDirtyChange={setIsDirty}
-          onSaveRequest={handleSave}
-          onHistoryOpen={() => setShowHistory(true)}
-          aiVisuals={hasPublicFeature(publicFeatures, 'ai_visuals')}
-        />
+      <div className="h-screen flex flex-col">
+        {/* Bandeau dans le flux (plus en position fixe) : il masquait la barre des cadres (LAB-316). */}
+        {isVerifying && (
+          <div className="shrink-0 relative z-40 bg-editor-warning text-editor-warning-fg text-xs font-medium
+            px-4 py-1.5 flex items-center justify-center gap-2 shadow">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            {kind === 'home'
+              ? 'Mode admin — vérification de l\'écran d\'accueil soumis. Vos modifications écrasent celui du client.'
+              : 'Mode admin — vérification du cadre photo soumis. Vos modifications écrasent celui du client.'}
+          </div>
+        )}
+        {homeEditor && <DesignTabs active={kind} onChange={switchTab} />}
+        {showFrameBar && (
+          <ClientFrameBar
+            frames={frames}
+            activeSlot={addingFrame ? null : slot}
+            maxFrames={frameChoice.max_frames}
+            canAdd={canAddFrame(frames, frameChoice.max_frames)}
+            canEdit={view === 'editor' && !addingFrame}
+            disabled={sendState?.phase === 'sending'}
+            onSelect={selectFrame}
+            onAdd={handleAddFrame}
+            onRename={handleRenameFrame}
+            onDelete={handleDeleteFrame}
+          />
+        )}
+        <div className="flex-1 min-h-0">{content}</div>
       </div>
 
       {/* Panneau historique */}
-      {showHistory && (
+      {showHistory && view === 'editor' && (
         <HistoryPanel
           code={code}
+          kind={kind}
+          slot={activeFrame ? slot : undefined}
           onRestore={handleRestore}
           onClose={() => setShowHistory(false)}
         />
+      )}
+
+      {/* Envoi groupé des cadres (LAB-313) */}
+      {sendState && activeFrame && (
+        <FramesSendModal
+          state={sendState}
+          frames={frames}
+          toSend={framesToSubmit(frames, frameChoice.max_frames).filter((s) => !sendState.sent.includes(s))}
+          onConfirm={sendFrames}
+          onClose={() => setSendState(null)}
+        />
+      )}
+
+      {/* Sauvegarde : nouvel essai ou échec (LAB-323) */}
+      {saveNotice && (
+        <div
+          role={saveNotice.tone === 'error' ? 'alert' : 'status'}
+          data-testid="save-notice"
+          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md flex items-start gap-3
+            px-4 py-3 rounded-xl shadow-lg border text-sm
+            ${saveNotice.tone === 'error' ? 'bg-pola-error-soft text-pola-error border-pola-error/20' : 'bg-editor-warning text-editor-warning-fg border-editor-line'}`}
+        >
+          <p className="flex-1">{saveNotice.message}</p>
+          {saveNotice.tone === 'error' && (
+            <button onClick={() => setSaveNotice(null)} aria-label="Fermer" className="shrink-0 opacity-70 hover:opacity-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       )}
 
       {/* Garde de navigation — modifications non sauvegardées */}

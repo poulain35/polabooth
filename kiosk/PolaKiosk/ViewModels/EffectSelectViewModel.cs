@@ -111,14 +111,7 @@ public partial class EffectSelectViewModel : ObservableObject, IParameterReceive
             return await Task.Run(() =>
             {
                 var bytes = PhotoEffectService.ApplyEffect(path, effect);
-                var bmp   = new BitmapImage();
-                bmp.BeginInit();
-                bmp.StreamSource   = new System.IO.MemoryStream(bytes);
-                bmp.CacheOption    = BitmapCacheOption.OnLoad;
-                bmp.DecodePixelWidth = maxSize;
-                bmp.EndInit();
-                bmp.Freeze();
-                return bmp;
+                return ImageLoader.FromBytes(bytes, maxSize);
             });
         }
         catch { return null; }

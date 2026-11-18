@@ -3,21 +3,18 @@ import { Link } from 'react-router-dom';
 import { BarChart3, Download, MessageSquareText, ListChecks, X, ChevronRight } from 'lucide-react';
 import { getAllFormResponses, getGlobalFormConfig } from '../../lib/supabase';
 import { latestResponsePerEvent } from '../../lib/formResponses';
+import { downloadCsv, toCsv } from '../../lib/csv';
 import { isStatQuestion, isChoiceType, normalizeAnswer, hasAnswer, canonicalizeAnswer } from '../../utils/formQuestions';
-import { Card } from '../../components/ui/card';
+import { Card, CardTitle } from '../../components/ui/card';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Button } from '../../components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../../components/ui/select';
+import { IconCircle } from '../../components/ui/icon-circle';
+import { PageContainer, PageHeader } from '../../components/admin/AdminPage';
+import { formatShortDate } from '../../lib/dates';
+import { formatAnswer } from '../../lib/guestResponsesExport';
+import { Notice } from '../../components/admin/CardParts';
 
-const PALETTE = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#0ea5e9', '#f43f5e', '#14b8a6', '#a855f7', '#84cc16'];
-
-function fmtAnswer(value) {
-  return Array.isArray(value) ? value.join(', ') : String(value ?? '');
-}
-
-function fmtDate(d) {
-  return d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
-}
 
 // Une réponse correspond-elle à la valeur cliquée ? Comparaison normalisée
 // (casse + espaces) pour rester cohérente avec le regroupement de l'agrégation.
@@ -52,7 +49,7 @@ function aggregateText(q, responses) {
   for (const r of responses) {
     const a = r.answers?.[q.id];
     if (!hasAnswer(a)) continue;
-    const txt = canonicalizeAnswer(fmtAnswer(a).trim());
+    const txt = canonicalizeAnswer(formatAnswer(a, { separator: ', ' }).trim());
     raw.push(txt);
     const key = normalizeAnswer(txt);
     if (!counts.has(key)) counts.set(key, { name: txt, value: 0 });
@@ -63,7 +60,7 @@ function aggregateText(q, responses) {
 }
 
 function DistributionBars({ rows, answered, onSelect, activeValue }) {
-  if (!rows.length) return <p className="text-sm text-gray-400">Aucune donnée.</p>;
+  if (!rows.length) return <p className="text-sm text-muted-foreground">Aucune donnée.</p>;
   return (
     <div className="space-y-2.5">
       {rows.map((r, i) => {
@@ -76,16 +73,17 @@ function DistributionBars({ rows, answered, onSelect, activeValue }) {
             type="button"
             disabled={!clickable}
             onClick={() => clickable && onSelect(r.name)}
-            className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition-colors ${
-              clickable ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default'
-            } ${isActive ? 'bg-primary/5 ring-1 ring-primary/30' : ''}`}
+            aria-pressed={clickable ? isActive : undefined}
+            className={`-mx-2 w-full rounded-control px-2 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              isActive ? 'bg-primary-soft' : clickable ? 'hover:bg-muted' : ''
+            } ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
           >
             <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-sm text-gray-700 truncate">{r.name || <span className="italic text-gray-400">(vide)</span>}</span>
-              <span className="text-xs text-gray-400 shrink-0 tabular-nums">{r.value} · {pct}%</span>
+              <span className="text-sm text-foreground truncate">{r.name || <span className="italic text-muted-foreground">(vide)</span>}</span>
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{r.value} · {pct}%</span>
             </div>
-            <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE[i % PALETTE.length] }} />
+            <div className={`h-2 overflow-hidden rounded-full ${isActive ? 'bg-card' : 'bg-muted'}`}>
+              <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
           </button>
         );
@@ -101,24 +99,22 @@ function TextQuestionCard({ q, responses, onSelect, activeValue }) {
   const visible = expanded ? rows : rows.slice(0, 8);
 
   return (
-    <Card className="rounded-2xl p-5 shadow-sm">
-      <div className="flex items-start gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
-          <MessageSquareText className="w-[18px] h-[18px]" />
-        </div>
+    <Card className="p-card">
+      <div className="mb-4 flex items-start gap-3">
+        <IconCircle size="sm" tone="lilac"><MessageSquareText /></IconCircle>
         <div className="min-w-0">
-          <h3 className="font-semibold text-gray-800 leading-snug">{q.label}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">Texte libre · {answered} réponse{answered > 1 ? 's' : ''}</p>
+          <CardTitle as="h3">{q.label}</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">Texte libre · {answered} réponse{answered > 1 ? 's' : ''}</p>
         </div>
       </div>
 
       {answered === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-4">Aucune réponse pour le moment.</p>
+        <p className="text-sm text-muted-foreground text-center py-4">Aucune réponse pour le moment.</p>
       ) : hasDuplicates ? (
         <>
           <DistributionBars rows={visible} answered={answered} onSelect={onSelect} activeValue={activeValue} />
           {rows.length > 8 && (
-            <button onClick={() => setExpanded((v) => !v)} className="text-xs text-primary font-medium mt-3">
+            <button onClick={() => setExpanded((v) => !v)} className="mt-3 text-xs font-medium text-primary-ink hover:underline">
               {expanded ? 'Réduire' : `Voir les ${rows.length} réponses`}
             </button>
           )}
@@ -130,8 +126,9 @@ function TextQuestionCard({ q, responses, onSelect, activeValue }) {
               <button
                 type="button"
                 onClick={() => onSelect?.(r.name)}
-                className={`w-full text-left text-sm text-gray-700 border-l-2 pl-3 py-0.5 rounded-r hover:bg-gray-50 ${
-                  activeValue === r.name ? 'border-primary bg-primary/5' : 'border-gray-100'
+                aria-pressed={activeValue === r.name}
+                className={`w-full rounded-r-sm border-l-2 py-0.5 pl-3 text-left text-sm text-foreground ${
+                  activeValue === r.name ? 'border-primary bg-primary-soft' : 'border-border hover:bg-muted'
                 }`}
               >
                 {r.name}
@@ -139,7 +136,7 @@ function TextQuestionCard({ q, responses, onSelect, activeValue }) {
             </li>
           ))}
           {rows.length > 8 && (
-            <button onClick={() => setExpanded((v) => !v)} className="text-xs text-primary font-medium mt-1">
+            <button onClick={() => setExpanded((v) => !v)} className="mt-1 text-xs font-medium text-primary-ink hover:underline">
               {expanded ? 'Réduire' : `Voir les ${rows.length} réponses`}
             </button>
           )}
@@ -152,55 +149,53 @@ function TextQuestionCard({ q, responses, onSelect, activeValue }) {
 function ChoiceQuestionCard({ q, responses, onSelect, activeValue }) {
   const { answered, rows } = useMemo(() => aggregateChoice(q, responses), [q, responses]);
   return (
-    <Card className="rounded-2xl p-5 shadow-sm">
-      <div className="flex items-start gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-          <ListChecks className="w-[18px] h-[18px]" />
-        </div>
+    <Card className="p-card">
+      <div className="mb-4 flex items-start gap-3">
+        <IconCircle size="sm" tone="sky"><ListChecks /></IconCircle>
         <div className="min-w-0">
-          <h3 className="font-semibold text-gray-800 leading-snug">{q.label}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <CardTitle as="h3">{q.label}</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {q.type === 'multi' ? 'Choix multiple' : 'Choix unique'} · {answered} réponse{answered > 1 ? 's' : ''}
           </p>
         </div>
       </div>
       {answered === 0
-        ? <p className="text-sm text-gray-400 text-center py-4">Aucune réponse pour le moment.</p>
+        ? <p className="text-sm text-muted-foreground text-center py-4">Aucune réponse pour le moment.</p>
         : <DistributionBars rows={rows} answered={answered} onSelect={onSelect} activeValue={activeValue} />}
     </Card>
   );
 }
 
-function KpiCard({ label, value, icon }) {
+function KpiCard({ label, value, icon, tone }) {
   return (
-    <Card className="rounded-2xl p-5 flex items-center gap-4">
-      <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-gray-900 leading-tight">{value}</p>
-        <p className="text-xs text-gray-400">{label}</p>
+    <Card className="flex items-center gap-4 p-card">
+      <IconCircle tone={tone}>{icon}</IconCircle>
+      <div className="min-w-0">
+        <p className="text-figure text-foreground">{value}</p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">{label}</p>
       </div>
     </Card>
   );
 }
 
-function toCsv(questions, responses) {
-  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['Date', 'Événement', ...questions.map((q) => q.label)];
-  const lines = responses.map((r) => [
-    new Date(r.submitted_at).toLocaleString('fr-FR'),
-    r.events?.name ?? '',
-    ...questions.map((q) => fmtAnswer(canonicalizeAnswer(r.answers?.[q.id]))),
-  ].map(esc).join(','));
-  return [header.map(esc).join(','), ...lines].join('\r\n');
+function statsCsv(questions, responses) {
+  return toCsv({
+    header: ['Date', 'Événement', ...questions.map((q) => q.label)],
+    rows: responses.map((r) => [
+      new Date(r.submitted_at).toLocaleString('fr-FR'),
+      r.events?.name ?? '',
+      ...questions.map((q) => formatAnswer(canonicalizeAnswer(r.answers?.[q.id]), { separator: ', ' })),
+    ]),
+  });
 }
 
-export default function AdminStats() {
+// `embedded` : affichée dans l'onglet « Photos et livraison » de la fiche (LAB-337), limitée à
+// l'événement `eventId`, sans marges ni choix de l'événement.
+export default function AdminStats({ eventId, embedded = false } = {}) {
   const [questions, setQuestions] = useState(null);
   const [raw, setRaw]             = useState(null);
   const [error, setError]         = useState('');
-  const [eventFilter, setEventFilter] = useState('all');
+  const [eventFilter, setEventFilter] = useState(eventId ?? 'all'); // eventId : Photos et livraison d'un événement
   const [crossFilter, setCrossFilter] = useState(null); // { qId, value } | null
 
   useEffect(() => {
@@ -239,89 +234,90 @@ export default function AdminStats() {
   }
 
   function handleExport() {
-    const csv = toCsv(questions ?? [], filtered);
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `statistiques-questionnaire-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(statsCsv(questions ?? [], filtered), `statistiques-questionnaire-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
-  return (
-    <div className="min-h-full bg-background p-4 sm:p-6 lg:p-8">
+  const title = 'Statistiques du questionnaire';
+  const description = 'Dernière réponse par événement. Clique une valeur pour filtrer les événements concernés.';
+  const actions = (
+    <>
+      {!embedded && <Select value={eventFilter} onValueChange={setEventFilter}>
+        <SelectTrigger className="w-auto min-w-[180px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Tous les événements</SelectItem>
+          {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+        </SelectContent>
+      </Select>}
+      <Button variant="outline" onClick={handleExport} disabled={loading || filtered.length === 0}>
+        <Download />Exporter CSV
+      </Button>
+    </>
+  );
+  const Wrapper = embedded ? 'div' : PageContainer;
 
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Statistiques du questionnaire</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Dernière réponse par événement. Clique une valeur pour filtrer les événements concernés.
-          </p>
+  return (
+    <Wrapper className={embedded ? 'flex flex-col gap-5' : undefined}>
+
+      {/* En-tête */}
+      {embedded ? (
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0">
+            <CardTitle as="h2">{title}</CardTitle>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={eventFilter} onValueChange={setEventFilter}>
-            <SelectTrigger className="h-9 w-auto min-w-[180px] text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les événements</SelectItem>
-              {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleExport} disabled={loading || filtered.length === 0} className="h-9">
-            <Download className="w-4 h-4" />Exporter CSV
-          </Button>
-        </div>
-      </div>
+      ) : <PageHeader title={title} description={description} actions={actions} />}
 
       {/* Filtre actif */}
       {crossFilter && (
-        <div className="flex items-center gap-2 mb-6">
-          <span className="text-xs text-gray-400">Filtre :</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Filtre :</span>
           <button
             onClick={() => setCrossFilter(null)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+            title="Retirer le filtre"
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 text-left text-[13px] font-medium text-primary-ink transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <span className="text-gray-500 font-normal">{crossQuestion?.label ?? crossFilter.qId} :</span>
+            <span className="font-normal">{crossQuestion?.label ?? crossFilter.qId} :</span>
             {crossFilter.value}
-            <X className="w-3.5 h-3.5" />
+            <X className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           </button>
         </div>
       )}
 
       {error && (
-        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-2xl text-sm text-destructive">{error}</div>
+        <Notice tone="red">{error}</Notice>
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-48 rounded-card" />)}
         </div>
       ) : (questions ?? []).length === 0 ? (
-        <Card className="rounded-2xl p-10 text-center">
-          <p className="text-sm text-gray-500">Aucune question configurée. Ajoutez des questions dans <span className="font-medium">Paramètres → Formulaire pré-édition</span>.</p>
+        <Card className="p-10 text-center">
+          <p className="text-sm text-muted-foreground">Aucune question configurée. Ajoutez des questions dans <a href="/admin/reglages#editeur" className="font-medium text-primary-ink hover:underline">Réglages → Formulaire pré-édition</a>.</p>
         </Card>
       ) : (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <KpiCard label={crossFilter ? 'Événements correspondants' : 'Événements'} value={filtered.length} icon={<BarChart3 className="w-5 h-5" />} />
-            <KpiCard label="Événements au total" value={events.length} icon={<ListChecks className="w-5 h-5" />} />
-            <KpiCard label="Questions analysées" value={statQuestions.length} icon={<MessageSquareText className="w-5 h-5" />} />
+          {/* Chiffres */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <KpiCard tone="sky" label={crossFilter ? 'Événements correspondants' : 'Événements'} value={filtered.length} icon={<BarChart3 />} />
+            <KpiCard tone="lilac" label="Événements au total" value={events.length} icon={<ListChecks />} />
+            <KpiCard tone="mint" label="Questions analysées" value={statQuestions.length} icon={<MessageSquareText />} />
           </div>
 
           {filtered.length === 0 ? (
-            <Card className="rounded-2xl p-10 text-center">
-              <p className="text-sm text-gray-500">Aucune réponse pour ce filtre.</p>
+            <Card className="p-10 text-center">
+              <p className="text-sm text-muted-foreground">Aucune réponse pour ce filtre.</p>
             </Card>
           ) : statQuestions.length === 0 ? (
-            <Card className="rounded-2xl p-10 text-center">
-              <p className="text-sm text-gray-500">Aucune question analysable. Les champs de contact (téléphone, email) sont exclus des statistiques.</p>
+            <Card className="p-10 text-center">
+              <p className="text-sm text-muted-foreground">Aucune question analysable. Les champs de contact (téléphone, email) sont exclus des statistiques.</p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {statQuestions.map((q) => (
                 isChoiceType(q.type)
                   ? <ChoiceQuestionCard key={q.id} q={q} responses={filtered} onSelect={(v) => onSelectValue(q.id, v)} activeValue={crossFilter?.qId === q.id ? crossFilter.value : null} />
@@ -332,22 +328,22 @@ export default function AdminStats() {
 
           {/* Liste des événements filtrés */}
           {crossFilter && filtered.length > 0 && (
-            <Card className="rounded-2xl p-5 shadow-sm mt-6">
-              <h3 className="font-semibold text-gray-800 mb-3">Événements correspondants ({filtered.length})</h3>
-              <ul className="divide-y divide-gray-100">
+            <Card className="p-card">
+              <CardTitle as="h3" className="mb-3">Événements correspondants ({filtered.length})</CardTitle>
+              <ul className="divide-y divide-border">
                 {filtered.map((r) => (
                   <li key={r.event_id}>
                     <Link
                       to={`/admin/events/${r.event_id}`}
-                      className="flex items-center justify-between gap-3 py-2.5 group"
+                      className="group flex items-center justify-between gap-3 py-2.5"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate group-hover:text-primary transition-colors">
-                          {r.events?.name || <span className="italic text-gray-400">Sans nom</span>}
+                        <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary-ink">
+                          {r.events?.name || <span className="italic text-muted-foreground">Sans nom</span>}
                         </p>
-                        {fmtDate(r.submitted_at) && <p className="text-xs text-gray-400">Répondu le {fmtDate(r.submitted_at)}</p>}
+                        {formatShortDate(r.submitted_at) && <p className="text-xs text-muted-foreground">Répondu le {formatShortDate(r.submitted_at)}</p>}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-primary shrink-0 transition-colors" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary-ink" />
                     </Link>
                   </li>
                 ))}
@@ -356,6 +352,6 @@ export default function AdminStats() {
           )}
         </>
       )}
-    </div>
+    </Wrapper>
   );
 }

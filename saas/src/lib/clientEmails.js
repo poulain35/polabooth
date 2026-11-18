@@ -4,7 +4,7 @@
 // organizations.brevo_access_template_id et organizations.design_reminders.
 import { businessProfilePatch, CLIENT_EMAIL_KEYS } from './businessProfile.js';
 
-export const DESIGN_REMINDERS_DEFAULT = { enabled: false, milestones: [20, 10], brevo_template_id: null };
+const DESIGN_REMINDERS_DEFAULT = { enabled: false, milestones: [20, 10], brevo_template_id: null };
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -40,7 +40,7 @@ export function designRemindersPatch(form) {
   return { ...rest, enabled: !!enabled, milestones: cleanMilestones(milestones), brevo_template_id: brevoTemplateId(tpl) };
 }
 
-export function clientEmailsBusinessPatch(cfg) {
+function clientEmailsBusinessPatch(cfg) {
   const full = businessProfilePatch(cfg);
   return Object.fromEntries(CLIENT_EMAIL_KEYS.map((k) => [k, full[k]]));
 }
@@ -63,7 +63,7 @@ export function clientEmailsSummary({ profile, reminders }) {
   if (patch.access_email_auto.enabled) out.push(`J-${patch.access_email_auto.days_before} : lien de l'éditeur`);
   if (reminders?.enabled) {
     const ms = cleanMilestones(reminders.milestones);
-    out.push(`${ms.map((m) => `J-${m}`).join(', ')} : ${ms.length > 1 ? 'relances' : 'relance'} si le template n'est pas soumis`);
+    out.push(`${ms.map((m) => `J-${m}`).join(', ')} : ${ms.length > 1 ? 'relances' : 'relance'} si le cadre photo n'est pas soumis`);
   }
   if (patch.delivery_auto.enabled) out.push(`J+${patch.delivery_auto.days_after} : lien des photos`);
   return out;

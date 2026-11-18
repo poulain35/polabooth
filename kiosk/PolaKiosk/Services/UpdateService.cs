@@ -49,8 +49,7 @@ public class UpdateService : IUpdateService
     public string CurrentVersion => _currentVersion;
 
     public UpdateService(ISupabaseService supabase, IKioskLogService log)
-        : this(supabase, log, new HttpClientHandler(), Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PolaKiosk")) { }
+        : this(supabase, log, new HttpClientHandler(), KioskPaths.LocalRoot) { }
 
     // Tests : réponses HTTP simulées, dossier temporaire à la place de %LocalAppData%\PolaKiosk,
     // version installée imposée.
@@ -144,7 +143,7 @@ public class UpdateService : IUpdateService
         {
             // Échec gardé sur le disque : il sera signalé au prochain cycle.
             try { await _log.LogWarningAsync("update", $"Signalement de l'échec de mise à jour reporté : {ex.Message}"); }
-            catch { }
+            catch { /* journal indisponible : l'échec reste sur le disque */ }
         }
     }
 
@@ -156,11 +155,20 @@ public class UpdateService : IUpdateService
         // LAB-197 : sans empreinte publiée, l'installeur ne peut pas être vérifié.
         if (!IsSha256Hex(request.Sha256))
             return $"Version {request.Version} sans empreinte SHA-256 valide.";
-        if (!Uri.TryCreate(request.ExeUrl, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        if (!Uri.TryCreate(request.ExeUrl, UriKind.Absolute, out var uri))
             return $"Version {request.Version} sans adresse de téléchargement valide.";
+        // LAB-394 : en http, l'installeur et son empreinte pourraient être remplacés en chemin.
+        if (uri.Scheme != Uri.UriSchemeHttps)
+            return $"Version {request.Version} refusée : l'adresse de téléchargement doit commencer par https.";
         return null;
     }
+
+    /// <summary>
+    /// PowerShell de Windows par son chemin complet : un powershell.exe déposé dans le dossier de
+    /// l'app ou ailleurs dans le PATH ne serait jamais lancé à sa place (LAB-394).
+    /// </summary>
+    internal static string PowerShellPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
 
     /// <summary>
     /// Installeur vérifié sur le disque (déjà présent ou téléchargé), ou null si son empreinte est fausse.
@@ -233,7 +241,7 @@ public class UpdateService : IUpdateService
         try
         {
             // Processus indépendant qui survit à la fermeture de l'app
-            var psi = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true };
+            var psi = new ProcessStartInfo(PowerShellPath) { UseShellExecute = false, CreateNoWindow = true };
             foreach (var arg in new[] { "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
                                         "-File", ScriptPath, "-Installer", installerPath, "-Version", request.Version })
                 psi.ArgumentList.Add(arg);
@@ -264,8 +272,10 @@ public class UpdateService : IUpdateService
                 && CryptographicOperations.FixedTimeEquals(
                     Convert.FromHexString(actual), Convert.FromHexString(expectedSha256));
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Installeur illisible : refusé (ok = false), l'appelant journalise le refus.
+        }
 
         if (!ok) TryDelete(path); // déjà absent ou verrouillé : jamais lancé de toute façon
         return ok;
@@ -376,13 +386,15 @@ public class UpdateService : IUpdateService
             Directory.CreateDirectory(_localDir);
             File.WriteAllText(path, JsonConvert.SerializeObject(value));
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _log.LogWarningAsync("update", $"Écriture de {Path.GetFileName(path)} impossible : {ex.Message}");
+        }
     }
 
     private static void TryDelete(string path)
     {
-        try { File.Delete(path); } catch { }
+        try { File.Delete(path); } catch { /* déjà absent ou verrouillé : nettoyé à la prochaine mise à jour */ }
     }
 
     private static bool IsSha256Hex(string? value)

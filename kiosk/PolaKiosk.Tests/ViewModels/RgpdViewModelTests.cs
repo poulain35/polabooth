@@ -14,11 +14,11 @@ public class RgpdViewModelTests
     private readonly Mock<INavigationService> _nav = new();
     private readonly Mock<IGuestJourneyService> _journey = new();
 
-    private RgpdViewModel Create(string? homeNotice = null)
+    private RgpdViewModel Create()
     {
         _journey.SetupProperty(j => j.PhotoConsent);
         var vm = new RgpdViewModel(_nav.Object, _journey.Object);
-        vm.ReceiveParameter(new RgpdParameters(Message, homeNotice));
+        vm.ReceiveParameter(new RgpdParameters(Message));
         return vm;
     }
 
@@ -48,18 +48,9 @@ public class RgpdViewModelTests
         vm.RefuseCommand.Execute(null);
 
         _journey.Object.PhotoConsent.Should().BeNull();
-        _nav.Verify(n => n.GoBack(), Times.Once);
+        // Accueil explicite, même après le choix du cadre : le choix y est effacé (LAB-315).
+        _nav.Verify(n => n.NavigateTo<HomeView>(), Times.Once);
+        _nav.Verify(n => n.GoBack(), Times.Never);
         _nav.Verify(n => n.NavigateTo<LiveView>(), Times.Never);
-    }
-
-    [Fact]
-    public void Home_notice_is_shown_only_when_given()
-    {
-        Create().ShowHomeNotice.Should().BeFalse();
-
-        var vm = Create("Vos réponses sont transmises à Camille & Hugo.");
-        vm.ShowHomeNotice.Should().BeTrue();
-        vm.HomeNotice.Should().Be("Vos réponses sont transmises à Camille & Hugo.");
-        vm.ConsentMessage.Should().Be(Message);
     }
 }

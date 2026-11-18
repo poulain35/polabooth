@@ -28,6 +28,13 @@ public interface ISupabaseService
     Task<TemplateDto?> GetApprovedDesignAsync(Guid eventId, CancellationToken ct = default);
 
     /// <summary>
+    /// Écrans composés publiés par l'organisation de l'événement (RPC kiosk_get_screens, licence vérifiée,
+    /// LAB-297) : le plan brut de l'accueil et du partage, avec les adresses complètes des images, ou null
+    /// si rien n'est publié. Licence refusée : <see cref="KioskLicenseRefusedException"/>.
+    /// </summary>
+    Task<PublishedScreens> GetScreensAsync(Guid eventId, CancellationToken ct = default);
+
+    /// <summary>
     /// Envoie le composite sur Cloudflare R2 (URL présignée de get-kiosk-upload-url) puis l'enregistre dans la
     /// table photos (kiosk_record_photo) avec <paramref name="capturedAtUtc"/>, l'heure de début de la séance
     /// (pas celle de l'envoi). Lève une exception si une étape échoue. Un renvoi de la même séance
@@ -105,4 +112,13 @@ public interface ISupabaseService
 
     /// <summary>Télécharge un fichier (Storage public) vers un chemin local.</summary>
     Task DownloadAssetAsync(string storageUrl, string localPath, CancellationToken ct = default);
+}
+
+/// <summary>Plans publiés des écrans composés (JSON brut du SaaS), null si rien n'est publié pour l'écran.</summary>
+public sealed record PublishedScreens(Newtonsoft.Json.Linq.JObject? Home, Newtonsoft.Json.Linq.JObject? Result)
+{
+    public static PublishedScreens None { get; } = new(null, null);
+
+    /// <summary>Plan publié d'un écran (<see cref="ScreenLayout.KindHome"/> ou <see cref="ScreenLayout.KindResult"/>).</summary>
+    public Newtonsoft.Json.Linq.JObject? For(string kind) => kind == ScreenLayout.KindHome ? Home : Result;
 }

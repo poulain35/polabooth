@@ -52,7 +52,8 @@ test('erreurs de Storage traduites', () => {
   );
   assert.match(kioskStorageErrorMessage({ message: 'mime type image/webp is not supported', statusCode: '415' }), /PNG ou JPG/);
   assert.match(kioskStorageErrorMessage({ message: 'The object exceeded the maximum allowed size', statusCode: '413' }), /10 Mo/);
-  assert.equal(kioskStorageErrorMessage({ message: 'Failed to fetch' }), 'Failed to fetch');
+  assert.match(kioskStorageErrorMessage({ message: 'Failed to fetch' }), /^Connexion impossible\. Vérifiez votre réseau/);
+  assert.equal(kioskStorageErrorMessage({ message: 'Bucket not found' }), 'Bucket not found');
   assert.equal(kioskStorageErrorMessage(null), "L'envoi a échoué. Réessayez.");
 });
 
@@ -62,7 +63,7 @@ test('accept des champs, limite et types alignés sur la migration', () => {
     new URL('../../supabase/migrations/20261217000000_lab282_kiosk_backgrounds_lockdown.sql', import.meta.url), 'utf8');
   assert.match(sql, /file_size_limit = 10485760/);
   assert.match(sql, /ARRAY\['image\/png', 'image\/jpeg', 'application\/json'\]/);
-  for (const page of ['../pages/admin/AdminSettings.jsx', '../pages/admin/AdminEventDetail.jsx']) {
+  for (const page of ['../pages/admin/bornes/CodeScreenTab.jsx', '../pages/admin/reglages/CompanySettings.jsx', '../pages/admin/AdminEventDetail.jsx']) {
     const src = readFileSync(new URL(page, import.meta.url), 'utf8');
     assert.doesNotMatch(src, /accept="image\/\*"/, `${page} accepte encore toutes les images`);
   }

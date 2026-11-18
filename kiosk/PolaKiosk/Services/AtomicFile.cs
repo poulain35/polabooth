@@ -39,7 +39,31 @@ internal static class AtomicFile
         }
         catch
         {
-            try { File.Delete(tmp); } catch { }
+            try { File.Delete(tmp); } catch { /* fichier temporaire seulement : l'erreur d'origine prime */ }
+            throw;
+        }
+    }
+
+    public static async Task WriteAsync(string path, Func<Stream, CancellationToken, Task> write, CancellationToken ct = default)
+    {
+        var fullPath = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+        var tmp = $"{fullPath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var stream = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                             bufferSize: 81920, useAsync: true))
+            {
+                await write(stream, ct);
+                await stream.FlushAsync(ct);
+                stream.Flush(flushToDisk: true);
+            }
+            File.Move(tmp, fullPath, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(tmp); } catch { /* fichier temporaire seulement : l'erreur d'origine prime */ }
             throw;
         }
     }

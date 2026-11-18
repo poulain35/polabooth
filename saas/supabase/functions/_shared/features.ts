@@ -1,9 +1,13 @@
 // Catalogue des fonctionnalités activables, côté serveur (open core, étape 1, lot L1).
 // Copie conforme de src/features/catalog.js (test de parité dans src/features/catalog.test.js) :
 // toute modification se fait dans les deux fichiers.
+// Une fonctionnalité privée peut compléter son entrée (libellé, description, clés requises) par le
+// catalogue de son module (_shared/modules/<id>/catalog.ts, lu par _shared/private-modules.ts, LAB-403).
 // Sans import Deno/esm.sh : testé par features.test.ts sous `node --test`.
 
 import { corsResponse } from './cors.ts';
+import { PRIVATE_MODULES } from './private-modules.ts';
+import type { KeyTest, ServiceKey } from './service-keys.ts';
 
 export type FeatureId =
   | 'core' | 'templates' | 'client_design' | 'gallery' | 'guest_form' | 'event_report'
@@ -21,11 +25,24 @@ export interface Feature {
   requiredKeys: string[];
 }
 
+/**
+ * Ce qu'un module privé ajoute au code ouvert (_shared/modules/<id>/catalog.ts) : entrée de sa
+ * fonctionnalité complétée, clés de ses services (après celles du code ouvert) et leur test, conséquence
+ * métier de l'arrêt de ses tâches planifiées (email « cron en échec »).
+ */
+export interface ModuleCatalog {
+  id: FeatureId;
+  feature?: Partial<Pick<Feature, 'label' | 'description' | 'requiredKeys'>>;
+  serviceKeys?: ServiceKey[];
+  keyTests?: Record<string, KeyTest>;
+  cronImpact?: Record<string, string>;
+}
+
 export type FeatureFlags = Record<string, unknown> | null | undefined;
 
 export const FEATURE_DISABLED_ERROR = 'fonctionnalite_desactivee';
 
-export const FEATURES: Feature[] = [
+const OPEN_FEATURES: Feature[] = [
   {
     id: 'core',
     label: 'Événements et bornes',
@@ -184,7 +201,7 @@ export const FEATURES: Feature[] = [
     visibility: 'private',
     core: false,
     defaultEnabled: false,
-    requiredKeys: ['PENNYLANE_API_KEY'],
+    requiredKeys: [],
   },
   {
     id: 'audio_guestbook',
@@ -197,6 +214,11 @@ export const FEATURES: Feature[] = [
     requiredKeys: [],
   },
 ];
+
+export const FEATURES: Feature[] = OPEN_FEATURES.map((f) => ({
+  ...f,
+  ...PRIVATE_MODULES.find((m) => m.id === f.id)?.feature,
+}));
 
 export const FEATURE_IDS: FeatureId[] = FEATURES.map((f) => f.id);
 

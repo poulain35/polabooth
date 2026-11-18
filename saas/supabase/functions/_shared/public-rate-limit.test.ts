@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LIMITS, PublicGuard, retryHint, tooManyRequests, type Rule } from './public-rate-limit.ts';
+import { LIMITS, PublicGuard, SERVICE_UNAVAILABLE_BODY, retryHint, tooManyRequests, type Rule } from './public-rate-limit.ts';
 
 const NOW = Date.UTC(2027, 0, 10, 12, 0, 0);
 const SALT = 'sel-de-test';
@@ -184,21 +184,28 @@ test('IP introuvable : règles par IP ignorées, règles par code appliquées, l
   assert.equal(result?.status, 429);
 });
 
-test('fail-open : RATE_LIMIT_SALT absent ⇒ requête servie, aucun accès base, log unique', async () => {
+test('fail-closed (LAB-392) : RATE_LIMIT_SALT absent ⇒ 503 générique, aucun accès base, log à chaque refus', async () => {
   const db = fakeDb();
   const { result, errors } = await captureConsole(async () => {
     const g = guard('t-nosalt', db, { salt: undefined });
     const out: (Response | null)[] = [];
-    for (let i = 0; i < 5; i++) out.push(await g.check([[RULE, g.ip]], { codeFailures: true }));
+    for (let i = 0; i < 3; i++) out.push(await g.check([[RULE, g.ip]], { codeFailures: true }));
     await g.codeFailed();
     const g2 = guard('t-nosalt', db, { salt: '' });
     out.push(await g2.check([[RULE, g2.ip]]));
     return out;
   });
-  assert.ok(result.every((r) => r === null));
+  assert.equal(result.length, 4);
+  for (const r of result) {
+    assert.equal(r?.status, 503);
+    assert.equal(r?.headers.get('Access-Control-Allow-Origin'), '*');
+    const body = await r!.json();
+    assert.deepEqual(body, { ...SERVICE_UNAVAILABLE_BODY });
+    assert.doesNotMatch(JSON.stringify(body), /SALT/);
+  }
   assert.equal(db.calls, 0);
-  assert.equal(errors.length, 1);
-  assert.match(errors[0], /RATE_LIMIT_SALT manquant/);
+  assert.equal(errors.length, 4);
+  assert.ok(errors.every((e) => /t-nosalt : RATE_LIMIT_SALT manquant, requête refusée \(503/.test(e)));
 });
 
 test('fail-open : table en erreur (select) ⇒ requête servie + console.error', async () => {

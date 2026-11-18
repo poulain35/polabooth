@@ -2,7 +2,7 @@
 
 /** Alphabet des codes, sans signe ambigu (ni 0, 1, O, I, L, U). */
 export const PAIRING_ALPHABET = '23456789ABCDEFGHJKMNPQRSTVWXYZ';
-export const PAIRING_CODE_LENGTH = 6;
+const PAIRING_CODE_LENGTH = 6;
 
 /** Durée du suivi « Borne connectée » après l'association. */
 export const PAIRING_POLL_INTERVAL_MS = 3_000;
@@ -66,7 +66,7 @@ export function minutesLeft(expiresAt, now = Date.now()) {
 export const MSG_NOT_FOUND = "Ce code n'existe pas. Vérifiez le code affiché sur la borne.";
 export const MSG_EXPIRED = 'Ce code a expiré. La borne en affiche déjà un nouveau.';
 export const MSG_USED = "Cette borne vient d'être associée.";
-export const MSG_CANCELLED = 'Ce code a été annulé. La borne en affiche déjà un nouveau.';
+const MSG_CANCELLED = 'Ce code a été annulé. La borne en affiche déjà un nouveau.';
 export const MSG_RATE_LIMITED = "Trop d'essais. Réessayez dans 15 minutes.";
 export const MSG_OTHER_ACCOUNT =
   'Cette borne est déjà associée à un autre compte. Elle doit d’abord y être retirée.';

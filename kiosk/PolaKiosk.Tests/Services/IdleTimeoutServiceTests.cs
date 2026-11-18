@@ -50,6 +50,10 @@ public class IdleTimeoutServiceTests
     }
 
     [Fact]
+    public void The_frame_choice_is_a_session_screen()
+        => IdleTimeoutService.SessionScreens.Should().Contain(typeof(FrameSelectView), "LAB-315 : retour à l'accueil après inactivité");
+
+    [Fact]
     public void Timer_is_suspended_during_live()
     {
         var svc = Create();

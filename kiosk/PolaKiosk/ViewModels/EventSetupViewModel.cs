@@ -87,8 +87,6 @@ public partial class EventSetupViewModel : ObservableObject
 
         try
         {
-            await _log.LogInfoAsync("event-setup", $"Connexion à l'événement (code '{code}')…");
-
             // Retry sur erreur réseau (wifi instable) — pas sur "code introuvable" ni sur licence refusée
             Models.LocalDb.EventEntity? ev = null;
             Exception? lastError = null;
@@ -108,7 +106,7 @@ public partial class EventSetupViewModel : ObservableObject
                     lastError = ex;
                     // On trace chaque échec avec le vrai message (ex. "Erreur Supabase (500) : …")
                     await _log.LogWarningAsync("event-setup",
-                        $"Tentative {attempt}/{maxAttempts} échouée (code '{code}') : {ex.Message}");
+                        $"Tentative {attempt}/{maxAttempts} échouée : {ex.Message}");
                     if (attempt < maxAttempts)
                     {
                         SetStatus($"Connexion instable, nouvel essai ({attempt}/{maxAttempts})…", isError: false);
@@ -120,7 +118,7 @@ public partial class EventSetupViewModel : ObservableObject
             if (lastError != null)
             {
                 await _log.LogErrorAsync("event-setup",
-                    $"Connexion impossible après {maxAttempts} tentatives (code '{code}') : {lastError.Message}",
+                    $"Connexion impossible après {maxAttempts} tentatives : {lastError.Message}",
                     lastError.ToString());
                 // Le serveur a répondu (4xx/5xx) : le réseau n'y est pour rien, on le dit.
                 var status = (lastError.InnerException as System.Net.Http.HttpRequestException)?.StatusCode;
@@ -132,7 +130,7 @@ public partial class EventSetupViewModel : ObservableObject
 
             if (ev == null)
             {
-                await _log.LogWarningAsync("event-setup", $"Code événement introuvable : '{code}'.");
+                await _log.LogWarningAsync("event-setup", "Code événement introuvable.");
                 // kiosk_get_event ne renvoie que les événements du compte auquel la borne est associée.
                 var hint = HasContactPhone
                     ? $"{UnknownCodeMessage} Vérifiez votre email ou contactez {ContactCompany} au {ContactPhone}."
@@ -141,14 +139,14 @@ public partial class EventSetupViewModel : ObservableObject
                 return;
             }
 
-            await _log.LogInfoAsync("event-setup", $"Événement '{ev.Name}' connecté (code '{code}').");
-
+            // Après SetActiveEventAsync : la ligne porte l'événement (LAB-326).
             await _state.SetActiveEventAsync(ev.Id, ev.Name, code);
+            await _log.LogInfoAsync("event-setup", $"Événement « {ev.Name} » connecté.");
             _navigation.NavigateTo<Views.EventLoadingView>(new EventLoadingParameters(ev.Name));
         }
         catch (Exception ex)
         {
-            await _log.LogErrorAsync("event-setup", $"Erreur inattendue à la connexion (code '{code}') : {ex.Message}", ex.ToString());
+            await _log.LogErrorAsync("event-setup", $"Erreur inattendue à la connexion : {ex.Message}", ex.ToString());
             SetStatus($"Erreur : {ex.Message}", isError: true);
         }
         finally { IsLoading = false; }

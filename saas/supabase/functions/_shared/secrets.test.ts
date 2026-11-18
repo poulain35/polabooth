@@ -45,8 +45,8 @@ test('getSecret : erreur RPC (fonction absente) ou exception → variable d\'env
 
 test('getSecret : rien nulle part → null, source none', async () => {
   const db = fakeDb({});
-  assert.deepEqual(await resolveSecret(db, 'PENNYLANE_API_KEY', envOf({ PENNYLANE_API_KEY: '  ' })), { value: null, source: 'none' });
-  assert.equal(await getSecret(fakeDb({}), 'PENNYLANE_API_KEY', envOf({})), null);
+  assert.deepEqual(await resolveSecret(db, 'REPLICATE_API_TOKEN', envOf({ REPLICATE_API_TOKEN: '  ' })), { value: null, source: 'none' });
+  assert.equal(await getSecret(fakeDb({}), 'REPLICATE_API_TOKEN', envOf({})), null);
 });
 
 test('getSecret : valeur nettoyée des espaces et retours chariot', async () => {

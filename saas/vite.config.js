@@ -1,4 +1,5 @@
 /* global process */
+import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -10,6 +11,8 @@ import { KIOSK_CONFIG_FILE, resolveKioskConfig } from './scripts/kiosk-config.mj
 // registre src/modules/index.js par une liste vide. Aucun fichier de src/modules/<id>/ n'entre
 // alors dans le build ; la CI vérifie que cette version se construit.
 const MODULES_REGISTRY = normalizePath(fileURLToPath(new URL('./src/modules/index.js', import.meta.url)))
+// Catalogues des modules (LAB-403, données lues par src/features/catalog.js et serviceKeys.js) : liste vide.
+const MODULES_CATALOG = normalizePath(fileURLToPath(new URL('./src/modules/catalog.js', import.meta.url)))
 // Marque de l'instance (open core L7) : fichier privé, remplacé par `null` dans la construction ouverte.
 const BRAND_FILE = normalizePath(fileURLToPath(new URL('./src/modules/brand.js', import.meta.url)))
 const disabledModules = () => process.env.VITE_PRIVATE_MODULES === 'none'
@@ -23,6 +26,7 @@ function privateModules() {
       if (!disabled) return null
       const file = normalizePath(id.split('?')[0])
       if (file === MODULES_REGISTRY) return 'export default [];'
+      if (file === MODULES_CATALOG) return 'export default [];'
       if (file === BRAND_FILE) return 'export default null;'
       return null
     },
@@ -37,9 +41,18 @@ async function webManifest() {
     : null
   const template = readFileSync(new URL('./src/manifest.template.json', import.meta.url), 'utf8')
   const name = typeof brand?.name === 'string' && brand.name.trim() ? brand.name.trim() : 'Photobooth'
-  const source = template.replace('%%BRAND_NAME%%', JSON.stringify(name).slice(1, -1))
+  // Couleur de la barre du navigateur : celle de la marque (#RRGGBB), sinon celle du modèle.
+  const themeColor = /^#[0-9a-f]{6}$/i.test(brand?.themeColor ?? '') ? brand.themeColor : null
+  const manifest = JSON.parse(template.replace('%%BRAND_NAME%%', JSON.stringify(name).slice(1, -1)))
+  if (themeColor) manifest.theme_color = themeColor
+  const source = `${JSON.stringify(manifest, null, 2)}\n`
   return {
     name: 'web-manifest',
+    transformIndexHtml(html) {
+      return themeColor
+        ? html.replace(/(<meta name="theme-color" content=")#[0-9a-f]{6}(")/i, `$1${themeColor}$2`)
+        : html
+    },
     configureServer(server) {
       server.middlewares.use('/manifest.webmanifest', (_req, res) => {
         res.setHeader('Content-Type', 'application/manifest+json')
@@ -93,7 +106,15 @@ function kioskConfig() {
   }
 }
 
+// Version du SaaS (demande à l'éditeur, VendorRequestDialog) : commit construit, fourni par Vercel ou lu par git.
+function appVersion() {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA
+    || spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).stdout?.trim()
+  return sha ? sha.slice(0, 7) : ''
+}
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [privateModules(), await webManifest(), kioskConfig(), react()],
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion()) },
 }))

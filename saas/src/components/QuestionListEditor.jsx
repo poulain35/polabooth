@@ -50,25 +50,25 @@ export default function QuestionListEditor({
     update(id, (q) => ({ ...q, options: (q.options ?? []).filter((_, i) => i !== idx) }));
   }
 
-  const arrowCls = 'p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-30 disabled:hover:text-gray-300 transition-colors';
+  const arrowCls = 'p-0.5 text-muted-foreground/60 hover:text-muted-foreground disabled:opacity-30 disabled:hover:text-muted-foreground/60 transition-colors';
 
   return (
     <>
       <div className="space-y-2 mb-4">
         {questions.map((q, idx) => (
-          <div key={q.id} className="flex items-start gap-2 bg-[#F9F9FB] rounded-xl p-3">
+          <div key={q.id} className="flex items-start gap-2 bg-soft rounded-control p-3">
             <div className="flex flex-col items-center shrink-0 w-5 pt-0.5">
               <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0}
                 aria-label="Monter la question" title="Monter" className={arrowCls}>
                 <ChevronUp className="w-4 h-4" />
               </button>
-              <span className="text-gray-300 text-sm font-bold leading-none">{idx + 1}</span>
+              <span className="text-muted-foreground text-sm font-medium leading-none">{idx + 1}</span>
               <button type="button" onClick={() => move(idx, 1)} disabled={idx === questions.length - 1}
                 aria-label="Descendre la question" title="Descendre" className={arrowCls}>
                 <ChevronDown className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 space-y-1.5">
+            <div className="flex-1 min-w-0 space-y-1.5">
               <Input
                 type="text"
                 value={q.label}
@@ -88,7 +88,7 @@ export default function QuestionListEditor({
                     ))}
                   </SelectContent>
                 </Select>
-                <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                   <input
                     type="checkbox"
                     checked={!!q.required}
@@ -98,9 +98,9 @@ export default function QuestionListEditor({
                   Obligatoire
                 </label>
                 {showAnalytics && (isContactType(q.type) ? (
-                  <span className="text-xs text-gray-300">Exclu des statistiques</span>
+                  <span className="text-xs text-muted-foreground/60">Exclu des statistiques</span>
                 ) : (
-                  <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                     <input
                       type="checkbox"
                       checked={q.analytics !== false}
@@ -116,7 +116,7 @@ export default function QuestionListEditor({
                 <div className="pl-1 pt-1 space-y-1.5">
                   {(q.options ?? []).map((opt, optIdx) => (
                     <div key={optIdx} className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
                       <Input
                         type="text"
                         value={opt}
@@ -129,7 +129,7 @@ export default function QuestionListEditor({
                         type="button"
                         onClick={() => removeOption(q.id, optIdx)}
                         aria-label="Supprimer l'option"
-                        className="p-1 text-gray-300 hover:text-destructive transition-colors shrink-0"
+                        className="p-1 text-muted-foreground/60 hover:text-destructive transition-colors shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -152,7 +152,7 @@ export default function QuestionListEditor({
               type="button"
               onClick={() => removeQuestion(q.id)}
               aria-label="Supprimer la question"
-              className="p-1.5 text-gray-300 hover:text-destructive transition-colors mt-1 shrink-0"
+              className="p-1.5 text-muted-foreground/60 hover:text-destructive transition-colors mt-1 shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -170,7 +170,7 @@ export default function QuestionListEditor({
           Ajouter une question
         </button>
       ) : (
-        <p className="text-xs text-gray-400 mb-4">{maxQuestions} questions maximum.</p>
+        <p className="text-xs text-muted-foreground mb-4">{maxQuestions} questions maximum.</p>
       )}
     </>
   );

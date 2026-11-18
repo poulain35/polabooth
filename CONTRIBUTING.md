@@ -10,6 +10,7 @@ ensuite.
 ## 1. Avant de commencer
 
 - **Une faille de sécurité ?** Ne passez pas par une issue publique : voir [SECURITY.md](SECURITY.md).
+- **Une question ?** Posez-la dans l'onglet **Discussions** du dépôt, pas dans une issue.
 - **Un bug ?** Ouvrez une issue : ce que vous avez fait, ce qui s'est passé, ce que vous attendiez,
   la version (SaaS ou borne), et les messages d'erreur ou journaux utiles. Retirez-en toute donnée
   personnelle (noms des invités, emails, clés).
@@ -131,6 +132,7 @@ apparaît dans le commit de synchronisation suivant.
 ## English summary
 
 - Report security issues privately: see [SECURITY.md](SECURITY.md).
+- Ask questions in the Discussions tab; report bugs in Issues.
 - Open an issue before any large change.
 - User-facing text and documentation are in French; code identifiers are in English.
 - Run the checks above (SaaS: lint, tests, build, `check:open-build`; kiosk: `dotnet build` and

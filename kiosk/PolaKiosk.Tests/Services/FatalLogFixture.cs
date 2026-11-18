@@ -13,6 +13,6 @@ public sealed class FatalLogFixture : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, recursive: true); } catch { }
+        try { Directory.Delete(_dir, recursive: true); } catch { /* nettoyage d'un dossier temporaire */ }
     }
 }

@@ -24,7 +24,7 @@ test('emailTypeLabel : familles à nombre de jours variable', () => {
   assert.equal(emailTypeLabel('quote_reminder_j3'), 'Relance devis (J+3)');
   assert.equal(emailTypeLabel('quote_reminder_j10'), 'Relance devis (J+10)');
   assert.equal(emailTypeLabel('booking_recap_reminder_j7'), 'Relance devis en ligne (J+7)');
-  assert.equal(emailTypeLabel('design_reminder_j5'), 'Relance design (J-5)');
+  assert.equal(emailTypeLabel('design_reminder_j5'), 'Relance cadre photo (J-5)');
   assert.equal(emailTypeLabel('booking_slot_reminder_j14'), 'Rappel créneaux (J-14)');
   assert.equal(emailTypeLabel('booking_slot_reminder_j7'), 'Rappel créneaux (J-7)');
 });
@@ -55,7 +55,8 @@ test('emailStatusMeta : connu, problème, inconnu, vide', () => {
   const unknown = emailStatusMeta('queued');
   assert.equal(unknown.label, 'queued');
   assert.equal(unknown.problem, false);
-  assert.equal(unknown.cls, EMAIL_STATUS.sent.cls);
+  assert.equal(unknown.tone, EMAIL_STATUS.sent.tone);
+  assert.equal(emailStatusMeta('hard_bounce').tone, 'red');
   assert.equal(emailStatusMeta(null).label, 'Inconnu');
   assert.equal(emailStatusMeta(undefined).label, 'Inconnu');
 });
@@ -250,9 +251,9 @@ test('emailContextLink : demande du tunnel, devis legacy, événement', () => {
   );
   assert.deepEqual(
     emailContextLink({ lead_id: 'l2', lead: { source: 'legacy', client_name: 'Paul' } }, PRIVATE),
-    { to: '/admin/leads?lead=l2', label: 'Paul', kind: 'lead' },
+    { to: '/admin/ventes?tab=devis&lead=l2', label: 'Paul', kind: 'lead' },
   );
-  assert.deepEqual(emailContextLink({ lead_id: 'l3', lead: null }, PRIVATE), { to: '/admin/leads?lead=l3', label: 'Devis', kind: 'lead' });
+  assert.deepEqual(emailContextLink({ lead_id: 'l3', lead: null }, PRIVATE), { to: '/admin/ventes?tab=devis&lead=l3', label: 'Devis', kind: 'lead' });
   assert.deepEqual(
     emailContextLink({ event_id: 'e1', event: { name: 'Mariage Dupont' } }),
     { to: '/admin/events/e1', label: 'Mariage Dupont', kind: 'event' },

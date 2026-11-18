@@ -5,6 +5,9 @@ namespace PolaKiosk.Services;
 
 public class CameraDetectionService : ICameraDetectionService
 {
+    // Modèle inconnu avant l'ouverture de la session EDSDK : le vrai nom vient d'EdsdkCameraService.ModelName.
+    public const string CanonName = "Appareil photo Canon";
+
     private readonly AppSettings _settings;
 
     public CameraDetectionService(AppSettings settings)
@@ -29,7 +32,7 @@ public class CameraDetectionService : ICameraDetectionService
 
         // Canon possible : EDSDK installé (la présence réelle est vérifiée par CameraHealthService)
         if (IsCanonSdkInstalled())
-            cameras.Insert(0, new CameraDeviceInfo(CameraSource.Canon, "Canon EOS R100"));
+            cameras.Insert(0, new CameraDeviceInfo(CameraSource.Canon, CanonName));
 
         return cameras;
     }
@@ -43,7 +46,7 @@ public class CameraDetectionService : ICameraDetectionService
             return _settings.Camera.ForcedSource.Value switch
             {
                 CameraSource.Canon
-                    => new CameraDeviceInfo(CameraSource.Canon, "Canon EOS R100"),
+                    => new CameraDeviceInfo(CameraSource.Canon, CanonName),
                 CameraSource.Webcam
                     => new CameraDeviceInfo(CameraSource.Webcam, "Webcam", _settings.Camera.WebcamIndex),
                 _ => new CameraDeviceInfo(CameraSource.Mock, "Simulation")
@@ -53,7 +56,7 @@ public class CameraDetectionService : ICameraDetectionService
         // Sélection automatique : Canon > Webcam > Mock. Le Canon est choisi dès qu'EDSDK est installé,
         // même débranché au démarrage : la borne ne bascule jamais d'elle-même sur une webcam (LAB-263).
         if (IsCanonSdkInstalled())
-            return new CameraDeviceInfo(CameraSource.Canon, "Canon EOS R100");
+            return new CameraDeviceInfo(CameraSource.Canon, CanonName);
 
         var webcams = DetectAvailableCameras().Where(c => c.Source == CameraSource.Webcam).ToList();
         if (webcams.Count > 0)

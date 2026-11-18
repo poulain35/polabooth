@@ -30,6 +30,7 @@ public class KioskLogService : IKioskLogService
     private readonly IKioskCredentials _credentials;
     private readonly ISupabaseService _supabase;
     private readonly TimeProvider _clock;
+    private readonly IKioskLogContext? _context;
     private readonly string _appVersion;
 
     // Boucle de 2 minutes et retour du réseau peuvent se croiser : un seul envoi de la file à la fois.
@@ -43,21 +44,24 @@ public class KioskLogService : IKioskLogService
         IServiceScopeFactory scopeFactory,
         INetworkMonitorService network,
         IKioskCredentials credentials,
-        ISupabaseService supabase)
-        : this(scopeFactory, network, credentials, supabase, TimeProvider.System) { }
+        ISupabaseService supabase,
+        IKioskLogContext context)
+        : this(scopeFactory, network, credentials, supabase, TimeProvider.System, context) { }
 
     internal KioskLogService(
         IServiceScopeFactory scopeFactory,
         INetworkMonitorService network,
         IKioskCredentials credentials,
         ISupabaseService supabase,
-        TimeProvider clock)
+        TimeProvider clock,
+        IKioskLogContext? context = null)
     {
         _scopeFactory = scopeFactory;
         _network      = network;
         _credentials  = credentials;
         _supabase     = supabase;
         _clock        = clock;
+        _context      = context;
         _appVersion   = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
     }
 
@@ -70,24 +74,52 @@ public class KioskLogService : IKioskLogService
     public Task LogInfoAsync   (string context, string message)
         => WriteAsync("info",    context, message);
 
-    private async Task WriteAsync(string level, string context, string message, string? stackTrace = null)
+    public Task LogWarningOncePerDayAsync(string context, string message)
+        => WriteAsync("warning", context, message, onceWithin: OncePerDayWindow);
+
+    /// <summary>Fenêtre de <see cref="LogWarningOncePerDayAsync"/> : vérifiée dans SQLite, survit aux redémarrages.</summary>
+    internal static readonly TimeSpan OncePerDayWindow = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Journaux gardés sur le PC seulement (LAB-326) : les événements bruts du Canon (une ligne par photo)
+    /// et le démarrage du live view noyaient les journaux du SaaS. Utiles sur place pour diagnostiquer
+    /// une prise de vue, donc écrits dans SQLite (30 jours), mais jamais envoyés.
+    /// </summary>
+    internal static bool IsLocalOnly(string level, string context)
+        => level == "info" && context is "camera-evt" or "camera-evf";
+
+    private async Task WriteAsync(string level, string context, string message, string? stackTrace = null,
+        TimeSpan? onceWithin = null)
     {
+        var localOnly = IsLocalOnly(level, context);
+        var now = _clock.GetUtcNow().UtcDateTime;
         var entry = new KioskLogEntity
         {
             MachineId  = _credentials.MachineId,
             Level      = level,
             Context    = context,
-            Message    = message.Length > 2000 ? message[..2000] : message,
-            StackTrace = stackTrace?.Length > 4000 ? stackTrace[..4000] : stackTrace,
+            Message    = Truncate(message, MaxMessageLength)!,
+            StackTrace = Truncate(stackTrace, MaxStackTraceLength),
             AppVersion = _appVersion,
-            OccurredAt = DateTime.UtcNow,
+            OccurredAt = now,
+            Synced     = localOnly, // marqué envoyé : jamais repris par la file, purgé à 30 jours
         };
+        try { (entry.EventId, entry.SessionId) = _context?.Current ?? (null, null); }
+        catch { /* journal sans contexte plutôt que pas de journal */ }
 
         // 1. Écriture SQLite immédiate (survit hors ligne)
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (onceWithin is { } window)
+            {
+                var since = now - window;
+                var alreadyLogged = await db.KioskLogs.AnyAsync(l =>
+                    l.Level == entry.Level && l.Context == entry.Context && l.Message == entry.Message
+                    && l.OccurredAt > since);
+                if (alreadyLogged) return;
+            }
             db.KioskLogs.Add(entry);
             await db.SaveChangesAsync();
             await PurgeIfDueAsync(db);
@@ -95,9 +127,46 @@ public class KioskLogService : IKioskLogService
         catch { /* non bloquant */ }
 
         // 2. Envoi immédiat si en ligne, sauf licence refusée depuis la dernière synchro
-        if (_network.IsOnline && Volatile.Read(ref _licenseRefused) == 0)
+        if (!localOnly && _network.IsOnline && Volatile.Read(ref _licenseRefused) == 0)
             await TrySendOneAsync(entry);
     }
+
+    public async Task<bool> RecordPastAsync(Guid id, string level, string context, string message, string? stackTrace,
+        DateTime occurredAtUtc)
+    {
+        Guid? eventId = null;
+        try { eventId = _context?.Current.EventId; }
+        catch { /* journal sans contexte plutôt que pas de journal */ }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (await db.KioskLogs.AnyAsync(l => l.Id == id)) return true;
+
+            db.KioskLogs.Add(new KioskLogEntity
+            {
+                Id         = id,
+                MachineId  = _credentials.MachineId,
+                Level      = level,
+                Context    = context,
+                Message    = Truncate(message, MaxMessageLength)!,
+                StackTrace = Truncate(stackTrace, MaxStackTraceLength),
+                AppVersion = _appVersion, // version qui relit fatal.log : celle du plantage n'est pas écrite
+                OccurredAt = DateTime.SpecifyKind(occurredAtUtc, DateTimeKind.Utc),
+                EventId    = eventId,
+                SessionId  = null, // la séance en cours au plantage est perdue au redémarrage
+            });
+            await db.SaveChangesAsync();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Limites de la RPC kiosk_record_logs (left(message, 2000), left(stack_trace, 4000)).</summary>
+    internal const int MaxMessageLength = 2000, MaxStackTraceLength = 4000;
+
+    private static string? Truncate(string? text, int max) => text?.Length > max ? text[..max] : text;
 
     public async Task UploadPendingAsync()
     {
@@ -175,11 +244,13 @@ public class KioskLogService : IKioskLogService
         Message:       l.Message,
         StackTrace:    l.StackTrace,
         AppVersion:    l.AppVersion,
-        OccurredAtUtc: DateTime.SpecifyKind(l.OccurredAt, DateTimeKind.Utc));
+        OccurredAtUtc: DateTime.SpecifyKind(l.OccurredAt, DateTimeKind.Utc),
+        EventId:       l.EventId,
+        SessionId:     l.SessionId);
 
     private async Task PurgeIfDueAsync(AppDbContext db)
     {
-        var now  = DateTime.UtcNow;
+        var now  = _clock.GetUtcNow().UtcDateTime;
         var last = Interlocked.Read(ref _lastPurgeTicks);
         if (now.Ticks - last < PurgeInterval.Ticks) return;
         if (Interlocked.CompareExchange(ref _lastPurgeTicks, now.Ticks, last) != last) return;

@@ -1,332 +1,35 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, Check, Eraser, Loader2, Lock, Unlock } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Eraser, Loader2, Lock, Unlock } from 'lucide-react';
 import ColorInput from './ColorInput';
 import TextEffectPanel from './TextEffectPanel';
-import { fetchCustomFonts } from '../lib/supabase';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/select';
+import { SegmentedControl } from './ui/segmented-control';
+import {
+  ALLOWED, ACTION_LABELS, ACTION_EVENT_NOTES, VARIABLE_LABELS, SLOT_LABELS, EMBEDDED_FONTS, MIN_BUTTON_SIZE,
+  embeddedFontName, nearestWeight,
+} from '../lib/kioskScreenLayout';
+import { loadLiveFont } from '../utils/kioskFonts';
+import { KIOSK_COLORS } from '../lib/kioskScreenTemplates';
+import {
+  applyButtonShapeChange, applyButtonTextChange, buttonShapeStyle, buttonTextFields,
+  colorForInput, isKioskButton,
+} from '../lib/kioskButton';
+// Découpage (LAB-404) : sélecteur de police et petits champs dans ./editor/panel/.
+import FontPicker from './editor/panel/FontPicker';
+import {
+  Label, Section, NumberInput, IconInput, RangeInput, MultiToggleGroup, ActionButtonGroup, ButtonTextField,
+} from './editor/panel/panelControls';
+import { TEXT_WEIGHT_OPTIONS, weightValue } from './editor/panel/textWeights';
 
-const FONT_GROUPS = [
-  {
-    label: 'Mariage & Calligraphie',
-    fonts: [
-      'Tangerine','Corinthia','Italianno','Euphoria Script','Monsieur La Doulaise',
-      'Mea Culpa','Lovers Quarrel','Engagement','Princess Sofia','WindSong',
-      'Licorice','Waterfall','Gwendolyn','Ephesis','Norican',
-      'Herr Von Muellerhoff','Mrs Saint Delafield','Inspiration',
-    ],
-  },
-  {
-    label: 'Sans-serif',
-    fonts: [
-      'Roboto','Open Sans','Lato','Montserrat','Nunito','Raleway','Poppins','Inter',
-      'Source Sans 3','Ubuntu','Josefin Sans','Quicksand','Mulish','Karla','DM Sans',
-      'Outfit','Figtree','Plus Jakarta Sans','Manrope','Jost','Work Sans','Barlow',
-      'Exo 2','Nunito Sans','Noto Sans',
-    ],
-  },
-  {
-    label: 'Serif',
-    fonts: [
-      'Playfair Display','Merriweather','Lora','Cormorant Garamond','EB Garamond',
-      'Libre Baskerville','Crimson Text','Cardo','Spectral','Gilda Display',
-      'Italiana','Cinzel','Sorts Mill Goudy',
-    ],
-  },
-  {
-    label: 'Écriture',
-    fonts: [
-      'Dancing Script','Pacifico','Caveat','Sacramento','Great Vibes','Satisfy',
-      'Kaushan Script','Courgette','Permanent Marker','Pinyon Script','Alex Brush',
-      'Allura','Yellowtail','Parisienne','Petit Formal Script','Marck Script',
-    ],
-  },
-  {
-    label: 'Display',
-    fonts: [
-      'Oswald','Lobster','Righteous','Abril Fatface','Bebas Neue','Anton',
-      'Alfa Slab One','Titan One','Fredoka One','Bungee','Black Ops One',
-      'Russo One','Ultra','Squada One','Lilita One','Passion One',
-    ],
-  },
-];
+const WEIGHT_LABELS = { 400: 'Normal', 500: 'Medium', 600: 'Semi Bold', 700: 'Bold' };
+// Contour proposé à l'activation, en px d'export (ceux des modèles font 2 à 3 px).
+const DEFAULT_BUTTON_STROKE = 3;
+const NO_ACTION = 'none';
 
-const FONT_WEIGHTS = [
-  { label: 'Normal', value: 'normal' },
-  { label: 'Gras',   value: 'bold' },
-];
-
-function FontPicker({ value, onChange }) {
-  const [open,        setOpen]        = useState(false);
-  const [search,      setSearch]      = useState('');
-  const [customFonts, setCustomFonts] = useState([]);
-  const wrapRef = useRef(null);
-  const popRef  = useRef(null);
-  const [popPos, setPopPos] = useState({ top: -9999, left: -9999 });
-
-  // Charger et enregistrer les polices custom au premier rendu
-  useEffect(() => {
-    fetchCustomFonts()
-      .then(async (fonts) => {
-        setCustomFonts(fonts);
-        await Promise.allSettled(fonts.map(async (font) => {
-          if ([...document.fonts].some((f) => f.family === font.name)) return;
-          try {
-            const ff = new FontFace(font.name, `url(${font.url})`);
-            await ff.load();
-            document.fonts.add(ff);
-          } catch (_) {}
-        }));
-      })
-      .catch(() => {});
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!open || !wrapRef.current || !popRef.current) return;
-    const wr = wrapRef.current.getBoundingClientRect();
-    const pr = popRef.current.getBoundingClientRect();
-    let top  = wr.bottom + 4;
-    let left = wr.left;
-    if (top + pr.height > window.innerHeight - 8) top = wr.top - pr.height - 4;
-    if (left + pr.width > window.innerWidth - 8)  left = window.innerWidth - pr.width - 8;
-    setPopPos({ top, left });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e) => {
-      if (!popRef.current?.contains(e.target) && !wrapRef.current?.contains(e.target))
-        setOpen(false);
-    };
-    window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
-  }, [open]);
-
-  const q = search.toLowerCase();
-  const allGroups = [
-    ...(customFonts.length > 0 ? [{ label: 'Mes polices', fonts: customFonts.map((f) => f.name) }] : []),
-    ...FONT_GROUPS,
-  ];
-  const filtered = allGroups.map((g) => ({
-    ...g,
-    fonts: g.fonts.filter((f) => f.toLowerCase().includes(q)),
-  })).filter((g) => g.fonts.length > 0);
-
-  return (
-    <div ref={wrapRef}>
-      <button
-        onClick={() => { setOpen((v) => !v); setSearch(''); }}
-        className="w-full flex items-center justify-between px-2.5 py-1.5 border border-border rounded-xl
-          text-[12px] font-medium hover:border-primary transition-colors bg-card text-foreground"
-        style={{ fontFamily: value }}
-      >
-        <span className="truncate">{value}</span>
-        <svg className="w-3 h-3 text-gray-400 shrink-0 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          ref={popRef}
-          className="fixed z-[70] bg-card border border-gray-200 rounded-2xl shadow-2xl overflow-hidden"
-          style={{ top: popPos.top, left: popPos.left, width: 'min(240px, calc(100vw - 24px))' }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {/* Search */}
-          <div className="px-3 py-2 border-b border-gray-100">
-            <Input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher une police…"
-              autoFocus
-              className="h-8 text-xs"
-            />
-          </div>
-
-          {/* Font list */}
-          <div className="overflow-y-auto max-h-72">
-            {filtered.map((group) => (
-              <div key={group.label}>
-                <p className="px-3 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky top-0 bg-card">
-                  {group.label}
-                </p>
-                {group.fonts.map((font) => (
-                  <button
-                    key={font}
-                    onClick={() => { onChange(font); setOpen(false); }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors hover:bg-primary/10
-                      ${value === font ? 'bg-primary/10 text-primary' : 'text-gray-800'}`}
-                  >
-                    <span style={{ fontFamily: font }} className="truncate">{font}</span>
-                    {value === font && (
-                      <svg className="w-3.5 h-3.5 text-primary shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <p className="px-3 py-6 text-xs text-gray-400 text-center">Aucune police trouvée</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Label({ children }) {
-  return <label className="text-[12px] font-semibold text-foreground block mb-1.5">{children}</label>;
-}
-
-function Section({ title, children }) {
-  return (
-    <div className="border-b border-muted">
-      {title && (
-        <div className="px-4 pt-2.5 pb-2 bg-muted/60 border-b border-border">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{title}</p>
-        </div>
-      )}
-      <div className="px-4 py-3 space-y-2">{children}</div>
-    </div>
-  );
-}
-
-function NumberInput({ label, value, onChange, min, max, step = 1 }) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <input
-        type="number"
-        value={Math.round(value) || 0}
-        min={min} max={max} step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full text-[12px] font-medium border border-border rounded-xl px-2.5 py-1.5
-          text-foreground bg-card focus:outline-none focus:border-primary focus:ring-2
-          focus:ring-primary/15 transition-colors"
-      />
-    </div>
-  );
-}
-
-function IconInput({ icon, value, onChange, min, max, step = 1, unit }) {
-  return (
-    <div className="flex items-center gap-1.5 border border-border rounded-xl px-2 py-1.5
-      focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-colors bg-card">
-      <span className="text-gray-400 shrink-0 flex items-center">{icon}</span>
-      <input
-        type="number"
-        value={Math.round(value) || 0}
-        min={min} max={max} step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 w-0 text-[12px] font-medium text-foreground focus:outline-none bg-transparent tabular-nums"
-      />
-      {unit && <span className="text-[10px] text-gray-400 shrink-0">{unit}</span>}
-    </div>
-  );
-}
-
-function RangeInput({ label, value, onChange, min = 0, max = 100 }) {
-  const pct = Math.round(value * 100);
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <Label>{label}</Label>
-        <span className="text-[12px] font-semibold text-foreground tabular-nums">{pct}%</span>
-      </div>
-      <input
-        type="range" min={min} max={max}
-        value={pct}
-        onChange={(e) => onChange(Number(e.target.value) / 100)}
-        className="w-full h-1 rounded-full appearance-none cursor-pointer"
-        style={{
-          background: `linear-gradient(to right, #6366f1 ${pct}%, #E5E5EA ${pct}%)`,
-          accentColor: '#6366f1',
-        }}
-      />
-    </div>
-  );
-}
-
-/* ── SelectButton / SegmentedControl ─────────────────────────────────────── */
-function SegmentedControl({ options, value, onChange }) {
-  return (
-    <div className="flex w-full bg-muted rounded-xl p-1 gap-0.5">
-      {options.map((opt) => {
-        const active = value === opt.value;
-        return (
-          <button
-            key={opt.value}
-            onClick={() => onChange(opt.value)}
-            title={opt.title}
-            className={[
-              'flex-1 flex items-center justify-center gap-1 px-1.5 py-1 text-[11px] font-medium rounded-lg select-none transition-all',
-              active
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            ].join(' ')}
-          >
-            {opt.icon}
-            {opt.label && <span>{opt.label}</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── MultiToggleGroup — boutons indépendamment activables (décoration) ───── */
-function MultiToggleGroup({ options }) {
-  return (
-    <div className="flex w-full bg-muted rounded-xl p-1 gap-0.5">
-      {options.map((opt) => (
-        <button
-          key={opt.key}
-          onClick={opt.onClick}
-          title={opt.title}
-          className={[
-            'flex-1 flex items-center justify-center px-1.5 py-1 text-[11px] font-medium rounded-lg select-none transition-all',
-            opt.active
-              ? 'bg-card text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          ].join(' ')}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* ── ActionButtonGroup — boutons d'action non-toggle (même style) ────────── */
-function ActionButtonGroup({ options }) {
-  return (
-    <div className="flex w-full bg-muted rounded-xl p-1 gap-0.5">
-      {options.map((opt, i) => (
-        <button
-          key={i}
-          onClick={opt.onClick}
-          title={opt.title}
-          disabled={opt.disabled}
-          className={[
-            'flex-1 flex items-center justify-center gap-1 px-1.5 py-1 text-[11px] font-medium rounded-lg select-none transition-all',
-            'text-muted-foreground hover:bg-card hover:text-foreground hover:shadow-sm',
-            'disabled:opacity-30 disabled:cursor-not-allowed',
-          ].join(' ')}
-        >
-          {opt.icon}
-          {opt.label && <span>{opt.label}</span>}
-        </button>
-      ))}
-    </div>
-  );
-}
+// Texte vivant : polices embarquées dans la borne, en tête de la liste.
+const KIOSK_FONT_GROUP = { label: 'Polices de la borne', fonts: Object.keys(EMBEDDED_FONTS) };
 
 /**
  * Props:
@@ -345,7 +48,7 @@ export default function PropertiesPanel({
   bgColor,
   onBgColorChange,
   bgType        = 'solid',
-  bgGradient    = { direction: 'to-b', color1: '#6366f1', color2: '#8b5cf6' },
+  bgGradient    = { direction: 'to-b', color1: '#DCEEFB', color2: '#FCE0E8' },
   onBgTypeChange,
   onBgGradientChange,
   onObjectChange,
@@ -357,25 +60,100 @@ export default function PropertiesPanel({
   isRemovingBackground = false,
   removeBackgroundError = '',
   mobile        = false,
+  // Format courant : tailles affichées en px d'export (impression ×6, écran de la borne ×2).
+  format        = null,
+  // Écrans de la borne (LAB-296) : 'home' | 'result' affiche la section « Borne ».
+  kioskKind     = null,
+  // Double-clic sur un bouton de la borne : {target, index} du texte dont le champ prend le focus.
+  buttonTextFocus = null,
+  onButtonTextFocused = null,
 }) {
   const obj = selectedObject; // actual Fabric object — obj.set() works
-  const S = 6; // facteur d'échelle éditeur → export (canvasWidth × S = exportWidth)
+  // Facteur d'échelle éditeur → export (canvasWidth × S = exportWidth).
+  const S = format?.exportWidth > 0 && format?.canvasWidth > 0 ? format.exportWidth / format.canvasWidth : 6;
   const isPhotoZone = obj?.isPhotoZone === true;
   const isSticker   = !isPhotoZone && obj?.isSticker === true;
-  const isText  = !isPhotoZone && !isSticker && (obj?.type === 'i-text' || obj?.type === 'text');
+  const isText  = !isPhotoZone && !isSticker && (obj?.type === 'i-text' || obj?.type === 'text' || obj?.type === 'textbox');
   const isShape = !isPhotoZone && !isSticker && (obj?.type === 'rect' || obj?.type === 'circle' || obj?.type === 'ellipse');
   const isLine  = !isPhotoZone && !isSticker && obj?.type === 'line';
   const isImage = !isPhotoZone && !isSticker && obj?.type === 'image';
+  const kioskAllowed = kioskKind ? ALLOWED[kioskKind] : null;
+  const isSlot  = !!kioskAllowed && !!obj?.kioskSlot;
+  const isLive  = !!kioskAllowed && !isSlot && isText && !!obj?.kioskVariable;
+  // Texte vivant en Fraunces ou DM Sans : seulement les graisses embarquées dans la borne.
+  const liveEmbedded = isLive ? embeddedFontName(obj.fontFamily) : null;
+  const isButton = !!kioskAllowed && isKioskButton(obj);
+  const buttonFields = isButton ? buttonTextFields(obj) : [];
+  const buttonShapeProps = isButton ? buttonShapeStyle(obj) : null;
+  const buttonInputs = useRef({});
+
+  useEffect(() => {
+    if (!buttonTextFocus || buttonTextFocus.target !== obj) return;
+    const el = buttonInputs.current[buttonTextFocus.index];
+    // Panneau masqué (celui du bureau pendant la feuille mobile, ou l'inverse) : l'autre s'en charge.
+    if (!el || el.offsetParent === null) return;
+    el.focus();
+    el.select();
+    el.scrollIntoView({ block: 'nearest' });
+    onButtonTextFocused?.();
+  }, [buttonTextFocus, obj, onButtonTextFocused]);
 
   function update(props) {
     if (!obj || typeof obj.set !== 'function') return;
     obj.set(props);
-    if (obj.type === 'i-text' || obj.type === 'text') {
+    if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
       obj.initDimensions?.();
       obj.setCoords();
     }
     obj.canvas?.renderAll();
     onObjectChange?.();
+  }
+
+  // Bouton de la borne : texte et forme se règlent dans le groupe, qui se recalcule autour.
+  function updateButtonText(index, props) {
+    if (!applyButtonTextChange(obj, index, props, { minSize: MIN_BUTTON_SIZE / S })) return;
+    obj.setCoords();
+    obj.canvas?.renderAll();
+    onObjectChange?.();
+  }
+
+  async function updateButtonFont(index, { family, weight }) {
+    const text = obj?._objects?.[index];
+    if (!text) return;
+    const fontFamily = family ?? text.fontFamily ?? 'Roboto';
+    const fontWeight = weight ?? text.fontWeight ?? 'normal';
+    try { await document.fonts.load(`${fontWeight} ${text.fontSize || 20}px "${fontFamily}"`); } catch (_) {}
+    updateButtonText(index, { fontFamily, fontWeight });
+  }
+
+  function updateButtonShape(props) {
+    if (!applyButtonShapeChange(obj, props)) return;
+    obj.setCoords();
+    obj.canvas?.renderAll();
+    onObjectChange?.();
+  }
+
+  // Marque de la borne : une valeur vide devient undefined, donc absente du canvas_json.
+  function setKioskProp(name, value) {
+    if (!obj || typeof obj.set !== 'function') return;
+    const empty = value === null || value === undefined || value === false || value === '';
+    obj.set(name, empty ? undefined : value);
+    // Un bouton est toujours affiché sur la borne : la marque « personnalisé seulement » ne s'applique pas.
+    if (name === 'kioskAction' && !empty) obj.set('personalizedOnly', undefined);
+    obj.canvas?.renderAll();
+    onObjectChange?.();
+  }
+
+  // Texte vivant : toute police des modèles photos ; Fraunces et DM Sans gardent leurs graisses embarquées.
+  async function updateLiveFont({ family, weight }) {
+    if (!obj) return;
+    const fontFamily = family ?? obj.fontFamily ?? 'DM Sans';
+    const embedded = embeddedFontName(fontFamily);
+    const fontWeight = embedded
+      ? String(nearestWeight(EMBEDDED_FONTS[embedded], weight ?? obj.fontWeight))
+      : weight ?? obj.fontWeight ?? 'normal';
+    await loadLiveFont(fontFamily, fontWeight);
+    update({ fontFamily: embedded ?? fontFamily, fontWeight });
   }
 
   async function updateFont(fontName) {
@@ -408,10 +186,13 @@ export default function PropertiesPanel({
   return (
     <aside className={`bg-card flex flex-col overflow-y-auto shrink-0 ${mobile ? 'w-full' : 'w-64 border-l border-border'}`}>
       <div className="px-4 py-3 border-b border-muted flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h3 className="text-sm font-editor-strong text-foreground">
           {obj ? (
             isPhotoZone ? 'Zone photo' :
-            isSticker   ? 'Sticker' :
+            isSlot      ? 'Emplacement' :
+            isLive      ? 'Texte vivant' :
+            kioskAllowed && obj.kioskAction ? 'Bouton de la borne' :
+            isSticker   ? 'Décoration' :
             isText  ? 'Texte' :
             isShape ? (obj.type === 'rect' ? 'Rectangle' : 'Cercle') :
             isLine  ? 'Ligne' :
@@ -423,10 +204,10 @@ export default function PropertiesPanel({
           <button
             onClick={onToggleLock}
             title={obj.locked ? 'Déverrouiller' : 'Verrouiller'}
-            className={`p-1.5 rounded-lg transition-colors
+            className={`p-1.5 rounded-[0.5rem] transition-colors
               ${obj.locked
-                ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}
+                ? 'bg-editor-warning text-editor-warning-fg'
+                : 'text-editor-faint hover:bg-editor-hover hover:text-editor-fg'}`}
           >
             {obj.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
           </button>
@@ -434,25 +215,18 @@ export default function PropertiesPanel({
       </div>
 
       {/* Canvas background — masqué si un élément est sélectionné */}
-      {!obj && <Section title="Fond du canvas">
+      {!obj && <Section title="Fond">
         {/* Mode toggle */}
         <div>
           <Label>Type</Label>
-          <div className="flex w-full bg-muted rounded-xl p-1 gap-0.5">
-            {[{ id: 'solid', label: 'Uni' }, { id: 'gradient', label: 'Dégradé' }].map(({ id, label }) => {
-              const active = bgType === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => onBgTypeChange?.(id)}
-                  className={`flex-1 py-1 text-xs font-medium rounded-lg transition-all
-                    ${active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            variant="editor"
+            aria-label="Type de fond"
+            itemClassName="text-xs"
+            value={bgType}
+            onValueChange={(id) => onBgTypeChange?.(id)}
+            options={[{ value: 'solid', label: 'Uni' }, { value: 'gradient', label: 'Dégradé' }]}
+          />
         </div>
 
         {bgType === 'solid' && (
@@ -498,7 +272,7 @@ export default function PropertiesPanel({
                     onClick={() => onBgGradientChange?.({ ...bgGradient, direction: id })}
                     className={`flex-1 min-w-[28px] flex items-center justify-center py-1.5 rounded-xl transition-colors
                       ${bgGradient.direction === id
-                        ? 'bg-primary/15 text-primary'
+                        ? 'bg-editor-selected text-editor-accent-fg'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                   >
                     {icon}
@@ -513,16 +287,149 @@ export default function PropertiesPanel({
       {/* Photo zone info */}
       {isPhotoZone && (
         <Section>
-          <div className="flex items-start gap-2.5 p-2.5 bg-primary/10 rounded-xl">
-            <svg className="w-4 h-4 text-primary shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="flex items-start gap-2.5 p-2.5 bg-editor-selected rounded-xl">
+            <svg className="w-4 h-4 text-editor-accent-fg shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round"
                 d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <p className="text-xs text-primary leading-relaxed">
+            <p className="text-xs text-editor-accent-fg leading-relaxed">
               Zone photo — transparente à l'export. Déplacez et redimensionnez librement.
             </p>
           </div>
+        </Section>
+      )}
+
+      {/* Écrans de la borne : action, texte vivant, emplacement, « personnalisé seulement » */}
+      {kioskAllowed && obj && obj.type !== 'activeSelection' && (
+        <Section title="Borne">
+          {isSlot && (
+            <p className="text-xs text-primary-ink bg-primary-soft rounded-control p-2.5 leading-relaxed">
+              Emplacement « {SLOT_LABELS[obj.kioskSlot] ?? obj.kioskSlot} » : la borne y affiche la photo,
+              recadrée pour remplir le cadre. Il ne fait pas partie du fond publié sur la borne.
+            </p>
+          )}
+          {isLive && (
+            <p className="text-xs text-primary-ink bg-primary-soft rounded-control p-2.5 leading-relaxed">
+              Texte vivant « {VARIABLE_LABELS[obj.kioskVariable] ?? obj.kioskVariable} » : le texte ci-dessous
+              est un exemple, la borne écrit la vraie valeur avec cette police, cette taille et cette couleur.
+            </p>
+          )}
+          {!isSlot && !isLive && (
+            <div>
+              <Label>Action sur la borne</Label>
+              <Select
+                value={obj.kioskAction && kioskAllowed.actions.includes(obj.kioskAction) ? obj.kioskAction : NO_ACTION}
+                onValueChange={(v) => setKioskProp('kioskAction', v === NO_ACTION ? null : v)}
+              >
+                <SelectTrigger className="h-auto py-1.5 rounded-xl text-[12px] font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ACTION}>Aucune (décor)</SelectItem>
+                  {kioskAllowed.actions.map((a) => (
+                    <SelectItem key={a} value={a}>{ACTION_LABELS[a] ?? a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {obj.kioskAction && !kioskAllowed.actions.includes(obj.kioskAction) && (
+                <p className="text-[10px] text-state-amber-fg mt-1">
+                  Action « {obj.kioskAction} » inconnue sur cet écran : l'objet reste dans le décor.
+                </p>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                L'objet (ou le groupe) devient un bouton : touché sur la borne, il lance l'action.
+              </p>
+              {obj.kioskAction && kioskAllowed.actions.includes(obj.kioskAction) && ACTION_EVENT_NOTES[obj.kioskAction] && (
+                <p className="text-[10px] text-state-amber-fg bg-state-amber rounded-sm px-2 py-1.5 mt-1.5 leading-relaxed">
+                  {ACTION_EVENT_NOTES[obj.kioskAction]}
+                </p>
+              )}
+            </div>
+          )}
+          {kioskKind === 'home' && !isSlot && !obj.kioskAction && (
+            <label className="flex items-start gap-2 text-[12px] text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-primary"
+                checked={!!obj.personalizedOnly}
+                onChange={(e) => setKioskProp('personalizedOnly', e.target.checked)}
+              />
+              <span>
+                Seulement si l'accueil est personnalisé
+                <span className="block text-[10px] text-muted-foreground leading-relaxed">
+                  Masqué sur la borne quand l'accueil n'affiche pas le nom de l'événement.
+                </span>
+              </span>
+            </label>
+          )}
+        </Section>
+      )}
+
+      {isButton && buttonFields.length > 0 && (
+        <Section title={buttonFields.length > 1 ? 'Textes du bouton' : 'Texte du bouton'}>
+          {buttonFields.map((f, i) => (
+            <div key={f.index} className={i > 0 ? 'pt-3 border-t border-border' : ''}>
+              <ButtonTextField
+                label={f.label}
+                text={obj._objects[f.index]}
+                S={S}
+                inputRef={(el) => { buttonInputs.current[f.index] = el; }}
+                onChange={(props) => updateButtonText(f.index, props)}
+                onFontChange={(change) => updateButtonFont(f.index, change)}
+              />
+            </div>
+          ))}
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Le bouton s'agrandit si le texte ne tient plus. Double-cliquez sur un bouton pour arriver ici.
+          </p>
+        </Section>
+      )}
+      {isButton && buttonShapeProps && (
+        <Section title="Forme du bouton">
+          <ColorInput
+            label="Remplissage"
+            value={colorForInput(buttonShapeProps.fill)}
+            onChange={(v) => updateButtonShape({ fill: v })}
+          />
+          {buttonShapeProps.hasRadius && (
+            <NumberInput
+              label="Arrondi des angles (px)"
+              value={buttonShapeProps.radius * S}
+              onChange={(v) => updateButtonShape({ radius: v / S })}
+              min={0} max={Math.floor(buttonShapeProps.radiusMax * S)}
+            />
+          )}
+          <label className="flex items-center gap-2 text-[12px] font-medium text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-primary"
+              checked={!!buttonShapeProps.stroke}
+              onChange={(e) => updateButtonShape(e.target.checked
+                ? { stroke: KIOSK_COLORS.forest, strokeWidth: Math.min(DEFAULT_BUTTON_STROKE / S, buttonShapeProps.strokeMax) }
+                : { stroke: null })}
+            />
+            Contour
+          </label>
+          {buttonShapeProps.stroke && (
+            <>
+              <ColorInput
+                label="Couleur du contour"
+                value={colorForInput(buttonShapeProps.stroke)}
+                onChange={(v) => updateButtonShape({ stroke: v })}
+                showTransparent={false}
+              />
+              <NumberInput
+                label="Épaisseur du contour (px)"
+                value={buttonShapeProps.strokeWidth * S}
+                onChange={(v) => { if (v >= 1) updateButtonShape({ strokeWidth: v / S }); }}
+                min={1} max={Math.max(1, Math.floor(buttonShapeProps.strokeMax * S))}
+              />
+            </>
+          )}
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Le contour est tracé à l'intérieur du bouton : sa taille ne change pas.
+          </p>
         </Section>
       )}
 
@@ -540,10 +447,10 @@ export default function PropertiesPanel({
       {/* Image — suppression d'arrière-plan */}
       {isImage && onRemoveBackground && (
         <Section title="Image">
-          <Button
+          <Button size="sm"
             onClick={onRemoveBackground}
             disabled={isRemovingBackground}
-            className="w-full h-9 text-xs"
+            className="w-full text-xs"
           >
             {isRemovingBackground ? (
               <><Loader2 className="w-3.5 h-3.5 animate-spin" />Suppression…</>
@@ -564,10 +471,10 @@ export default function PropertiesPanel({
       {!obj && (
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center">
-            <svg className="w-10 h-10 text-gray-200 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-10 h-10 text-editor-line mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
             </svg>
-            <p className="text-xs text-gray-400">Sélectionnez un élément pour éditer ses propriétés</p>
+            <p className="text-xs text-editor-faint">Sélectionnez un élément pour éditer ses propriétés</p>
           </div>
         </div>
       )}
@@ -583,59 +490,88 @@ export default function PropertiesPanel({
               className="min-h-0 text-[13px] rounded-xl resize-none"
               rows={2}
             />
-            <FontPicker value={obj.fontFamily || 'Roboto'} onChange={(f) => updateFont(f)} />
+            {isLive && (
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Valeur d'exemple : la borne affiche la vraie valeur.
+              </p>
+            )}
+            {isLive ? (
+              <FontPicker value={obj.fontFamily || 'DM Sans'} onChange={(f) => updateLiveFont({ family: f })}
+                extraGroups={[KIOSK_FONT_GROUP]} />
+            ) : (
+              <FontPicker value={obj.fontFamily || 'Roboto'} onChange={(f) => updateFont(f)} />
+            )}
           </Section>
 
           <Section title="Typographie">
             {/* Graisse + Taille en grille */}
             <div className="grid grid-cols-2 gap-2">
-              <Select value={String(obj.fontWeight || 'normal')} onValueChange={(v) => update({ fontWeight: v })}>
+              {liveEmbedded ? (
+                <Select
+                  value={String(nearestWeight(EMBEDDED_FONTS[liveEmbedded], obj.fontWeight))}
+                  onValueChange={(v) => updateLiveFont({ weight: v })}
+                  disabled={EMBEDDED_FONTS[liveEmbedded].length < 2}
+                >
+                  <SelectTrigger className="h-auto py-1.5 rounded-xl text-[12px] font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMBEDDED_FONTS[liveEmbedded].map((w) => (
+                      <SelectItem key={w} value={String(w)}>{WEIGHT_LABELS[w] ?? w}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+              <Select value={weightValue(obj.fontWeight)}
+                onValueChange={(v) => (isLive ? updateLiveFont({ weight: v }) : update({ fontWeight: v }))}>
                 <SelectTrigger className="h-auto py-1.5 rounded-xl text-[12px] font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="100">Thin</SelectItem>
-                  <SelectItem value="200">Extra Light</SelectItem>
-                  <SelectItem value="300">Light</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="500">Medium</SelectItem>
-                  <SelectItem value="600">Semi Bold</SelectItem>
-                  <SelectItem value="bold">Bold</SelectItem>
-                  <SelectItem value="800">Extra Bold</SelectItem>
-                  <SelectItem value="900">Black</SelectItem>
+                  {TEXT_WEIGHT_OPTIONS.map((w) => (
+                    <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              )}
               <div className="flex items-center gap-1.5 border border-border rounded-xl px-2 py-1.5
                 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 transition-colors bg-card">
-                <span className="text-[11px] font-black text-gray-400 shrink-0 select-none leading-none">Aa</span>
+                <span className="text-[11px] font-black text-editor-faint shrink-0 select-none leading-none">Aa</span>
                 <input
                   type="number" min={6} max={1800} step={S}
                   value={Math.round((obj.fontSize || 20) * S)}
                   onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 6) update({ fontSize: Math.round(v / S) }); }}
                   className="flex-1 w-0 text-[12px] font-medium text-foreground focus:outline-none bg-transparent tabular-nums"
                 />
-                <span className="text-[10px] text-gray-400 shrink-0">px</span>
+                <span className="text-[10px] text-editor-faint shrink-0">px</span>
               </div>
             </div>
 
-            {/* Style */}
-            <SegmentedControl
+            {/* Style (la borne n'écrit pas les textes vivants en italique) */}
+            {!isLive && <SegmentedControl
+              variant="editor"
+              aria-label="Style du texte"
               value={obj.fontStyle || 'normal'}
-              onChange={(v) => update({ fontStyle: v })}
+              onValueChange={(v) => update({ fontStyle: v })}
               options={[
                 { value: 'normal',  label: 'Normal', title: 'Normal' },
                 { value: 'italic',  title: 'Italique',
-                  icon: <span className="font-bold" style={{ fontStyle: 'italic' }}>Italic</span> },
+                  icon: <span className="font-editor-bold" style={{ fontStyle: 'italic' }}>Italic</span> },
                 { value: 'oblique', title: 'Oblique',
-                  icon: <span className="font-bold" style={{ fontStyle: 'oblique' }}>Oblique</span> },
+                  icon: <span className="font-editor-bold" style={{ fontStyle: 'oblique' }}>Oblique</span> },
               ]}
-            />
+            />}
 
-            {/* Transformer */}
+            {/* Transformer (texte vivant : la borne ne sait que mettre en majuscules) */}
             <SegmentedControl
+              variant="editor"
+              aria-label="Casse du texte"
               value={obj.textTransform || 'none'}
-              onChange={applyTextTransform}
-              options={[
+              onValueChange={applyTextTransform}
+              options={isLive ? [
+                { value: 'none',       title: 'Normal',      label: '—' },
+                { value: 'uppercase',  title: 'Majuscules',  label: 'AA' },
+              ] : [
                 { value: 'none',       title: 'Normal',      label: '—' },
                 { value: 'uppercase',  title: 'Majuscules',  label: 'AA' },
                 { value: 'lowercase',  title: 'Minuscules',  label: 'aa' },
@@ -644,7 +580,7 @@ export default function PropertiesPanel({
             />
 
             {/* Décoration */}
-            <MultiToggleGroup options={[
+            {!isLive && <MultiToggleGroup options={[
               {
                 key: 'none',
                 active: !obj.underline && !obj.overline && !obj.linethrough,
@@ -673,11 +609,16 @@ export default function PropertiesPanel({
                 label: <span style={{ textDecoration: 'line-through' }}>S</span>,
                 onClick: () => update({ linethrough: !obj.linethrough }),
               },
-            ]} />
+            ]} />}
 
             {/* Alignement — grands boutons icônes */}
-            <div className="flex w-full bg-muted rounded-xl p-1 gap-0.5">
-              {[
+            <SegmentedControl
+              variant="editor"
+              aria-label="Alignement du texte"
+              itemClassName="py-1.5"
+              value={obj.textAlign || 'left'}
+              onValueChange={(value) => update({ textAlign: value })}
+              options={[
                 { value: 'left',    title: 'Gauche',
                   icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h9a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg> },
                 { value: 'center',  title: 'Centré',
@@ -686,25 +627,13 @@ export default function PropertiesPanel({
                   icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM9 10a1 1 0 011-1h6a1 1 0 110 2h-6a1 1 0 01-1-1zM7 15a1 1 0 011-1h8a1 1 0 110 2H8a1 1 0 01-1-1z" clipRule="evenodd" /></svg> },
                 { value: 'justify', title: 'Justifié',
                   icon: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg> },
-              ].map(({ value, title, icon }) => (
-                <button
-                  key={value}
-                  title={title}
-                  onClick={() => update({ textAlign: value })}
-                  className={`flex-1 flex items-center justify-center py-1.5 rounded-lg transition-all select-none
-                    ${(obj.textAlign || 'left') === value
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
+              ]}
+            />
 
             {/* Espacement lettres — icône AV inline */}
             <div className="flex items-center gap-2.5">
               <span
-                className="text-[11px] font-bold text-gray-400 shrink-0 select-none tracking-tight"
+                className="text-[11px] font-editor-bold text-editor-faint shrink-0 select-none tracking-tight"
                 title="Espacement des caractères"
               >AV</span>
               <input
@@ -712,9 +641,9 @@ export default function PropertiesPanel({
                 value={obj.charSpacing || 0}
                 onChange={(e) => update({ charSpacing: Number(e.target.value) })}
                 className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                style={{ background: `linear-gradient(to right, #6366f1 ${((obj.charSpacing || 0) + 50) / 550 * 100}%, #E5E5EA ${((obj.charSpacing || 0) + 50) / 550 * 100}%)` }}
+                style={{ background: `linear-gradient(to right, var(--editor-accent, hsl(var(--primary))) ${((obj.charSpacing || 0) + 50) / 550 * 100}%, var(--editor-track) ${((obj.charSpacing || 0) + 50) / 550 * 100}%)` }}
               />
-              <span className="text-[12px] font-semibold text-foreground tabular-nums w-8 text-right shrink-0">{obj.charSpacing || 0}</span>
+              <span className="text-[12px] font-editor-strong text-foreground tabular-nums w-8 text-right shrink-0">{obj.charSpacing || 0}</span>
             </div>
           </Section>
 
@@ -726,9 +655,11 @@ export default function PropertiesPanel({
             />
           </Section>
 
-          <Section title="Effets">
-            <TextEffectPanel obj={obj} onObjectChange={onObjectChange} />
-          </Section>
+          {!isLive && (
+            <Section title="Effets">
+              <TextEffectPanel obj={obj} onObjectChange={onObjectChange} />
+            </Section>
+          )}
         </>
       )}
 
@@ -774,7 +705,12 @@ export default function PropertiesPanel({
               <IconInput
                 icon={<svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="7" x2="12" y2="7"/><polyline points="5,4 2,7 5,10"/><polyline points="9,4 12,7 9,10"/><line x1="2" y1="3" x2="2" y2="11" strokeOpacity="0.4"/><line x1="12" y1="3" x2="12" y2="11" strokeOpacity="0.4"/></svg>}
                 value={obj.type === 'circle' ? (obj.radius || 0) * 2 * S : ((obj.width * (obj.scaleX || 1)) || 0) * S}
-                onChange={(v) => { if (obj.type === 'circle') update({ radius: (v / S) / 2 }); else update({ scaleX: (v / S) / (obj.width || 1) }); }}
+                onChange={(v) => {
+                  if (obj.type === 'circle') update({ radius: (v / S) / 2 });
+                  // Textbox : la largeur fixe le retour à la ligne, sans étirer les lettres.
+                  else if (obj.type === 'textbox') update({ width: (v / S) / (obj.scaleX || 1) });
+                  else update({ scaleX: (v / S) / (obj.width || 1) });
+                }}
                 min={1} max={59994}
               />
               <IconInput

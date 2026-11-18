@@ -160,7 +160,9 @@ test('reportUrl : /rapport/{token} sans double barre', () => {
 test('index : gel sous le JWT de l’admin, sent_at et remise en état par service_role, type event_report', () => {
   assert.equal(REPORT_EMAIL_TYPE, 'event_report');
   assert.match(asAdminSource, /userDb\.rpc\('build_event_report', \{ p_event_id: eventId, p_freeze: true \}\)/);
-  assert.match(asAdminSource, /createClient\(supabaseUrl, anonKey, \{\s*global: \{ headers: \{ Authorization: authHeader \} \}/);
+  // Client au JWT de l'admin : userClient() partagé de _shared/auth.ts (clé anon + Authorization, LAB-392).
+  assert.match(asAdminSource, /import \{ userClient \} from '\.\.\/_shared\/auth\.ts';/);
+  assert.match(asAdminSource, /const userDb = userClient\(authHeader\);/);
   assert.match(asAdminSource, /saveSelection: \(ids: string\[\]\) => userDb\.from\('event_reports'\)\.update\(\{ selected_photo_ids: ids \}\)/);
   const asAdminCode = asAdminSource.replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(asAdminCode, /email_logs|service_role|SERVICE_ROLE/i);
@@ -169,7 +171,7 @@ test('index : gel sous le JWT de l’admin, sent_at et remise en état par servi
   assert.doesNotMatch(source, /createClient\(/);
   assert.match(source, /markSent: \(reportId, sentAt\) => db\.from\('event_reports'\)\.update\(\{ sent_at: sentAt \}\)/);
   assert.match(source, /type: REPORT_EMAIL_TYPE/);
-  assert.match(source, /\.eq\('owner_id', user\.id\)/);
+  assert.match(source, /requireOrgAccess\(db, user\.id, \{ kind: 'event', id: eventId \}\)/);
   assert.match(source, /isServiceRoleRequest\(authHeader, serviceRoleKey\)/);
   assert.doesNotMatch(source, /db\.rpc\('build_event_report'/);
   const block = config.split(/^\[functions\./m).find((b) => b.startsWith('send-event-report]'));

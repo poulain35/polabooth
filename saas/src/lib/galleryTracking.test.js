@@ -54,12 +54,12 @@ test('propriétaire : une seule requête par utilisateur et par code', async () 
   assert.equal(n, 3);
 });
 
-// ── Branchement dans supabase.js et PhotoGallery.jsx ────────────────────────────────────────
+// ── Branchement dans api/photos.js et PhotoGallery.jsx ──────────────────────────────────────
 
-const lib = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
+const lib = readFileSync(new URL('./api/photos.js', import.meta.url), 'utf8');
 const slice = (src, from, to) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from) + 1));
 
-test('supabase.js : trackGalleryEvent passe par la vérification propriétaire avant la RPC', () => {
+test('api/photos.js : trackGalleryEvent passe par la vérification propriétaire avant la RPC', () => {
   const fn = slice(lib, 'export function trackGalleryEvent', 'export async function fetchGalleryStats');
   assert.match(fn, /isGalleryOwner\(code\)\.then\(\(owner\) => \{\s+if \(owner\) return;\s+supabase\.rpc\('track_gallery_event'/);
   const owner = slice(lib, 'const isGalleryOwner = createGalleryOwnerCheck', 'export function trackGalleryEvent');
@@ -67,7 +67,7 @@ test('supabase.js : trackGalleryEvent passe par la vérification propriétaire a
   assert.match(owner, /\.from\('events'\)\.select\('id'\)\.eq\('access_code', code\.toUpperCase\(\)\.trim\(\)\)\.limit\(1\)/);
 });
 
-test('supabase.js : fetchPhotosByAccessCode transmet le lien du QR code à get-photos', () => {
+test('api/photos.js : fetchPhotosByAccessCode transmet le lien du QR code à get-photos', () => {
   assert.match(lib, /export async function fetchPhotosByAccessCode\(code, link = \{\}\)/);
   assert.match(lib, /fetchPhotoDownloadUrls\(code, link\)/);
   assert.match(lib, /fetch\(getPhotosUrl\(FUNCTIONS_URL, code, link\)/);

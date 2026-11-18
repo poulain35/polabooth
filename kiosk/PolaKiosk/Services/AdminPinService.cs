@@ -35,7 +35,7 @@ public class AdminPinService : IAdminPinService
     {
         _supabase = supabase;
         _log      = log;
-        _path     = Path.Combine(dataDir, "admin-pin.bin");
+        _path     = new KioskPaths(dataDir).AdminPinFile;
         _devPin   = string.IsNullOrWhiteSpace(devPin) ? null : Encoding.UTF8.GetBytes(devPin.Trim());
         _current  = Load();
     }

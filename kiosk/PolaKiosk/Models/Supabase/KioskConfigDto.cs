@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace PolaKiosk.Models.Supabase;
 
@@ -10,6 +11,18 @@ public class KioskConfigDto
 
 public class KioskConfig
 {
+    /// <summary>
+    /// Partie <c>kiosk</c> du <c>form_config</c> de l'événement (seule lecture de la borne, LAB-401).
+    /// Absente ou illisible : null, la borne prend ses réglages par défaut (accueil neutre, sans
+    /// consentement ni questionnaire).
+    /// </summary>
+    public static KioskConfig? FromFormConfig(string? formConfigJson)
+    {
+        if (string.IsNullOrWhiteSpace(formConfigJson)) return null;
+        try { return (JToken.Parse(formConfigJson) as JObject)?["kiosk"]?.ToObject<KioskConfig>(); }
+        catch (JsonException) { return null; }
+    }
+
     [JsonProperty("home")]
     public HomeConfig Home { get; set; } = new();
 
@@ -39,8 +52,63 @@ public class KioskConfig
     [JsonConverter(typeof(QuestionnaireConfigConverter))]
     public QuestionnaireConfig? Questionnaire { get; set; }
 
+    /// <summary>
+    /// Choix du cadre par l'invité (LAB-315). Null si absent ou illisible : choix coupé, sans faire
+    /// échouer le reste de la config.
+    /// </summary>
+    [JsonProperty("frame_choice")]
+    [JsonConverter(typeof(FrameChoiceConfigConverter))]
+    public FrameChoiceConfig? FrameChoice { get; set; }
+
     [JsonProperty("locale")]
     public string Locale { get; set; } = "fr";
+}
+
+/// <summary>
+/// <c>form_config.kiosk.frame_choice</c> : l'invité choisit son cadre parmi les cadres validés.
+/// <c>MaxFrames</c> limite l'éditeur du client ; la borne prend tous les cadres validés reçus.
+/// </summary>
+public class FrameChoiceConfig
+{
+    public const int DefaultMaxFrames = 2;
+
+    [JsonProperty("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonProperty("max_frames")]
+    public int MaxFrames { get; set; } = DefaultMaxFrames;
+}
+
+/// <summary>
+/// Lecture tolérante : <c>enabled</c> doit être un vrai booléen (comme la RPC), <c>max_frames</c>
+/// un entier de 2 à 4 (sinon 2). Une valeur d'une autre forme donne null, jamais une erreur.
+/// </summary>
+public sealed class FrameChoiceConfigConverter : JsonConverter<FrameChoiceConfig?>
+{
+    public override bool CanWrite => false;
+
+    public override FrameChoiceConfig? ReadJson(JsonReader reader, Type objectType,
+        FrameChoiceConfig? existingValue, bool hasExistingValue, JsonSerializer serializer)
+    {
+        JToken token;
+        try { token = JToken.Load(reader); }
+        catch { return null; }
+        return Parse(token);
+    }
+
+    public override void WriteJson(JsonWriter writer, FrameChoiceConfig? value, JsonSerializer serializer)
+        => throw new NotSupportedException();
+
+    public static FrameChoiceConfig? Parse(JToken? token)
+    {
+        if (token is not JObject obj) return null;
+        var max = obj["max_frames"] is { Type: JTokenType.Integer } m ? m.Value<long>() : FrameChoiceConfig.DefaultMaxFrames;
+        return new FrameChoiceConfig
+        {
+            Enabled   = obj["enabled"] is { Type: JTokenType.Boolean } e && e.Value<bool>(),
+            MaxFrames = max is >= 2 and <= 4 ? (int)max : FrameChoiceConfig.DefaultMaxFrames,
+        };
+    }
 }
 
 public class HomeConfig
@@ -56,6 +124,13 @@ public class HomeConfig
     /// <summary>Nom affiché sur l'accueil personnalisé (40 caractères au plus). Vide = nom de l'événement.</summary>
     [JsonProperty("display_name")]
     public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// LAB-291 : le client crée son écran d'accueil (1920×1080). Sans effet si <see cref="Personalized"/>
+    /// est faux ; l'écran n'est affiché que s'il est validé et en cache (sinon 1b / 1c).
+    /// </summary>
+    [JsonProperty("client_design")]
+    public bool ClientDesign { get; set; }
 
     /// <summary>Formats proposés à l'accueil (saas/src/lib/kioskFormats.js) : photo seule par défaut.</summary>
     [JsonProperty("buttons")]

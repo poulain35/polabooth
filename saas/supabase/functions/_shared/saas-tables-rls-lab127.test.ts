@@ -217,7 +217,7 @@ test('migration : planning_entries.org_id, défaut organisation de l\'utilisateu
 });
 
 test('front : la page Planning n\'envoie pas org_id (défaut de colonne) et ne filtre pas par organisation', () => {
-  const src = readFileSync(join(SRC, 'lib', 'supabase.js'), 'utf8');
+  const src = readFileSync(join(SRC, 'lib', 'api', 'planning.js'), 'utf8');
   const create = src.slice(src.indexOf('export async function createPlanningEntry'), src.indexOf('export async function updatePlanningEntry'));
   assert.match(create, /\.from\('planning_entries'\)\s*\.insert\(\{/);
   assert.doesNotMatch(create, /org_id/);
@@ -378,7 +378,7 @@ test('current_owner_org_id : INVOKER, jamais anon, seulement en défaut de colon
 });
 
 test('front : organisation par défaut = la plus ancienne, comme current_owner_org_id', { skip: PRIVATE_HISTORY }, () => {
-  const src = readFileSync(join(SRC, 'lib', 'supabase.js'), 'utf8');
+  const src = files(join(SRC, 'lib', 'api'), /\.js$/).map((f) => readFileSync(f, 'utf8')).join('\n');
   assert.match(src, /\.from\('organizations'\)[\s\S]{0,120}\.eq\('owner_id', session\.user\.id\)\s*\.order\('created_at'\)\s*\.limit\(1\)/);
   assert.match(sql, /ORDER BY o\.created_at, o\.id\s+LIMIT 1;/);
 });
@@ -408,14 +408,14 @@ test('planning : WITH CHECK de l\'UPDATE identique à son USING (pas de déplace
 });
 
 test('front : createPlanningEntry relit la ligne créée (SELECT accordé, défaut = organisation possédée)', () => {
-  const src = readFileSync(join(SRC, 'lib', 'supabase.js'), 'utf8');
+  const src = readFileSync(join(SRC, 'lib', 'api', 'planning.js'), 'utf8');
   const create = src.slice(src.indexOf('export async function createPlanningEntry'), src.indexOf('export async function updatePlanningEntry'));
   assert.match(create, /\.insert\(\{[\s\S]*?\}\)\s*\.select\(\)\s*\.single\(\)/);
   assert.ok(GRANTS.planning_entries.includes('SELECT'));
 });
 
 test('front : trackGalleryEvent ignore un refus, la galerie reste utilisable (RPC track_gallery_event depuis LAB-227)', () => {
-  const src = readFileSync(join(SRC, 'lib', 'supabase.js'), 'utf8');
+  const src = readFileSync(join(SRC, 'lib', 'api', 'photos.js'), 'utf8');
   const fn = src.slice(src.indexOf('export function trackGalleryEvent'), src.indexOf('export async function fetchGalleryStats'));
   assert.match(fn, /supabase\.rpc\('track_gallery_event', \{ p_code: code, p_type: type, p_count: count \}\)\.then\(\(\) => \{\}, \(\) => \{\}\);/);
   assert.doesNotMatch(fn, /\bawait\b|throw/);

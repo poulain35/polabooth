@@ -24,6 +24,9 @@ enabled = true
 enabled = true
 site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
+# Inscriptions fermées (LAB-392) : comptes créés par l'API d'administration ou par invitation
+# (install-instance.mjs pose aussi disable_signup sur le projet hébergé).
+enable_signup = false
 
 [functions.get-event]
 verify_jwt = false
@@ -42,6 +45,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.remove-background]
+verify_jwt = false
+
+# LAB-348 : client par code d'événement (?code=) ou administrateur de l'application (JWT vérifié dans la fonction).
+[functions.upload-design-image]
 verify_jwt = false
 
 [functions.set-event-name]
@@ -64,6 +71,12 @@ verify_jwt = true
 [functions.media-expiry]
 verify_jwt = true
 
+# Ménage quotidien des images des modèles qui ne servent plus (bucket designs, dossiers images/ et
+# previews/, plus de 7 jours, citées nulle part) — LAB-356 : cron quotidien (Bearer service_role,
+# rôle vérifié dans la fonction). Jamais appelée par un client.
+[functions.design-images-cleanup]
+verify_jwt = true
+
 # Webhook transactionnel Brevo (LAB-123) : Brevo n'envoie pas de JWT Supabase. Auth par ?token=
 # comparé en temps constant à BREVO_WEBHOOK_SECRET (secret absent : 500, jamais de passage silencieux).
 [functions.brevo-webhook]
@@ -79,6 +92,16 @@ verify_jwt = true
 [functions.email-sync]
 verify_jwt = true
 
+# Aperçu et email de test de l'email de la borne (LAB-300) : JWT admin, propriétaire de l'organisation
+# de l'événement vérifié dans la fonction ; le test part à l'adresse du compte connecté seulement.
+[functions.kiosk-email-preview]
+verify_jwt = true
+
+# Fichier TTF d'une police Google pour les textes vivants des écrans de la borne (LAB-331) : JWT
+# admin, propriétaire d'une organisation vérifié dans la fonction (requireAnyOrgOwner).
+[functions.google-font-file]
+verify_jwt = true
+
 # Envoi des montages PolaKiosk vers R2 (LAB-213) : appelé avec la clé anon en Bearer, comme
 # send-kiosk-photo (JWT anon vérifié par la passerelle). Licence (machine + secret) et code
 # d'accès vérifiés dans la fonction.
@@ -88,6 +111,11 @@ verify_jwt = true
 # Test d'une clé de service depuis Paramètres > Clés (open core L6a) : JWT admin, appartenance à
 # app_admins vérifiée dans la fonction (requireAppAdmin).
 [functions.test-service-key]
+verify_jwt = true
+
+# Email de test des réglages d'envoi (mise en route, LAB-345) : JWT admin, appartenance à app_admins
+# vérifiée dans la fonction (requireAppAdmin) ; destinataire = email du compte connecté.
+[functions.send-test-email]
 verify_jwt = true
 
 # URL d'envoi de l'installeur PolaKiosk vers R2 / S3 (LAB-269, Parc kiosk > Versions kiosk) : JWT

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.IO;
@@ -20,8 +21,14 @@ public class PrintService : IPrintService
     private readonly PrintGate _gate;
     private readonly IPrintLogSyncService _printLogs;
 
-    public PrintService(AppDbContext db, IPrintLogSyncService printLogs)
-        : this(db, printLogs, PrepareSystemPrint, DefaultTimeout, SharedGate) { }
+    // Formats du pilote et papier retenu : journalisés une fois par imprimante (et par papier) et par lancement.
+    private static readonly ConcurrentDictionary<string, byte> LoggedPaper = new(StringComparer.OrdinalIgnoreCase);
+
+    public PrintService(AppDbContext db, IPrintLogSyncService printLogs, IKioskLogService? log = null,
+        IMachineSettingsService? machine = null, IPrinterDriver? driver = null)
+        : this(db, printLogs,
+            request => PrepareSystemPrint(request, log, machine?.Current.PrinterDriverSettings, driver),
+            DefaultTimeout, SharedGate) { }
 
     internal PrintService(AppDbContext db, IPrintLogSyncService printLogs, Func<PrintRequest, IPrintJob> prepare,
         TimeSpan timeout, PrintGate gate)
@@ -219,14 +226,15 @@ public class PrintService : IPrintService
         await _db.SaveChangesAsync();
     }
 
-    /// <summary>Déduit le format papier (4x6 ou 2x6) depuis le format du template.</summary>
-    public static string PaperFormatFromTemplateFormat(string templateFormat) => templateFormat switch
-    {
-        "stripV" or "stripH" => "2x6",
-        _                    => "4x6",  // portrait, landscape
-    };
+    /// <summary>
+    /// Déduit le format papier (4x6 ou 2x6) depuis le format du template. Une bande part ensuite en 4x6
+    /// doublée si le réglage « bandes coupées » est enregistré (<see cref="PrintSetupPlanner"/>).
+    /// </summary>
+    public static string PaperFormatFromTemplateFormat(string templateFormat)
+        => PrintFormats.FindOrDefault(templateFormat).Paper;
 
-    private static IPrintJob PrepareSystemPrint(PrintRequest request)
+    private static IPrintJob PrepareSystemPrint(PrintRequest request, IKioskLogService? log,
+        IReadOnlyList<PrinterDriverSetting>? driverSettings, IPrinterDriver? driver)
     {
         var pd = new PrintDocument();
         try
@@ -240,33 +248,76 @@ public class PrintService : IPrintService
                     $"Imprimante \"{pd.PrinterSettings.PrinterName}\" introuvable ou non disponible. " +
                     "Vérifiez qu'une imprimante est branchée et configurée dans les paramètres.");
 
-            // Sélection du format papier selon la config
-            var paperSize = GetPaperSize(pd, request.PaperFormat);
+            var printer = pd.PrinterSettings.PrinterName;
+
+            // Réglage du pilote (LAB-334) : « bandes coupées » pour une bande, « normal » sinon. Appliqué avant
+            // le papier, l'orientation et les copies, qui sont réimposés ensuite.
+            var setup = PrintSetupPlanner.Plan(request.PaperFormat, printer, driverSettings,
+                driverSettings is { Count: > 0 } ? ReadDevModeSize(driver, printer) : 0);
+            if (setup.DevMode != null && driver != null)
+                driver.Apply(pd.PrinterSettings, pd.DefaultPageSettings, setup.DevMode);
+            foreach (var note in setup.Notes)
+                if (LoggedPaper.TryAdd(note.Key, 0))
+                    _ = note.IsWarning ? log?.LogWarningAsync("print", note.Message) : log?.LogInfoAsync("print", note.Message);
+
+            var sizes   = pd.PrinterSettings.PaperSizes.Cast<PaperSize>().ToList();
+            var options = sizes.Select(ps => new PaperOption(ps.PaperName, ps.Width, ps.Height)).ToList();
+            if (LoggedPaper.TryAdd(printer, 0))
+                foreach (var line in PaperSizeChooser.Describe(printer, options))
+                    _ = log?.LogInfoAsync("print", line);
+
+            var choice    = PaperSizeChooser.Choose(setup.PaperFormat, options);
+            var paperSize = choice != null ? sizes[choice.Index] : FallbackPaperSize(setup.PaperFormat);
             if (paperSize != null)
                 pd.DefaultPageSettings.PaperSize = paperSize;
+            if (LoggedPaper.TryAdd($"{printer}|{setup.PaperFormat}", 0))
+                LogPaperChoice(log, printer, setup.PaperFormat, choice);
+
+            // « 6x4 » vaut « 4x6 » au choix du papier : l'orientation de la page suit celle du montage,
+            // ou de la feuille doublée pour une bande (stripV : portrait, stripH : paysage).
+            if (paperSize != null)
+            {
+                var (imageWidth, imageHeight) = ReadImageSize(request.CompositePath);
+                if (setup.DoubleStrip)
+                    (imageWidth, imageHeight) = StripSheet.SheetSize(imageWidth, imageHeight);
+                pd.DefaultPageSettings.Landscape =
+                    PaperSizeChooser.NeedsLandscape(imageWidth, imageHeight, paperSize.Width, paperSize.Height);
+            }
 
             // Marges à zéro pour impression bord à bord
             pd.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
 
-            if (request.Copies > 1)
-                pd.PrinterSettings.Copies = (short)Math.Min(request.Copies, 99);
+            // Toujours imposé : un réglage enregistré peut porter un autre nombre de copies.
+            pd.PrinterSettings.Copies = (short)Math.Clamp(request.Copies, 1, 99);
 
             pd.PrintPage += (_, e) =>
             {
                 if (e.Graphics == null) return;
                 using var image = Image.FromFile(request.CompositePath);
+                var pb = e.PageBounds;
+                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                if (setup.DoubleStrip)
+                {
+                    // Bande deux fois, chacune dans sa moitié : la coupe tombe au milieu de la feuille.
+                    var placement = StripSheet.Place(image.Width, image.Height, new SheetRect(pb.X, pb.Y, pb.Width, pb.Height));
+                    foreach (var half in new[] { placement.First, placement.Second })
+                    {
+                        e.Graphics.SetClip(ToRectangle(half.Area));
+                        e.Graphics.DrawImage(image, ToRectangle(half.Image));
+                    }
+                    return;
+                }
 
                 // Remplissage « cover » : on préserve le ratio de l'image (plus d'étirement),
                 // on remplit la page et on rogne/centre le débordement. Pour un composite au
                 // format du papier (cas normal avec template) → ajustement exact, aucun rognage.
-                var pb = e.PageBounds;
                 double scale = Math.Max((double)pb.Width / image.Width, (double)pb.Height / image.Height);
                 int w = (int)Math.Round(image.Width  * scale);
                 int h = (int)Math.Round(image.Height * scale);
                 int x = pb.X + (pb.Width  - w) / 2;
                 int y = pb.Y + (pb.Height - h) / 2;
 
-                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                 e.Graphics.SetClip(pb);
                 e.Graphics.DrawImage(image, new Rectangle(x, y, w, h));
             };
@@ -280,39 +331,59 @@ public class PrintService : IPrintService
         }
     }
 
+    private static int ReadDevModeSize(IPrinterDriver? driver, string printer)
+    {
+        if (driver == null) return 0;
+        try { return driver.GetDevModeSize(printer); }
+        catch { return 0; }
+    }
+
+    private static RectangleF ToRectangle(SheetRect r) => new((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height);
+
     private sealed class SystemPrintJob(PrintDocument document) : IPrintJob
     {
         public void Send() => document.Print();
         public void Dispose() => document.Dispose();
     }
 
-    private static PaperSize? GetPaperSize(PrintDocument pd, string format)
+    /// <summary>Repli : taille personnalisée en centièmes de pouce (4x6 = 400×600, 2x6 = 200×600).</summary>
+    private static PaperSize? FallbackPaperSize(string format)
+        => PaperSizeChooser.FallbackSize(format) is { } size ? new PaperSize(format, size.Width, size.Height) : null;
+
+    private static void LogPaperChoice(IKioskLogService? log, string printer, string format, PaperChoice? choice)
     {
-        // Noms courants dans les drivers DNP DS620 / RX1-HS
-        var targetNames = format switch
+        if (log == null) return;
+        if (choice != null)
         {
-            "4x6"  => new[] { "4 x 6", "4x6", "10x15", "4\" x 6\"" },
-            "2x6"  => new[] { "2 x 6", "2x6", "2\" x 6\"", "5x15" },
-            _      => new[] { format }
-        };
-
-        foreach (PaperSize ps in pd.PrinterSettings.PaperSizes)
-        {
-            foreach (var name in targetNames)
+            var how = choice.Match switch
             {
-                if (ps.PaperName.Contains(name, StringComparison.OrdinalIgnoreCase))
-                    return ps;
-            }
+                PaperMatch.Name       => "nom exact",
+                PaperMatch.Dimensions => "dimensions",
+                _                     => "planche de plusieurs tirages du même format",
+            };
+            _ = log.LogInfoAsync("print",
+                $"Papier {format} sur « {printer} » : « {choice.Option.Name} » " +
+                $"({choice.Option.Width}×{choice.Option.Height} centièmes de pouce, choisi par {how}).");
         }
-
-        // Fallback : taille personnalisée en centièmes de pouce
-        // 4x6" = 400x600 ; 2x6" = 200x600
-        return format switch
+        else if (PaperSizeChooser.FallbackSize(format) is { } size)
         {
-            "4x6" => new PaperSize("4x6", 400, 600),
-            "2x6" => new PaperSize("2x6", 200, 600),
-            _     => null
-        };
+            _ = log.LogWarningAsync("print",
+                $"Papier {format} introuvable sur « {printer} » : taille personnalisée {size.Width}×{size.Height} " +
+                "centièmes de pouce envoyée. Un pilote qui ne l'accepte pas imprime sur son format par défaut " +
+                "(photo agrandie et rognée). Choisir le bon papier dans les préférences de l'imprimante.");
+        }
+        else
+        {
+            _ = log.LogWarningAsync("print",
+                $"Papier « {format} » inconnu : format par défaut du pilote « {printer} ».");
+        }
+    }
+
+    private static (int Width, int Height) ReadImageSize(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var image  = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: false);
+        return (image.Width, image.Height);
     }
 }
 

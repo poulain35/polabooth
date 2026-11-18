@@ -49,37 +49,34 @@ export function hasPublicFeature(list, id) {
 
 /**
  * Fonctionnalité dont dépend chaque entrée du menu admin (clé = `to` de MODULES dans AdminLayout).
- * Socle (core / templates) : toujours visible.
+ * Socle (core / templates) : toujours visible. Un tableau = l'entrée s'affiche si l'une des
+ * fonctionnalités est disponible (« Demandes et devis » : booking ou prospects).
  */
 export const NAV_FEATURES = {
-  dashboard: 'core',
-  stats: 'guest_form',             // statistiques du questionnaire (event_form_responses, cf. spec)
+  aujourdhui: 'core',
+  ventes: ['booking', 'prospects'],
   events: 'core',
-  leads: 'booking',
-  prospects: 'prospects',
-  planning: 'planning',
-  emails: 'core',
-  templates: 'templates',
-  decorations: 'templates',
-  fonts: 'templates',
-  photos: 'gallery',
-  audio: 'audio_guestbook',
-  licenses: 'core',
-  settings: 'core',
-  'settings/features': 'core',
-  'settings/keys': 'core',
-  assistant: 'help',
+  bornes: 'core',
+  reglages: 'core',
+  templates: 'templates',          // Bibliothèque (modèles, décorations, polices)
+  aide: 'help',
 };
 
-/** Fonctionnalité d'une entrée du menu ; entrée inconnue = socle (toujours visible). */
+/** Fonctionnalité(s) d'une entrée du menu ; entrée inconnue = socle (toujours visible). */
 export function navItemFeature(to) {
   return NAV_FEATURES[to] ?? 'core';
+}
+
+/** L'entrée `to` est-elle visible ? (une seule de ses fonctionnalités disponible suffit) */
+export function navItemAvailable(to, isAvailable) {
+  const feature = navItemFeature(to);
+  return Array.isArray(feature) ? feature.some((id) => isAvailable(id)) : isAvailable(feature);
 }
 
 /** Retire du menu les entrées dont la fonctionnalité est inactive, puis les groupes vides. */
 export function filterNav(modules, isAvailable) {
   return modules
-    .map((module) => ({ ...module, items: module.items.filter((item) => isAvailable(navItemFeature(item.to))) }))
+    .map((module) => ({ ...module, items: module.items.filter((item) => navItemAvailable(item.to, isAvailable)) }))
     .filter((module) => module.items.length > 0);
 }
 

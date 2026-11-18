@@ -1,0 +1,49 @@
+<UserControl x:Class="PolaKiosk.Views.DesignedScreen"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Écran composé par l'admin (LAB-297) : surface de 1920×1080 dans un Viewbox UniformToFill
+         centré. Le fond, les boutons, les textes vivants, les emplacements et les zones de toucher
+         sont donc toujours alignés, en 16:9 comme en 16:10 (le surplus est coupé à parts égales).
+         Les éléments sont posés par le code (DesignedScreen.xaml.cs), d'après le plan. Ce contrôle
+         ne dépend d'aucune ressource de App.xaml. -->
+    <UserControl.Resources>
+        <!-- Bouton : l'image seule, enfoncée (0,97) au toucher. Toute la boîte est touchable. -->
+        <Style x:Key="DesignedButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Viewbox x:Name="FitBox" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Canvas x:Name="Surface" Width="1920" Height="1080" ClipToBounds="True">
+            <Image x:Name="Underlay" Width="1920" Height="1080" Stretch="UniformToFill" IsHitTestVisible="False"/>
+            <Image x:Name="BackgroundImage" Width="1920" Height="1080" Stretch="Fill" IsHitTestVisible="False"/>
+            <Canvas x:Name="Items" Width="1920" Height="1080"/>
+        </Canvas>
+    </Viewbox>
+</UserControl>

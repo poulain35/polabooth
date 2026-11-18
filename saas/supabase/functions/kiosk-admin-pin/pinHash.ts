@@ -9,7 +9,7 @@ export const isValidPin = (pin: unknown): pin is string => typeof pin === 'strin
 
 const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 
-export async function hashPin(pin: string, salt?: Uint8Array, iterations = PIN_ITERATIONS): Promise<string> {
+export async function hashPin(pin: string, salt?: Uint8Array<ArrayBuffer>, iterations = PIN_ITERATIONS): Promise<string> {
   if (!isValidPin(pin)) throw new Error('PIN invalide : 4 à 8 chiffres');
   const s = salt ?? crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);

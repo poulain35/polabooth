@@ -18,7 +18,7 @@ const CARD = 'rounded-pola bg-pf-surface px-6 py-5 print:bg-white print:border p
 const DAY_GRID = { 2: 'md:grid-cols-2 print:grid-cols-2', 3: 'md:grid-cols-3 print:grid-cols-3' };
 
 // @page ne peut pas être limité à une page de l'application : la règle n'existe que tant que le bilan est affiché.
-export const REPORT_PRINT_CSS = `@media print {
+const REPORT_PRINT_CSS = `@media print {
   @page { size: A4 portrait; margin: 12mm 13mm; }
   html, body { background: #fff !important; }
   .pola-report .print-exact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

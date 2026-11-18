@@ -1,6 +1,7 @@
 <Application x:Class="PolaKiosk.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:PolaKiosk"
              xmlns:converters="clr-namespace:PolaKiosk.Converters">
     <Application.Resources>
@@ -19,6 +20,7 @@
         <Color x:Key="KioskMintColor">#D6E8E0</Color>       <!-- arche, boutons secondaires -->
         <Color x:Key="KioskBlushColor">#EBC9C3</Color>      <!-- accents, anneau du compte à rebours -->
         <Color x:Key="KioskBrownColor">#6E5140</Color>      <!-- textes secondaires -->
+        <Color x:Key="KioskSandColor">#D9CDB8</Color>       <!-- contour des tuiles de format (accueil) -->
         <Color x:Key="KioskDarkColor">#1B241F</Color>       <!-- fond sombre (prise de vue, admin) -->
 
         <!-- Pinceaux -->
@@ -30,6 +32,7 @@
         <SolidColorBrush x:Key="KioskMintBrush"      Color="{StaticResource KioskMintColor}"/>
         <SolidColorBrush x:Key="KioskBlushBrush"     Color="{StaticResource KioskBlushColor}"/>
         <SolidColorBrush x:Key="KioskBrownBrush"     Color="{StaticResource KioskBrownColor}"/>
+        <SolidColorBrush x:Key="KioskSandBrush"      Color="{StaticResource KioskSandColor}"/>
         <SolidColorBrush x:Key="KioskDarkBrush"      Color="{StaticResource KioskDarkColor}"/>
 
         <!-- Dérivés : voiles, contours, textes sur fond sombre, états -->
@@ -49,14 +52,30 @@
         <x:Static x:Key="KioskTitleFont" Member="local:KioskFonts.Title"/> <!-- Fraunces, titres, SemiBold -->
         <x:Static x:Key="KioskTextFont"  Member="local:KioskFonts.Text"/>  <!-- DM Sans, textes -->
 
+        <!-- Tailles de texte. Dans un ControlTemplate ou un DataTemplate d'une vue, les lire en
+             DynamicResource (type valeur, voir CLAUDE.md). -->
+        <sys:Double x:Key="KioskLargeTextSize">22</sys:Double> <!-- texte d'appel, boutons principaux -->
+
         <!-- Arrondis -->
         <CornerRadius x:Key="KioskButtonRadius">24</CornerRadius>
         <CornerRadius x:Key="KioskTileRadius">28</CornerRadius>
+        <!-- Dans un ControlTemplate ou un DataTemplate d'une vue, lire ces rayons en DynamicResource :
+             une StaticResource de type valeur venue d'App y fait planter WPF au rendu. -->
         <!-- Pas d'arrondi « 999 » pour les pastilles : au-delà de la moitié de la hauteur, WPF
              dessine une ellipse (LAB-256, LAB-258). Une pastille prend la moitié de sa hauteur. -->
 
         <!-- Ombre douce des cartes et boutons icônes -->
         <DropShadowEffect x:Key="KioskSoftShadow" Color="#24412F" Opacity="0.10" BlurRadius="28" ShadowDepth="4" Direction="270"/>
+
+        <!-- Ombre du tirage posé sur l'écran (0 24px 48px, vert forêt 22 %) : accueil, partage -->
+        <DropShadowEffect x:Key="KioskPrintShadow" Color="{StaticResource KioskForestColor}"
+                          Opacity="0.22" BlurRadius="48" ShadowDepth="24" Direction="270"/>
+
+        <!-- Icônes partagées (grille 24 × 24). Appareil photo au trait (Stroke) ; cadenas et
+             chevron pleins (Fill). Les icônes d'un seul écran restent dans sa vue. -->
+        <Geometry x:Key="KioskCameraIcon">M4 8h3l2-3h6l2 3h3v11H4z M8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0z</Geometry>
+        <Geometry x:Key="KioskLockIcon">M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3z</Geometry>
+        <Geometry x:Key="KioskChevronLeftIcon">M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z</Geometry>
 
         <!-- ── Textes ─────────────────────────────────────────────────────────── -->
         <Style x:Key="KioskTitleText" TargetType="TextBlock">
@@ -78,7 +97,7 @@
         <Style x:Key="KioskPrimaryButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontFamily" Value="{StaticResource KioskTextFont}"/>
-            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontSize" Value="{StaticResource KioskLargeTextSize}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource KioskCreamBrush}"/>
             <Setter Property="Background" Value="{StaticResource KioskForestBrush}"/>
@@ -156,7 +175,7 @@
                                 CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
                                 Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z"
+                                <Path Data="{StaticResource KioskChevronLeftIcon}"
                                       Fill="{TemplateBinding Foreground}" Stretch="Uniform"
                                       Width="10" Height="16" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                 <ContentPresenter VerticalAlignment="Center"/>
@@ -238,17 +257,14 @@
             </Setter>
         </Style>
 
-        <!-- Carré icône (actions avec label sous le bouton, ex. écran partage) -->
-        <Style x:Key="KioskIconSquare" TargetType="Border">
-            <Setter Property="Width"  Value="84"/>
-            <Setter Property="Height" Value="84"/>
+        <!-- Base des tuiles touchables sur papier (tuiles de format de l'accueil, cartes du choix
+             du cadre) : ni focus ni tabulation, fond papier lu par le modèle (TemplateBinding).
+             Chaque tuile garde son modèle (contenu, réaction au toucher) et son rayon
+             KioskTileRadius, lu en DynamicResource dans le modèle. -->
+        <Style x:Key="KioskTileButton" TargetType="Button">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
             <Setter Property="Background" Value="{StaticResource KioskPaperBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource KioskForestLineBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="CornerRadius" Value="{StaticResource KioskButtonRadius}"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="Effect" Value="{StaticResource KioskSoftShadow}"/>
         </Style>
 
         <!-- ── Surfaces ───────────────────────────────────────────────────────── -->

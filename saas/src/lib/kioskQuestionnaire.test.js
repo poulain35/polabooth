@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildDefaultQuestionnaire, withQuestionnaireDefaults, cleanQuestionnaire, validateKioskQuestionnaire,
-  DEFAULT_HOME_NOTICE, CONTROLLER_NAME_REQUIRED, QUESTIONNAIRE_LIMITS,
+  CONTROLLER_NAME_REQUIRED, QUESTIONNAIRE_LIMITS,
 } from './kioskQuestionnaire.js';
 import { KIOSK_QUESTION_TYPES, QUESTION_TYPES } from '../utils/formQuestions.js';
 
@@ -18,8 +18,7 @@ test('défauts : désactivé, obligatoire pour la photo, textes de la spec', () 
   const d = buildDefaultQuestionnaire();
   assert.equal(d.enabled, false);
   assert.equal(d.required_for_photo, true);
-  assert.equal(d.home_notice, DEFAULT_HOME_NOTICE);
-  assert.equal(d.home_notice, 'Pour recevoir votre photo, quelques questions vous seront posées.');
+  assert.ok(!('home_notice' in d));
   assert.match(d.intro, /^Quelques questions rapides pendant que votre photo se prépare/);
   assert.match(d.notice, /1 mois après l'événement/);
   assert.equal(d.cancel_label, 'Annuler');
@@ -35,12 +34,14 @@ test('types de la borne = types du formulaire + case à cocher', () => {
 
 test('fusion : clés abandonnées et réglages de la case de prospection retirés', () => {
   const merged = withQuestionnaireDefaults({
-    enabled: true, allow_skip: true, retention_days: 90, required_for_photo: false,
+    enabled: true, allow_skip: true, retention_days: 90, home_notice: 'Ancienne mention', required_for_photo: false,
     marketing_consent: { enabled: false, required: true, checked: true, default_checked: true },
     questions: [],
   });
   assert.ok(!('allow_skip' in merged));
   assert.ok(!('retention_days' in merged));
+  assert.ok(!('home_notice' in merged));
+  assert.ok(!('home_notice' in cleanQuestionnaire({ home_notice: 'Ancienne mention' })));
   assert.equal(merged.required_for_photo, false);
   assert.deepEqual(merged.marketing_consent, { enabled: false, label: buildDefaultQuestionnaire().marketing_consent.label });
   assert.deepEqual(merged.questions, []);
@@ -63,7 +64,7 @@ test('nettoyage : options vides retirées, options supprimées hors choix', () =
 
 test('questionnaire désactivé : jamais bloquant', () => {
   assert.deepEqual(validateKioskQuestionnaire(buildDefaultQuestionnaire()), []);
-  assert.deepEqual(validateKioskQuestionnaire({ enabled: false, questions: [], home_notice: '' }), []);
+  assert.deepEqual(validateKioskQuestionnaire({ enabled: false, questions: [] }), []);
 });
 
 test('config valide par défaut une fois le responsable renseigné', () => {
@@ -100,12 +101,6 @@ test('les deux modes : aucune case à cocher obligatoire', () => {
   assert.deepEqual(codes(valid({ questions, required_for_photo: false })), ['required_checkbox']);
   const ok = [questions[0], { ...questions[1], required: false }];
   assert.deepEqual(codes(valid({ questions: ok, required_for_photo: false })), []);
-});
-
-test('mode obligatoire : mention d’accueil non vide (facultative sinon)', () => {
-  assert.ok(codes(valid({ home_notice: '   ' })).includes('home_notice_empty'));
-  assert.deepEqual(codes(valid({ home_notice: '', required_for_photo: false })), []);
-  assert.ok(codes(valid({ home_notice: 'x'.repeat(121) })).includes('home_notice_length'));
 });
 
 test('limites : 8 questions, 12 options, 120 caractères', () => {

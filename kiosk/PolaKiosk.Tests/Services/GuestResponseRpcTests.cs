@@ -35,7 +35,7 @@ public class GuestResponseRpcTests
     [Fact]
     public void Body_uses_exactly_the_sql_argument_names()
     {
-        var body = Parse(SupabaseService.BuildGuestResponseBody(Record(), "MACHINE-1", "s3cret"));
+        var body = Parse(SupabaseRpcBodies.BuildGuestResponseBody(Record(), "MACHINE-1", "s3cret"));
 
         body.Properties().Select(p => p.Name).Should().BeEquivalentTo(
             "p_code", "p_event_id", "p_machine_id", "p_secret", "p_response_id", "p_answered_at", "p_answers",
@@ -65,7 +65,7 @@ public class GuestResponseRpcTests
     [InlineData("<html>Bad Gateway</html>", "HTTP 400")]
     [InlineData("", "HTTP 400")]
     public void Error_code_never_carries_the_server_message(string body, string expected)
-        => SupabaseService.ParseRpcErrorCode(HttpStatusCode.BadRequest, body).Should().Be(expected);
+        => SupabaseRpcResponses.ParseRpcErrorCode(HttpStatusCode.BadRequest, body).Should().Be(expected);
 
     [Fact]
     public async Task Accepted_and_refused_responses_are_told_apart()

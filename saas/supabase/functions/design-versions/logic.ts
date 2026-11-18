@@ -1,18 +1,22 @@
 // Historique des versions de design (LAB-115), sans import Deno/esm.sh : testable sous `node --test`.
 // La table design_versions n'est plus accessible à anon : l'éditeur /e/:code (client anon comme admin
 // connecté) passe par cette fonction, qui exige le code d'accès et ne touche qu'aux versions de
-// l'événement de ce code.
+// l'événement de ce code. Chaque design (kind, LAB-289 : 'print' = modèle photo, 'home' = écran
+// d'accueil) a son propre historique, et chaque cadre du modèle photo aussi (slot, LAB-312).
 
-export const DESIGN_FORMATS = ['portrait', 'landscape', 'stripV', 'stripH'] as const;
+import {
+  type DesignKind, formatAllowedForKind, parseDesignKind, parseDesignSlot, slotAllowedForKind,
+} from '../_shared/design-kind.ts';
+
 export const MAX_VERSIONS_LISTED = 20;
 export const MAX_LABEL_LENGTH = 100;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type VersionRequest =
-  | { action: 'list'; code: string }
-  | { action: 'get'; code: string; versionId: string }
-  | { action: 'save'; code: string; canvasJson: Record<string, unknown>; format: string; label: string | null };
+  | { action: 'list'; code: string; kind: DesignKind; slot: number }
+  | { action: 'get'; code: string; kind: DesignKind; slot: number; versionId: string }
+  | { action: 'save'; code: string; kind: DesignKind; slot: number; canvasJson: Record<string, unknown>; format: string; label: string | null };
 
 export type Parsed = { ok: true; request: VersionRequest } | { ok: false; error: string };
 
@@ -23,23 +27,27 @@ export function parseVersionRequest(body: unknown): Parsed {
   if (!isObject(body)) return { ok: false, error: 'Body JSON invalide' };
   const code = typeof body.code === 'string' ? body.code.toUpperCase().trim() : '';
   if (!code) return { ok: false, error: 'code requis' };
+  const kind = parseDesignKind(body.kind);
+  if (!kind) return { ok: false, error: 'kind invalide (print ou home)' };
+  const slot = parseDesignSlot(body.slot);
+  if (slot === null || !slotAllowedForKind(kind, slot)) return { ok: false, error: 'slot invalide' };
 
   switch (body.action) {
     case 'list':
-      return { ok: true, request: { action: 'list', code } };
+      return { ok: true, request: { action: 'list', code, kind, slot } };
 
     case 'get': {
       const versionId = typeof body.version_id === 'string' ? body.version_id.trim() : '';
       if (!UUID.test(versionId)) return { ok: false, error: 'version_id invalide' };
-      return { ok: true, request: { action: 'get', code, versionId } };
+      return { ok: true, request: { action: 'get', code, kind, slot, versionId } };
     }
 
     case 'save': {
       if (!isObject(body.canvas_json)) return { ok: false, error: 'canvas_json requis' };
       const format = typeof body.format === 'string' ? body.format : '';
-      if (!(DESIGN_FORMATS as readonly string[]).includes(format)) return { ok: false, error: 'format invalide' };
+      if (!formatAllowedForKind(kind, format)) return { ok: false, error: 'format invalide' };
       const label = typeof body.label === 'string' ? body.label.trim().slice(0, MAX_LABEL_LENGTH) : '';
-      return { ok: true, request: { action: 'save', code, canvasJson: body.canvas_json, format, label: label || null } };
+      return { ok: true, request: { action: 'save', code, kind, slot, canvasJson: body.canvas_json, format, label: label || null } };
     }
 
     default:
@@ -66,6 +74,8 @@ export async function runVersionRequest(db: Db, eventId: string, request: Versio
       .from('design_versions')
       .select(LIST_COLUMNS)
       .eq('event_id', eventId)
+      .eq('kind', request.kind)
+      .eq('slot', request.slot)
       .order('created_at', { ascending: false })
       .limit(MAX_VERSIONS_LISTED);
     if (error) return failure('list', error);
@@ -79,6 +89,8 @@ export async function runVersionRequest(db: Db, eventId: string, request: Versio
       .select(FULL_COLUMNS)
       .eq('id', request.versionId)
       .eq('event_id', eventId)
+      .eq('kind', request.kind)
+      .eq('slot', request.slot)
       .maybeSingle();
     if (error) return failure('get', error);
     if (!data) return { status: 404, body: { error: 'Version introuvable' } };
@@ -87,7 +99,10 @@ export async function runVersionRequest(db: Db, eventId: string, request: Versio
 
   const { data, error } = await db
     .from('design_versions')
-    .insert({ event_id: eventId, canvas_json: request.canvasJson, format: request.format, label: request.label })
+    .insert({
+      event_id: eventId, kind: request.kind, slot: request.slot,
+      canvas_json: request.canvasJson, format: request.format, label: request.label,
+    })
     .select(LIST_COLUMNS)
     .single();
   if (error || !data) return failure('save', error);

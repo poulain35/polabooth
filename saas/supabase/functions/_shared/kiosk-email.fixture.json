@@ -1,0 +1,181 @@
+{
+  "$comment": "Email de la borne avant LAB-300 (send-kiosk-photo), capturé avant modification : sans réglage, le HTML doit rester identique octet pour octet. brandedHtml : après applyEmailBrand(brandRow).",
+  "brandRow": {
+    "name": "org",
+    "contact_company": "Studio Exemple",
+    "contact_address": "1 rue de la Paix\n75000 Paris",
+    "business_profile": {
+      "email_logo_url": "https://cdn.example.com/logo.png",
+      "website_url": "https://studio.example/",
+      "email_legal_footer": "Studio Exemple SAS",
+      "email_reviews_text": "**120 avis** · 4,9/5",
+      "social_facebook_url": "https://facebook.com/studio"
+    }
+  },
+  "cases": [
+    {
+      "id": "photo-defaut",
+      "event": {
+        "name": "Mariage Camille & Hugo",
+        "access_code": "K7M2PQ",
+        "start_date": "2026-06-13T22:30:00+00:00",
+        "client_name": "Camille & Hugo"
+      },
+      "emailCfg": {},
+      "identity": {
+        "companyName": "Studio Exemple",
+        "senderEmail": "noreply@studio.example",
+        "senderName": "Studio Exemple"
+      },
+      "photo": {
+        "id": "7c1d2e3f-0000-4000-8000-0000000000aa",
+        "media_type": "photo",
+        "thumbnail_url": null
+      },
+      "photoUrl": "https://photos.example.com/photos/mariage/seance/composite.jpg",
+      "appUrl": "https://app.example.com",
+      "expected": {
+        "subject": "Vos photos — Mariage Camille & Hugo",
+        "html": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>📷 Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <!--brand:header-->\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">📷 Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">Voir ma photo →</a></td></tr></table>\n    <img src=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" alt=\"Votre photo\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\">\n      </td></tr>\n      <!--brand:footer-->\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">%%BRAND_LEGAL%%</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>",
+        "sender": {
+          "email": "noreply@studio.example",
+          "name": "Studio Exemple"
+        },
+        "brandedHtml": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>📷 Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"300\" alt=\"Studio Exemple\" class=\"pola-logo\" style=\"display:block;width:300px;max-width:100%;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">📷 Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">Voir ma photo →</a></td></tr></table>\n    <img src=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" alt=\"Votre photo\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\">\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 0;font-family:Roboto, Arial, sans-serif;font-size:14px;line-height:1.5;color:#26081A;\">\n        <p style=\"margin:0 0 16px;\"><span style=\"color:#fde633;\">★★★★★</span> <strong>120 avis</strong> · 4,9/5</p>\n        <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:0 auto;\"><tr><td style=\"padding:0 8px;\"><a href=\"https://facebook.com/studio\" target=\"_blank\"><img src=\"https://creative-assets.mailinblue.com/editor/social-icons/rounded_bw/facebook_32px.png\" width=\"32\" height=\"32\" alt=\"Facebook\" style=\"display:block;border:0;width:32px;height:32px;\"></a></td></tr></table>\n        <p style=\"margin:16px 0 0;font-size:12px;\"><strong>Studio Exemple</strong><br>1 rue de la Paix, 75000 Paris</p>\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"95\" alt=\"Studio Exemple\" style=\"display:block;margin:16px auto 0;width:95px;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">Studio Exemple SAS</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>"
+      }
+    },
+    {
+      "id": "gif-defaut",
+      "event": {
+        "name": "Mariage Camille & Hugo",
+        "access_code": "K7M2PQ",
+        "start_date": "2026-06-13T22:30:00+00:00",
+        "client_name": "Camille & Hugo"
+      },
+      "emailCfg": {
+        "enabled": true,
+        "subject": "",
+        "message": "",
+        "sender_name": "",
+        "sender_email": ""
+      },
+      "identity": {
+        "companyName": "Studio Exemple",
+        "senderEmail": "noreply@studio.example",
+        "senderName": "Studio Exemple"
+      },
+      "photo": {
+        "id": "7c1d2e3f-0000-4000-8000-0000000000aa",
+        "media_type": "gif",
+        "thumbnail_url": "https://photos.example.com/photos/mariage/seance/poster.jpg"
+      },
+      "photoUrl": "https://photos.example.com/photos/mariage/seance/animation.mp4",
+      "appUrl": "https://app.example.com",
+      "expected": {
+        "subject": "Vos photos — Mariage Camille & Hugo",
+        "html": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>🎞️ Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <!--brand:header-->\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">🎞️ Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">▶ Voir mon animation</a></td></tr></table>\n    <a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:block;text-decoration:none;\"><img src=\"https://photos.example.com/photos/mariage/seance/poster.jpg\" alt=\"Aperçu de votre animation\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\"></a>\n      </td></tr>\n      <!--brand:footer-->\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">%%BRAND_LEGAL%%</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>",
+        "sender": {
+          "email": "noreply@studio.example",
+          "name": "Studio Exemple"
+        },
+        "brandedHtml": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>🎞️ Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"300\" alt=\"Studio Exemple\" class=\"pola-logo\" style=\"display:block;width:300px;max-width:100%;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">🎞️ Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">▶ Voir mon animation</a></td></tr></table>\n    <a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:block;text-decoration:none;\"><img src=\"https://photos.example.com/photos/mariage/seance/poster.jpg\" alt=\"Aperçu de votre animation\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\"></a>\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 0;font-family:Roboto, Arial, sans-serif;font-size:14px;line-height:1.5;color:#26081A;\">\n        <p style=\"margin:0 0 16px;\"><span style=\"color:#fde633;\">★★★★★</span> <strong>120 avis</strong> · 4,9/5</p>\n        <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:0 auto;\"><tr><td style=\"padding:0 8px;\"><a href=\"https://facebook.com/studio\" target=\"_blank\"><img src=\"https://creative-assets.mailinblue.com/editor/social-icons/rounded_bw/facebook_32px.png\" width=\"32\" height=\"32\" alt=\"Facebook\" style=\"display:block;border:0;width:32px;height:32px;\"></a></td></tr></table>\n        <p style=\"margin:16px 0 0;font-size:12px;\"><strong>Studio Exemple</strong><br>1 rue de la Paix, 75000 Paris</p>\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"95\" alt=\"Studio Exemple\" style=\"display:block;margin:16px auto 0;width:95px;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">Studio Exemple SAS</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>"
+      }
+    },
+    {
+      "id": "boomerang-sans-affiche",
+      "event": {
+        "name": "Mariage Camille & Hugo",
+        "access_code": null,
+        "start_date": "2026-06-13T22:30:00+00:00",
+        "client_name": "Camille & Hugo"
+      },
+      "emailCfg": {},
+      "identity": {
+        "companyName": "Studio Exemple",
+        "senderEmail": "noreply@studio.example",
+        "senderName": "Studio Exemple"
+      },
+      "photo": {
+        "id": "7c1d2e3f-0000-4000-8000-0000000000aa",
+        "media_type": "boomerang",
+        "thumbnail_url": null
+      },
+      "photoUrl": "https://photos.example.com/photos/mariage/seance/animation.mp4",
+      "appUrl": "https://app.example.com",
+      "expected": {
+        "subject": "Vos photos — Mariage Camille & Hugo",
+        "html": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>🎞️ Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <!--brand:header-->\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">🎞️ Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://photos.example.com/photos/mariage/seance/animation.mp4\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">▶ Voir mon animation</a></td></tr></table>\n    \n      </td></tr>\n      <!--brand:footer-->\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">%%BRAND_LEGAL%%</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>",
+        "sender": {
+          "email": "noreply@studio.example",
+          "name": "Studio Exemple"
+        }
+      }
+    },
+    {
+      "id": "video",
+      "event": {
+        "name": "Mariage Camille & Hugo",
+        "access_code": "K7M2PQ",
+        "start_date": "2026-06-13T22:30:00+00:00",
+        "client_name": "Camille & Hugo"
+      },
+      "emailCfg": {},
+      "identity": {
+        "companyName": "Studio Exemple",
+        "senderEmail": "noreply@studio.example",
+        "senderName": "Studio Exemple"
+      },
+      "photo": {
+        "id": "7c1d2e3f-0000-4000-8000-0000000000aa",
+        "media_type": "video",
+        "thumbnail_url": "https://photos.example.com/photos/mariage/seance/poster.jpg"
+      },
+      "photoUrl": "https://photos.example.com/photos/mariage/seance/animation.mp4",
+      "appUrl": "https://app.example.com",
+      "expected": {
+        "subject": "Vos photos — Mariage Camille & Hugo",
+        "html": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>🎞️ Mariage Camille &amp; Hugo</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <!--brand:header-->\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">🎞️ Mariage Camille &amp; Hugo</h1>\n\n    <p style=\"margin:0;\">Bonjour,<br><br>Retrouvez votre photo en cliquant sur le lien ci-dessous.<br><br>Bonne fête !<br>Studio Exemple</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">▶ Voir ma vidéo</a></td></tr></table>\n    <a href=\"https://app.example.com/photos/K7M2PQ?photo=7c1d2e3f-0000-4000-8000-0000000000aa\" target=\"_blank\" style=\"display:block;text-decoration:none;\"><img src=\"https://photos.example.com/photos/mariage/seance/poster.jpg\" alt=\"Aperçu de votre animation\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\"></a>\n      </td></tr>\n      <!--brand:footer-->\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">%%BRAND_LEGAL%%</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>",
+        "sender": {
+          "email": "noreply@studio.example",
+          "name": "Studio Exemple"
+        }
+      }
+    },
+    {
+      "id": "photo-texte-admin",
+      "event": {
+        "name": "L'été \"chic\" <Soirée>",
+        "access_code": "K7M2PQ",
+        "start_date": "2026-06-13T22:30:00+00:00",
+        "client_name": "Camille & Hugo"
+      },
+      "emailCfg": {
+        "subject": "Photos de {event_name}",
+        "message": "Bonjour <b>{event_name}</b>,\nVotre lien : {photo_url}\n\nÀ bientôt",
+        "sender_name": "Camille",
+        "sender_email": "camille@exemple.fr"
+      },
+      "identity": {
+        "companyName": "",
+        "senderEmail": "noreply@studio.example",
+        "senderName": ""
+      },
+      "photo": {
+        "id": "7c1d2e3f-0000-4000-8000-0000000000aa",
+        "media_type": "photo",
+        "thumbnail_url": null
+      },
+      "photoUrl": "https://photos.example.com/photos/mariage/seance/composite.jpg",
+      "appUrl": "https://app.example.com",
+      "expected": {
+        "subject": "Photos de L'été \"chic\" <Soirée>",
+        "html": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>📷 L&#39;été &quot;chic&quot; &lt;Soirée&gt;</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <!--brand:header-->\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">📷 L&#39;été &quot;chic&quot; &lt;Soirée&gt;</h1>\n\n    <p style=\"margin:0;\">Bonjour &lt;b&gt;L&#39;été &quot;chic&quot; &lt;Soirée&gt;&lt;/b&gt;,<br>Votre lien : https://photos.example.com/photos/mariage/seance/composite.jpg<br><br>À bientôt</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">Voir ma photo →</a></td></tr></table>\n    <img src=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" alt=\"Votre photo\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\">\n      </td></tr>\n      <!--brand:footer-->\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">%%BRAND_LEGAL%%</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>",
+        "sender": {
+          "email": "camille@exemple.fr",
+          "name": "Camille"
+        },
+        "brandedHtml": "<!DOCTYPE html>\n<html lang=\"fr\" xmlns=\"http://www.w3.org/1999/xhtml\"><head>\n<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n<title>📷 L&#39;été &quot;chic&quot; &lt;Soirée&gt;</title>\n<!--[if !mso]><!--><style type=\"text/css\">@import url(\"https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Roboto:wght@400;700&display=swap\");</style><!--<![endif]-->\n<style type=\"text/css\">\n  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }\n  @media only screen and (max-width:600px) {\n    .pola-container { width:100% !important; max-width:100% !important; }\n    .pola-pad { padding-left:15px !important; padding-right:15px !important; }\n    .pola-card { padding:24px 15px !important; }\n    .pola-logo { width:240px !important; }\n  }\n</style>\n</head>\n<body style=\"margin:0;padding:0;background:#fffcf7;\">\n<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"#fffcf7\" style=\"background:#fffcf7;\">\n  <tr><td align=\"center\">\n    <table role=\"presentation\" class=\"pola-container\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"width:600px;max-width:600px;\">\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 24px;\">\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"300\" alt=\"Studio Exemple\" class=\"pola-logo\" style=\"display:block;width:300px;max-width:100%;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td class=\"pola-card\" bgcolor=\"#ffffff\" style=\"background:#ffffff;border-radius:8px;padding:40px 32px;font-family:Roboto, Arial, sans-serif;font-size:16px;line-height:1.5;color:#26081A;\">\n        <h1 style=\"margin:0 0 24px;font-family:Fraunces, Arial, sans-serif;font-weight:600;font-size:28px;line-height:1.25;color:#4f1337;\">📷 L&#39;été &quot;chic&quot; &lt;Soirée&gt;</h1>\n\n    <p style=\"margin:0;\">Bonjour &lt;b&gt;L&#39;été &quot;chic&quot; &lt;Soirée&gt;&lt;/b&gt;,<br>Votre lien : https://photos.example.com/photos/mariage/seance/composite.jpg<br><br>À bientôt</p>\n    <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:24px auto;\"><tr><td bgcolor=\"#4f1337\" style=\"background:#4f1337;border-radius:8px;\"><a href=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" target=\"_blank\" style=\"display:inline-block;padding:14px 28px;font-family:Roboto, Arial, sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;\">Voir ma photo →</a></td></tr></table>\n    <img src=\"https://photos.example.com/photos/mariage/seance/composite.jpg\" alt=\"Votre photo\" width=\"536\" style=\"display:block;width:100%;max-width:536px;height:auto;margin:0 auto;border:1px solid #efe6dc;border-radius:8px;\">\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:32px 32px 0;font-family:Roboto, Arial, sans-serif;font-size:14px;line-height:1.5;color:#26081A;\">\n        <p style=\"margin:0 0 16px;\"><span style=\"color:#fde633;\">★★★★★</span> <strong>120 avis</strong> · 4,9/5</p>\n        <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\" style=\"margin:0 auto;\"><tr><td style=\"padding:0 8px;\"><a href=\"https://facebook.com/studio\" target=\"_blank\"><img src=\"https://creative-assets.mailinblue.com/editor/social-icons/rounded_bw/facebook_32px.png\" width=\"32\" height=\"32\" alt=\"Facebook\" style=\"display:block;border:0;width:32px;height:32px;\"></a></td></tr></table>\n        <p style=\"margin:16px 0 0;font-size:12px;\"><strong>Studio Exemple</strong><br>1 rue de la Paix, 75000 Paris</p>\n        <a href=\"https://studio.example/\" target=\"_blank\"><img src=\"https://cdn.example.com/logo.png\" width=\"95\" alt=\"Studio Exemple\" style=\"display:block;margin:16px auto 0;width:95px;height:auto;border:0;\"></a>\n      </td></tr>\n      <tr><td align=\"center\" class=\"pola-pad\" style=\"padding:16px 32px 32px;font-family:Roboto, Arial, sans-serif;font-size:12px;line-height:1.5;color:#6b5a62;\">Studio Exemple SAS</td></tr>\n    </table>\n  </td></tr>\n</table>\n</body></html>"
+      }
+    }
+  ]
+}

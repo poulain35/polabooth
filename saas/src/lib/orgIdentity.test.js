@@ -84,8 +84,8 @@ test('les deux cartes se partagent business_profile sans s\'écraser', () => {
   assert.equal(out.google_review_url, ORG.business_profile.google_review_url);
 });
 
-test('AdminSettings : carte Entreprise enregistrée par saveBusinessProfile (fusion), aide Brevo sous l\'expéditeur', () => {
-  const src = readFileSync(new URL('../pages/admin/AdminSettings.jsx', import.meta.url), 'utf8');
+test('Réglages, section Entreprise : carte Entreprise enregistrée par saveBusinessProfile (fusion), aide Brevo sous l\'expéditeur', () => {
+  const src = readFileSync(new URL('../pages/admin/reglages/CompanySettings.jsx', import.meta.url), 'utf8');
   assert.match(src, /saveBusinessProfile\(org\.id, businessPatch, columns\)/);
   assert.match(src, /expéditeur validé dans Brevo/);
   assert.doesNotMatch(src, /function ContactSection/);

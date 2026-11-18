@@ -24,8 +24,9 @@ public sealed class SaasSwitchServiceTests : IDisposable
         await state.SetActiveEventAsync(Guid.NewGuid(), "Mariage", "ABC123");
         await state.SetContactInfoAsync("Mon entreprise", "0600000000", "contact@exemple.fr");
 
-        foreach (var name in SaasSwitchService.PairingFiles)
-            await File.WriteAllTextAsync(_dir.File(name), "x", TestContext.Current.CancellationToken);
+        var pairingFiles = new KioskPaths(_dir.Path).PairingFiles;
+        foreach (var path in pairingFiles)
+            await File.WriteAllTextAsync(path, "x", TestContext.Current.CancellationToken);
         await File.WriteAllTextAsync(_dir.File("polakiosk.db"), "base locale", TestContext.Current.CancellationToken);
 
         await new SaasSwitchService(machine, state, Settings()).ClearAsync();
@@ -40,7 +41,7 @@ public sealed class SaasSwitchServiceTests : IDisposable
         state.AccountName.Should().BeNull();
         state.AccountOrgId.Should().BeNull();
 
-        SaasSwitchService.PairingFiles.Should().OnlyContain(name => !File.Exists(_dir.File(name)));
+        pairingFiles.Should().OnlyContain(path => !File.Exists(path));
         File.Exists(_dir.File("polakiosk.db")).Should().BeTrue();
 
         // Au redémarrage : plus d'adresse, la borne affiche l'écran « Adresse de votre SaaS ».
@@ -70,6 +71,8 @@ public sealed class SaasSwitchServiceTests : IDisposable
     [Fact]
     public void Pairing_files_are_the_ones_the_services_write()
     {
-        SaasSwitchService.PairingFiles.Should().BeEquivalentTo(["activation.bin", "admin-pin.bin", "license.json", "license.key"]);
+        var paths = new KioskPaths(_dir.Path);
+        paths.PairingFiles.Select(Path.GetFileName).Should().BeEquivalentTo(["activation.bin", "admin-pin.bin", "license.json", "license.key"]);
+        paths.PairingFiles.Should().OnlyContain(path => Path.GetDirectoryName(path) == _dir.Path);
     }
 }

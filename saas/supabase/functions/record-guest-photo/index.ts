@@ -14,6 +14,7 @@
  *
  * Conditions d'autorisation :
  *   - événement existant pour ce access_code (uppercase)   → sinon 404
+ *   - non archivé                                          → sinon 403 (LAB-392)
  *   - non expiré (expires_at null ou futur)                → sinon 410
  *   - form_config.gallery.guest_upload_enabled === true     → sinon 403
  *   - storage_path dans le dossier R2 de l'événement        → sinon 400
@@ -27,7 +28,7 @@ import { handleCors, corsResponse } from '../_shared/cors.ts';
 import { adminClient }              from '../_shared/auth.ts';
 import { eventFolder, photosPublicBaseUrl } from '../_shared/storage-config.ts';
 import { LIMITS, publicGuard }      from '../_shared/public-rate-limit.ts';
-import { requireFeature } from '../_shared/features.ts';
+import { eventByCode, normalizeAccessCode } from '../_shared/event-by-code.ts';
 
 const VIDEO_EXT = /\.(mp4|mov|m4v|webm)$/i;
 
@@ -48,9 +49,9 @@ Deno.serve(async (req) => {
   };
   try { body = await req.json(); } catch { return corsResponse(400, { error: 'Body JSON invalide' }); }
 
-  const accessCode  = body.access_code?.toUpperCase().trim();
-  const storagePath = body.storage_path;
-  const photoUrl    = body.photo_url;
+  const accessCode  = normalizeAccessCode(body.access_code);
+  const storagePath = typeof body.storage_path === 'string' ? body.storage_path : '';
+  const photoUrl    = typeof body.photo_url === 'string' ? body.photo_url : '';
   if (!accessCode || !storagePath || !photoUrl) {
     return corsResponse(400, { error: 'access_code, storage_path et photo_url sont requis' });
   }
@@ -64,21 +65,20 @@ Deno.serve(async (req) => {
   );
   if (limited) return limited;
 
-  const { data: event } = await db
-    .from('events')
-    .select('id, org_id, name, expires_at, form_config')
-    .eq('access_code', accessCode)
-    .maybeSingle();
-
-  if (!event) {
-    await guard.codeFailed();
-    return corsResponse(404, { error: 'Code d\'accès invalide ou événement introuvable' });
-  }
-  if (event.expires_at && new Date(event.expires_at).getTime() <= Date.now()) {
-    return corsResponse(410, { error: 'Cet événement a expiré' });
-  }
-  const disabled = await requireFeature(db, event.org_id, 'gallery');
-  if (disabled) return disabled;
+  const found = await eventByCode<{
+    name: string;
+    form_config: { gallery?: { guest_upload_enabled?: unknown; moderation?: unknown } } | null;
+  }>(db, accessCode, {
+    fn: 'record-guest-photo',
+    columns: ['name', 'form_config'],
+    guard,
+    notFound: { status: 404, error: 'Code d\'accès invalide ou événement introuvable' },
+    archived: { status: 403, error: 'Cet événement est clôturé' },
+    expiry: { rule: 'media', refusal: { status: 410, error: 'Cet événement a expiré' } },
+    feature: 'gallery',
+  });
+  if (found.response) return found.response;
+  const { event } = found;
 
   const gallery = event.form_config?.gallery ?? {};
   if (gallery.guest_upload_enabled !== true) {

@@ -1,0 +1,1518 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installer Polabooth</title>
+<meta name="description" content="Guide pas à pas pour installer le SaaS Polabooth : Supabase, stockage, messagerie, configuration et mise en ligne.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f2f8;
+  --border: #dfe1ec;
+  --text: #1c1f2e;
+  --muted: #555b72;
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-soft: #eceafe;
+  --on-accent: #ffffff;
+  --ok: #18794e;
+  --ok-soft: #e3f5ec;
+  --warn: #8a5300;
+  --warn-soft: #fff4dc;
+  --error: #b42318;
+  --error-soft: #fdecea;
+  --code-bg: #f3f4f9;
+  --focus: #4f46e5;
+  --radius: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161b;
+    --surface: #1c1f26;
+    --surface-2: #232731;
+    --border: #333845;
+    --text: #e8e9ef;
+    --muted: #a5aabb;
+    --accent: #8b8cf6;
+    --accent-strong: #a5a6fa;
+    --accent-soft: #2a2b4a;
+    --on-accent: #14161b;
+    --ok: #5fd39a;
+    --ok-soft: #1b3328;
+    --warn: #f3c46b;
+    --warn-soft: #3a2f17;
+    --error: #ff8a80;
+    --error-soft: #3d1f1e;
+    --code-bg: #12141a;
+    --focus: #a5a6fa;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Lexend, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+a { color: var(--accent-strong); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+code, pre, kbd { font-family: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; font-size: 0.92em; }
+:not(pre) > code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.05em 0.35em; overflow-wrap: anywhere; }
+kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 0 0.35em; background: var(--surface); }
+h1, h2, h3 { line-height: 1.25; font-weight: 600; }
+h1 { font-size: 1.9rem; margin: 0 0 0.4rem; }
+h2 { font-size: 1.3rem; margin: 0; }
+h3 { font-size: 1.02rem; margin: 1.4rem 0 0.4rem; }
+p { margin: 0.5rem 0; }
+ol, ul { padding-left: 1.4rem; }
+li { margin: 0.3rem 0; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.topbar-title { font-weight: 600; white-space: nowrap; }
+.progress { flex: 1 1 220px; display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.progress-track { flex: 1; height: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
+.progress-label { font-size: 0.9rem; color: var(--muted); white-space: nowrap; }
+.os-switch { display: flex; gap: 4px; border: 0; margin: 0; padding: 0; }
+.os-switch legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.os-switch label { cursor: pointer; }
+.os-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.os-switch span { display: inline-block; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 0.9rem; color: var(--muted); background: var(--surface); }
+.os-switch input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.os-switch input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.layout { max-width: 1180px; margin: 0 auto; padding: 24px 16px 80px; display: grid; grid-template-columns: 1fr; gap: 24px; }
+@media (min-width: 1024px) { .layout { grid-template-columns: 250px minmax(0, 1fr); } }
+.toc { display: none; }
+@media (min-width: 1024px) {
+  .toc { display: block; position: sticky; top: 76px; align-self: start; }
+}
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 2px 0; }
+.toc a { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.93rem; }
+.toc a:hover { background: var(--surface-2); }
+.toc .dot { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; color: var(--muted); }
+.toc li.is-done .dot { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.toc li.is-done a { color: var(--muted); }
+.toc .toc-extra { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+main { min-width: 0; }
+.intro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+.intro .lead { font-size: 1.05rem; color: var(--muted); }
+.notice { display: flex; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); margin: 12px 0; }
+.notice.warn { background: var(--warn-soft); }
+.notice.ok { background: var(--ok-soft); }
+.notice > :first-child { margin-top: 0; }
+.notice p { margin: 0.25rem 0; }
+.intro-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+.step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 20px; }
+.step-head { display: flex; align-items: center; gap: 14px; padding: 18px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.step-num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.step-head h2 { flex: 1 1 200px; }
+.step-time { font-size: 0.85rem; color: var(--muted); }
+.step-body { padding: 8px 24px 22px; }
+.done-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; font-size: 0.92rem; background: var(--surface); }
+.done-toggle input { width: 18px; height: 18px; accent-color: var(--ok); margin: 0; }
+.step.is-done .step-num { background: var(--ok); color: var(--surface); }
+.step.is-done .done-toggle { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+.step.is-done .step-head h2 { color: var(--muted); }
+.step.extra .step-num { background: var(--surface-2); color: var(--muted); }
+
+.cmd { position: relative; margin: 10px 0; }
+.cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 96px 12px 14px; overflow-x: auto; white-space: pre; line-height: 1.5; }
+.cmd .copy { position: absolute; top: 7px; right: 7px; }
+.btn { font: inherit; font-size: 0.92rem; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none; line-height: 1.4; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 500; }
+.btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn.small { padding: 3px 10px; font-size: 0.85rem; }
+.btn.copied { border-color: var(--ok); color: var(--ok); }
+.btn svg { width: 16px; height: 16px; flex: none; }
+a.ext::after { content: " \2197"; font-size: 0.85em; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.hint { font-size: 0.88rem; color: var(--muted); }
+
+.fields { display: grid; gap: 14px; margin: 14px 0; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .fields { grid-template-columns: 1fr 1fr; } .field.wide { grid-column: 1 / -1; } }
+.field label { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-weight: 500; font-size: 0.95rem; }
+.field .tag { font-size: 0.75rem; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.field .tag.secret { background: var(--warn-soft); color: var(--warn); }
+.field .control { display: flex; gap: 6px; margin-top: 4px; }
+.field input, .field select { flex: 1; min-width: 0; font: inherit; font-size: 0.95rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.field input:focus-visible, .field select:focus-visible { outline: 3px solid var(--focus); outline-offset: 0; }
+.field .help { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+.field .error { font-size: 0.85rem; color: var(--error); margin-top: 4px; }
+.field .error:empty { display: none; }
+.field.invalid input { border-color: var(--error); }
+details { margin: 12px 0; border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; }
+details[open] { padding-bottom: 10px; }
+summary { cursor: pointer; padding: 10px 0; font-weight: 500; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 10px 0; display: block; overflow-x: auto; }
+th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 6px 10px 6px 0; vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+.check-list { list-style: none; padding: 0; margin: 10px 0; }
+.check-list li { padding: 6px 10px; border-radius: 8px; margin: 4px 0; }
+.check-list li.err { background: var(--error-soft); color: var(--error); }
+.check-list li.wrn { background: var(--warn-soft); color: var(--warn); }
+.check-list li.okk { background: var(--ok-soft); color: var(--ok); }
+.check-list a { color: inherit; }
+.preview pre { max-height: 360px; overflow: auto; background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer { color: var(--muted); font-size: 0.88rem; margin-top: 28px; }
+
+body[data-os="windows"] [data-os]:not([data-os~="windows"]),
+body[data-os="mac"] [data-os]:not([data-os~="mac"]),
+body[data-os="linux"] [data-os]:not([data-os~="linux"]) { display: none !important; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 1.5rem; }
+  .intro, .step-body { padding-left: 16px; padding-right: 16px; }
+  .step-head { padding: 14px 16px; }
+  .cmd pre { padding-right: 14px; padding-top: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .progress-bar { transition: none; } }
+@media print { .topbar, .toc, .copy, .intro-actions { display: none !important; } .step { break-inside: avoid; } }
+</style>
+</head>
+<body data-os="windows">
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="topbar-title">Installer Polabooth</span>
+    <div class="progress">
+      <div class="progress-track" role="progressbar" aria-label="Avancement de l'installation" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" id="progress-track">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <span class="progress-label" id="progress-label">0 étape sur 10</span>
+    </div>
+    <fieldset class="os-switch">
+      <legend>Votre ordinateur</legend>
+      <label><input type="radio" name="os" value="windows"><span>Windows</span></label>
+      <label><input type="radio" name="os" value="mac"><span>macOS</span></label>
+      <label><input type="radio" name="os" value="linux"><span>Linux</span></label>
+    </fieldset>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc" aria-label="Étapes">
+    <ol id="toc"></ol>
+    <div class="toc-extra">
+      <a href="#etape-maj">Plus tard : mettre à jour</a>
+      <a href="#depannage">En cas de problème</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="intro" aria-labelledby="titre">
+      <h1 id="titre">Installer votre SaaS photobooth</h1>
+      <p class="lead">Cette page vous guide pas à pas, sans connaissances techniques. Comptez une heure la première fois.
+        Cochez « Fait » à chaque étape : votre avancement est gardé dans ce navigateur.</p>
+      <div class="notice">
+        <div>
+          <p><strong>Vos mots de passe restent chez vous.</strong> Cette page fonctionne sur votre ordinateur, même sans Internet.
+            Les mots de passe, clés et jetons que vous saisissez ne sont <strong>jamais enregistrés</strong> ni envoyés :
+            ils servent seulement à créer le fichier de configuration <code>instance.env</code>.
+            Les autres champs et les cases cochées sont mémorisés dans ce navigateur.</p>
+        </div>
+      </div>
+      <p>Ordinateur choisi : <strong id="os-name">Windows</strong> (modifiable en haut de la page). Les commandes s'adaptent.</p>
+      <p class="hint">Guides détaillés : <a href="installation.md">installation.md</a> (vue d'ensemble et coûts),
+        <a href="installation-instance.md">installation-instance.md</a> (le SaaS),
+        <a href="installation-borne.md">installation-borne.md</a> (la borne).</p>
+      <div class="intro-actions">
+        <a class="btn primary" href="#etape-outils">Commencer</a>
+        <button type="button" class="btn" id="reset">Recommencer</button>
+      </div>
+    </section>
+
+    <!-- 1. Outils -->
+    <section class="step" id="etape-outils" data-step="outils" aria-labelledby="h-outils">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">1</span>
+        <h2 id="h-outils">Installer les outils</h2>
+        <span class="step-time">5 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="outils"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Il faut <strong>Node.js</strong> (version 20 ou plus récente) pour lancer l'installation.
+          <strong>Git</strong> est conseillé : il simplifie les mises à jour (facultatif si vous téléchargez le code en ZIP).</p>
+
+        <div data-os="windows">
+          <h3>Le plus simple : une seule commande</h3>
+          <ol>
+            <li>Ouvrez l'<strong>invite de commandes</strong> : touche <kbd>Windows</kbd>, tapez <code>cmd</code>, puis <kbd>Entrée</kbd>.</li>
+            <li>Collez cette commande (clic droit dans la fenêtre), puis <kbd>Entrée</kbd>. Acceptez les questions éventuelles.</li>
+          </ol>
+          <div class="cmd"><pre>winget install OpenJS.NodeJS.LTS Git.Git</pre></div>
+          <ol start="3">
+            <li>Fermez la fenêtre quand c'est terminé (les outils ne sont reconnus que dans une nouvelle fenêtre).</li>
+          </ol>
+          <h3>Ou par téléchargement</h3>
+          <div class="links">
+            <a class="btn ext" href="https://nodejs.org/fr/download" target="_blank" rel="noopener">Télécharger Node.js (LTS)</a>
+            <a class="btn ext" href="https://git-scm.com/download/win" target="_blank" rel="noopener">Télécharger Git pour Windows</a>
+          </div>
+          <p class="hint">Gardez les options proposées par défaut pendant l'installation.</p>
+        </div>
+
+        <div data-os="mac">
+          <h3>Avec les installeurs (le plus simple)</h3>
+          <ol>
+            <li>Téléchargez et installez Node.js, version « LTS » (fichier <code>.pkg</code>).</li>
+            <li>Pour Git, ouvrez le <strong>Terminal</strong> (<kbd>Cmd</kbd> + <kbd>Espace</kbd>, tapez « Terminal », <kbd>Entrée</kbd>) et lancez la commande ci-dessous. Une fenêtre propose d'installer les outils : acceptez.</li>
+          </ol>
+          <div class="links">
+            <a class="btn ext" href="https://nodejs.org/fr/download" target="_blank" rel="noopener">Télécharger Node.js (LTS)</a>
+          </div>
+          <div class="cmd"><pre>xcode-select --install</pre></div>
+          <details>
+            <summary>Vous utilisez Homebrew ?</summary>
+            <div class="cmd"><pre>brew install node git</pre></div>
+          </details>
+        </div>
+
+        <div data-os="linux">
+          <ol>
+            <li>Node.js : suivez la page de téléchargement officielle (choisissez Linux). Les versions fournies par les distributions sont souvent trop anciennes.</li>
+            <li>Git, dans un terminal (Debian, Ubuntu) :</li>
+          </ol>
+          <div class="links">
+            <a class="btn ext" href="https://nodejs.org/fr/download" target="_blank" rel="noopener">Télécharger Node.js (LTS)</a>
+          </div>
+          <div class="cmd"><pre>sudo apt install git</pre></div>
+          <p class="hint">Fedora : <code>sudo dnf install git</code>.</p>
+        </div>
+
+        <h3>Vérifier</h3>
+        <p>Dans une <strong>nouvelle</strong> fenêtre de terminal, cette commande doit afficher <code>v20</code> ou plus :</p>
+        <div class="cmd"><pre>node --version</pre></div>
+        <p class="hint">Pas besoin d'installer la CLI Supabase : le script s'en charge.</p>
+      </div>
+    </section>
+
+    <!-- 2. Code -->
+    <section class="step" id="etape-code" data-step="code" aria-labelledby="h-code">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">2</span>
+        <h2 id="h-code">Récupérer le code</h2>
+        <span class="step-time">2 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="code"> Fait</label>
+      </header>
+      <div class="step-body">
+        <div class="notice ok" id="code-found" hidden>
+          <p>Vous lisez cette page depuis le dossier du code : cette étape est faite. Le dossier <code>saas</code> se trouve ici :</p>
+        </div>
+        <div class="cmd" id="code-found-path" hidden><pre data-fill>{SAAS_DIR}</pre></div>
+        <p>Sinon, deux façons de récupérer le code depuis la page GitHub de Polabooth :</p>
+        <ul>
+          <li><strong>En ZIP</strong> (sans Git) : bouton vert « Code » &gt; « Download ZIP ». Décompressez le fichier dans un dossier simple (par exemple <code>Documents</code>), puis ouvrez <code>docs/guide-installation.html</code> par un double-clic pour retrouver cette page.</li>
+          <li><strong>Avec Git</strong> (mises à jour plus simples) : copiez l'adresse affichée par le bouton « Code », puis dans un terminal :</li>
+        </ul>
+        <div class="cmd"><pre>git clone &lt;adresse copiée&gt;</pre></div>
+        <p class="hint">Évitez un dossier synchronisé (OneDrive, iCloud) : l'installation y crée beaucoup de petits fichiers.</p>
+      </div>
+    </section>
+
+    <!-- 3. Supabase -->
+    <section class="step" id="etape-supabase" data-step="supabase" aria-labelledby="h-supabase">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">3</span>
+        <h2 id="h-supabase">Créer le projet Supabase</h2>
+        <span class="step-time">10 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="supabase"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Supabase remplace le serveur : base de données, comptes, fonctions. Vous n'avez aucune machine à gérer.
+          L'offre gratuite suffit pour essayer ; pour une vraie activité, prenez l'offre Pro (la gratuite met le projet en pause après une semaine sans activité).</p>
+        <ol>
+          <li>Créez un compte (ou connectez-vous), puis cliquez sur <strong>New project</strong>.</li>
+          <li>Donnez un nom au projet, choisissez une <strong>région en Europe</strong> (Paris ou Francfort).</li>
+          <li><strong>Mot de passe de la base</strong> : cliquez sur « Generate a password », copiez-le et collez-le ci-dessous avant de valider.</li>
+          <li>Une fois le projet créé, copiez l'adresse de la page du navigateur et collez-la dans « Identifiant du projet » : la page en extrait l'identifiant (20 lettres).</li>
+        </ol>
+        <div class="links">
+          <a class="btn ext" href="https://supabase.com/dashboard/projects" target="_blank" rel="noopener">Ouvrir Supabase</a>
+          <a class="btn ext" data-link="https://supabase.com/dashboard/project/{REF}/settings/general" data-fallback="https://supabase.com/dashboard/projects" href="https://supabase.com/dashboard/projects" target="_blank" rel="noopener">Réglages du projet</a>
+        </div>
+
+        <h3>Le jeton d'accès</h3>
+        <p>Il permet au script de régler Supabase à votre place (adresse du site, emails, sécurité des mots de passe).
+          Page des jetons &gt; <strong>Generate new token</strong>, nom « polabooth ». Copiez-le aussitôt : il ne s'affiche qu'une fois.</p>
+        <div class="links">
+          <a class="btn ext" href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noopener">Créer un jeton d'accès</a>
+        </div>
+
+        <div class="fields" data-group="supabase"></div>
+
+        <details>
+          <summary>Mot de passe de la base oublié ?</summary>
+          <p>Database &gt; Settings &gt; « Reset database password ». Mettez le nouveau dans le champ ci-dessus.</p>
+          <div class="links"><a class="btn ext" data-link="https://supabase.com/dashboard/project/{REF}/database/settings" data-fallback="https://supabase.com/dashboard/projects" href="https://supabase.com/dashboard/projects" target="_blank" rel="noopener">Réglages de la base</a></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 4. Stockage -->
+    <section class="step" id="etape-stockage" data-step="stockage" aria-labelledby="h-stockage">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">4</span>
+        <h2 id="h-stockage">Préparer le stockage des photos</h2>
+        <span class="step-time">15 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="stockage"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Les photos des bornes sont rangées dans un stockage « compatible S3 ». Les invités les ouvrent directement depuis ce stockage.
+          Conseillé : <strong>Cloudflare R2</strong> (10 Go gratuits, aucun frais quand les invités regardent les photos).</p>
+
+        <h3>Cloudflare R2, pas à pas</h3>
+        <ol>
+          <li>Ouvrez R2 dans le tableau de bord Cloudflare et activez-le (une carte bancaire est demandée, rien n'est prélevé sous les quotas gratuits).
+            L'<strong>Account ID</strong> est affiché sur cette page : collez-le ci-dessous.</li>
+          <li><strong>Create bucket</strong> : nom <code>medias</code>, emplacement « Automatic » ou « European Union ».</li>
+          <li>Dans le bucket &gt; Settings &gt; <strong>Public access</strong> :
+            <ul>
+              <li>domaine personnalisé (conseillé) : « Connect Domain », par exemple <code>medias.mon-entreprise.fr</code> (le domaine doit être géré par Cloudflare) ;</li>
+              <li>ou adresse r2.dev : « Allow Access » (<code>https://pub-….r2.dev</code>, limitée en débit : pour les essais).</li>
+            </ul>
+            Notez cette adresse publique : elle doit commencer par <code>https://</code>.</li>
+          <li><strong>Manage R2 API Tokens</strong> &gt; Create API token : permission « Object Read &amp; Write », limitée au bucket <code>medias</code>.
+            Copiez l'Access Key ID et la Secret Access Key (affichée une seule fois).</li>
+        </ol>
+        <div class="links">
+          <a class="btn ext" data-link="https://dash.cloudflare.com/{CF_ACCOUNT}/r2/overview" data-fallback="https://dash.cloudflare.com/?to=/:account/r2/overview" href="https://dash.cloudflare.com/?to=/:account/r2/overview" target="_blank" rel="noopener">Ouvrir R2</a>
+          <a class="btn ext" data-link="https://dash.cloudflare.com/{CF_ACCOUNT}/r2/api-tokens" data-fallback="https://dash.cloudflare.com/?to=/:account/r2/api-tokens" href="https://dash.cloudflare.com/?to=/:account/r2/api-tokens" target="_blank" rel="noopener">Jetons d'API R2</a>
+        </div>
+
+        <div class="fields">
+          <div class="field wide">
+            <label for="cf-account">Account ID Cloudflare <span class="tag">aide, pas dans instance.env</span></label>
+            <div class="control">
+              <input id="cf-account" type="text" autocomplete="off" spellcheck="false" placeholder="32 caractères (chiffres et lettres a à f)" aria-describedby="cf-account-help cf-account-error">
+              <button type="button" class="btn" id="cf-fill">Remplir pour R2</button>
+            </div>
+            <div class="help" id="cf-account-help">Remplit l'adresse S3 (<code>https://&lt;Account ID&gt;.r2.cloudflarestorage.com</code>) et la région (<code>auto</code>).</div>
+            <div class="error" id="cf-account-error" role="alert"></div>
+          </div>
+        </div>
+
+        <details>
+          <summary>Autre fournisseur (Scaleway, OVHcloud, Backblaze, MinIO)</summary>
+          <p>Créez un bucket en lecture publique (adresse en <code>https://</code>) et une clé d'accès en lecture et écriture, puis choisissez votre fournisseur : l'adresse S3, la région et l'adresse publique sont pré-remplies (à vérifier chez lui).</p>
+          <div class="fields">
+            <div class="field wide">
+              <label for="preset">Fournisseur</label>
+              <div class="control">
+                <select id="preset">
+                  <option value="">Choisir…</option>
+                  <option value="scaleway">Scaleway (Paris)</option>
+                  <option value="ovh">OVHcloud (Gravelines)</option>
+                  <option value="backblaze">Backblaze B2 (Europe)</option>
+                  <option value="minio">MinIO (votre serveur)</option>
+                </select>
+                <button type="button" class="btn" id="preset-fill">Pré-remplir</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <div class="fields" data-group="stockage"></div>
+
+        <details>
+          <summary>Réglages avancés (facultatifs)</summary>
+          <div class="fields" data-group="stockage-avance"></div>
+        </details>
+
+        <h3>Règle CORS</h3>
+        <p>Elle autorise votre SaaS à envoyer des fichiers dans le bucket. Le script la vérifie pendant l'essai et <strong>essaie de la poser lui-même</strong> pendant l'installation.
+          Une clé R2 « Object Read &amp; Write » n'en a pas le droit : dans ce cas, ou si le script vous le dit, collez-la dans le bucket &gt; Settings &gt; CORS Policy :</p>
+        <div class="cmd"><pre data-fill>[
+  {
+    "AllowedOrigins": ["{APP_URL}"],
+    "AllowedMethods": ["GET", "PUT"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]</pre></div>
+      </div>
+    </section>
+
+    <!-- 5. SMTP -->
+    <section class="step" id="etape-smtp" data-step="smtp" aria-labelledby="h-smtp">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">5</span>
+        <h2 id="h-smtp">Régler la messagerie</h2>
+        <span class="step-time">5 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="smtp"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Les emails (photos aux invités, échanges avec vos clients, alertes des bornes) partent de votre adresse, par le serveur SMTP de votre messagerie.
+          Demandez à votre hébergeur email les réglages « SMTP SSL/TLS, <strong>port 465</strong> ».</p>
+        <div class="notice warn"><p><strong>Port 465 obligatoire.</strong> Supabase bloque les ports 25 et 587.</p></div>
+        <table>
+          <thead><tr><th>Messagerie</th><th>Serveur SMTP</th><th>Remarque</th></tr></thead>
+          <tbody>
+            <tr><td>IONOS</td><td><code>smtp.ionos.fr</code></td><td>Identifiant : l'adresse email complète.</td></tr>
+            <tr><td>OVHcloud</td><td><code>ssl0.ovh.net</code></td><td>Identifiant : l'adresse email complète.</td></tr>
+            <tr><td>Gmail, Google Workspace</td><td>voir l'aide de Google</td><td>Mot de passe d'application (validation en deux étapes requise) ; nombre d'envois limité par jour.</td></tr>
+          </tbody>
+        </table>
+        <div class="fields" data-group="smtp"></div>
+        <p class="hint">Pendant l'essai (étape 7), le script envoie un email de test à l'adresse de l'administrateur : vous saurez tout de suite si ces réglages fonctionnent.</p>
+      </div>
+    </section>
+
+    <!-- 6. Configuration -->
+    <section class="step" id="etape-config" data-step="config" aria-labelledby="h-config">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">6</span>
+        <h2 id="h-config">Votre SaaS et le fichier de configuration</h2>
+        <span class="step-time">5 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="config"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Choisissez l'adresse de votre SaaS : un sous-domaine de votre site suffit, par exemple <code>https://photobooth.mon-entreprise.fr</code>.
+          Vous le relierez à l'hébergement à l'étape 8.</p>
+        <div class="fields" data-group="saas"></div>
+
+        <h3>Vérification</h3>
+        <ul class="check-list" id="check-list" aria-live="polite"></ul>
+
+        <div class="row">
+          <button type="button" class="btn primary" id="download">Télécharger instance.env</button>
+          <span class="hint" id="download-status" aria-live="polite"></span>
+        </div>
+        <p class="hint">Les mots de passe ne sont pas gardés : si vous rechargez la page, saisissez-les de nouveau avant de télécharger le fichier.</p>
+        <details class="preview">
+          <summary>Aperçu du fichier (mots de passe masqués)</summary>
+          <pre id="env-preview"></pre>
+        </details>
+
+        <h3>Placer le fichier</h3>
+        <p>Le fichier arrive dans votre dossier Téléchargements. Il doit s'appeler exactement <code>instance.env</code> (sans « (1) » ni <code>.txt</code>) et se trouver dans le dossier <code>saas</code>.
+          Le programme d'installation (étape 7) propose de l'y déplacer pour vous. Pour le faire vous-même :</p>
+        <div data-os="windows">
+          <div class="cmd"><pre data-fill>move "%USERPROFILE%\Downloads\instance.env" "{SAAS_DIR}\instance.env"</pre></div>
+          <p class="hint">Commande pour l'invite de commandes (<code>cmd</code>).</p>
+        </div>
+        <div data-os="mac linux">
+          <div class="cmd"><pre data-fill>mv ~/Downloads/instance.env "{SAAS_DIR}/instance.env"</pre></div>
+          <p class="hint" data-os="linux">Dossier en français : <code>~/Téléchargements</code>.</p>
+        </div>
+        <div class="notice warn"><p><code>instance.env</code> contient vos mots de passe. Ne l'envoyez à personne. Git l'ignore déjà.</p></div>
+      </div>
+    </section>
+
+    <!-- 7. Lancement -->
+    <section class="step" id="etape-lancement" data-step="lancement" aria-labelledby="h-lancement">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">7</span>
+        <h2 id="h-lancement">Lancer l'installation</h2>
+        <span class="step-time">15 à 30 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="lancement"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Une page web ne peut pas lancer de programme sur votre ordinateur : c'est vous qui ouvrez le programme d'installation, une seule fois.</p>
+
+        <div data-os="windows">
+          <ol>
+            <li>Ouvrez le dossier <code>saas</code> : touches <kbd>Windows</kbd> + <kbd>E</kbd>, collez ce chemin dans la barre d'adresse, <kbd>Entrée</kbd>.</li>
+          </ol>
+          <div class="cmd"><pre data-fill>{SAAS_DIR}</pre></div>
+          <ol start="2">
+            <li>Double-cliquez sur <strong><code>installer.cmd</code></strong>. Si Windows affiche « Windows a protégé votre ordinateur », cliquez sur « Informations complémentaires » puis « Exécuter quand même ».</li>
+          </ol>
+        </div>
+        <div data-os="mac linux">
+          <ol>
+            <li>Ouvrez le <strong>Terminal</strong><span data-os="mac"> (<kbd>Cmd</kbd> + <kbd>Espace</kbd>, tapez « Terminal »)</span>.</li>
+            <li>Collez cette commande, puis <kbd>Entrée</kbd> :</li>
+          </ol>
+          <div class="cmd"><pre data-fill>bash "{SAAS_DIR}/installer.sh"</pre></div>
+          <p class="hint">Autre façon : tapez <code>bash</code> suivi d'un espace, glissez le fichier <code>installer.sh</code> du dossier <code>saas</code> dans la fenêtre, puis <kbd>Entrée</kbd>.</p>
+        </div>
+
+        <h3>Ce que fait le programme</h3>
+        <ol>
+          <li>Il vérifie Node.js et la présence d'<code>instance.env</code>, et prépare les outils (quelques minutes la première fois).</li>
+          <li>Il lance un <strong>essai</strong> qui ne modifie rien : il vérifie la configuration, envoie un <strong>email de test</strong> à l'administrateur,
+            envoie puis relit un petit fichier dans le stockage (aussitôt supprimé) et contrôle le CORS du bucket.</li>
+          <li>Si l'essai est bon, il demande « Lancer l'installation maintenant ? » : tapez <kbd>O</kbd>.</li>
+          <li>L'installation affiche « Étape 1/N », « Étape 2/N »… Sur un projet Supabase tout neuf, elle peut attendre jusqu'à 20 minutes que Supabase soit prêt.</li>
+          <li>Elle ferme les <strong>inscriptions</strong> : personne ne peut se créer un compte depuis le site, les comptes se créent par invitation. Elle tire aussi au hasard le secret <code>RATE_LIMIT_SALT</code> (limites anti-abus des pages publiques), obligatoire et gardé d'une relance à l'autre.</li>
+        </ol>
+        <div class="notice warn"><p>À la fin, le script affiche le <strong>mot de passe de l'administrateur</strong>. Notez-le : il ne sera plus affiché.</p></div>
+        <p>Une erreur ? Le message dit quoi corriger. Corrigez <code>instance.env</code> (ou retéléchargez-le depuis l'étape 6), puis relancez : les étapes déjà faites ne sont pas refaites, rien n'est créé en double.</p>
+
+        <details>
+          <summary>Si le script vous demande d'activer les anciennes clés</summary>
+          <p>Project Settings &gt; API Keys &gt; onglet « Legacy API Keys » &gt; « Enable legacy API keys ». La borne et les tâches planifiées en ont besoin. Puis relancez le programme.</p>
+          <div class="links"><a class="btn ext" data-link="https://supabase.com/dashboard/project/{REF}/settings/api-keys" data-fallback="https://supabase.com/dashboard/projects" href="https://supabase.com/dashboard/projects" target="_blank" rel="noopener">Clés d'API du projet</a></div>
+        </details>
+
+        <details>
+          <summary>Vous préférez taper les commandes vous-même ?</summary>
+          <div data-os="windows"><div class="cmd"><pre data-fill>cd /d "{SAAS_DIR}"
+npm ci
+npm run install-instance -- --dry-run
+npm run install-instance</pre></div></div>
+          <div data-os="mac linux"><div class="cmd"><pre data-fill>cd "{SAAS_DIR}"
+npm ci
+npm run install-instance -- --dry-run
+npm run install-instance</pre></div></div>
+          <p class="hint"><code>--dry-run</code> est l'essai sans modification. Lancez les commandes une par une.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- 8. Mise en ligne -->
+    <section class="step" id="etape-en-ligne" data-step="en-ligne" aria-labelledby="h-en-ligne">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">8</span>
+        <h2 id="h-en-ligne">Mettre le site en ligne</h2>
+        <span class="step-time">10 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="en-ligne"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>Le site est le dossier <code>dist</code>, créé par le script dans le dossier <code>saas</code>. Mettez-le en ligne à l'adresse de votre SaaS (<code data-fill>{APP_URL}</code>).
+          Tout est prêt dedans : les règles de redirection pour Netlify et Cloudflare Pages (<code>_redirects</code>) et pour Vercel (<code>vercel.json</code>).</p>
+        <div class="cmd"><pre data-fill data-os="windows">{SAAS_DIR}\dist</pre><pre data-fill data-os="mac linux">{SAAS_DIR}/dist</pre></div>
+
+        <h3>Netlify (le plus simple)</h3>
+        <p>Créez un compte, puis glissez le dossier <code>dist</code> dans la page Netlify Drop. Ajoutez ensuite votre domaine : Site configuration &gt; Domain management.</p>
+        <div class="links"><a class="btn ext" href="https://app.netlify.com/drop" target="_blank" rel="noopener">Ouvrir Netlify Drop</a></div>
+
+        <h3>Cloudflare Pages</h3>
+        <p>Workers &amp; Pages &gt; Create &gt; Pages &gt; « Upload assets », puis envoyez le dossier <code>dist</code>. Ajoutez votre domaine dans « Custom domains ».</p>
+        <div class="links"><a class="btn ext" data-link="https://dash.cloudflare.com/{CF_ACCOUNT}/workers-and-pages" data-fallback="https://dash.cloudflare.com/?to=/:account/workers-and-pages" href="https://dash.cloudflare.com/?to=/:account/workers-and-pages" target="_blank" rel="noopener">Ouvrir Workers &amp; Pages</a></div>
+
+        <h3>Vercel</h3>
+        <p>L'offre gratuite (« Hobby ») est réservée à un usage non commercial : pour une entreprise, offre Pro. Dans un terminal :</p>
+        <div data-os="windows"><div class="cmd"><pre data-fill>cd /d "{SAAS_DIR}\dist"
+npx vercel --prod</pre></div></div>
+        <div data-os="mac linux"><div class="cmd"><pre data-fill>cd "{SAAS_DIR}/dist"
+npx vercel --prod</pre></div></div>
+        <p class="hint">Ajoutez ensuite votre domaine dans le tableau de bord Vercel.</p>
+
+        <h3>Votre serveur (Nginx)</h3>
+        <p>Copiez le contenu de <code>dist</code> et renvoyez toute adresse inconnue vers <code>index.html</code> :</p>
+        <div class="cmd"><pre>try_files $uri /index.html;</pre></div>
+
+        <h3>Vérifier</h3>
+        <p>Cette adresse doit afficher un petit texte de configuration (elle sert aux bornes) :</p>
+        <div class="links"><a class="btn ext" data-link="{APP_URL}/kiosk-config.json" data-fallback="" href="#" target="_blank" rel="noopener">Ouvrir kiosk-config.json</a></div>
+      </div>
+    </section>
+
+    <!-- 9. Première connexion -->
+    <section class="step" id="etape-connexion" data-step="connexion" aria-labelledby="h-connexion">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">9</span>
+        <h2 id="h-connexion">Première connexion</h2>
+        <span class="step-time">10 min</span>
+        <label class="done-toggle"><input type="checkbox" data-done="connexion"> Fait</label>
+      </header>
+      <div class="step-body">
+        <ol>
+          <li>Ouvrez l'email d'invitation reçu par <code data-fill>{ADMIN_EMAIL}</code> et cliquez sur le lien (regardez dans les indésirables). Il confirme l'adresse.</li>
+          <li>Connectez-vous avec cet email et le mot de passe affiché par le script.</li>
+          <li>Suivez la carte <strong>« Mise en route »</strong> en haut de la page Aujourd'hui : votre entreprise, l'envoi des emails, vos fonctionnalités, un cadre photo, une borne, un événement d'essai.
+            Chaque étape mène au bon écran et se coche toute seule.</li>
+        </ol>
+        <div class="links"><a class="btn ext" data-link="{APP_URL}/admin/login" data-fallback="" href="#" target="_blank" rel="noopener">Ouvrir la page de connexion</a></div>
+        <details>
+          <summary>Pas d'email, ou mot de passe perdu ?</summary>
+          <p>Pas d'email : regardez dans les indésirables, corrigez au besoin les réglages d'envoi (étape 5), retéléchargez <code>instance.env</code> et relancez l'installation. Tant que l'invitation n'est pas acceptée, chaque relance la renvoie, avec le même mot de passe.</p>
+          <p>Mot de passe perdu, ou toujours pas d'email : cette commande confirme l'adresse sans email et affiche un nouveau mot de passe :</p>
+          <div data-os="windows"><div class="cmd"><pre data-fill>cd /d "{SAAS_DIR}"
+npm run install-instance -- --new-admin-password</pre></div></div>
+          <div data-os="mac linux"><div class="cmd"><pre data-fill>cd "{SAAS_DIR}"
+npm run install-instance -- --new-admin-password</pre></div></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 10. Borne -->
+    <section class="step" id="etape-borne" data-step="borne" aria-labelledby="h-borne">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">10</span>
+        <h2 id="h-borne">Associer une borne</h2>
+        <span class="step-time">1 h</span>
+        <label class="done-toggle"><input type="checkbox" data-done="borne"> Fait</label>
+      </header>
+      <div class="step-body">
+        <p>La borne est une application Windows installée sur le PC du photobooth. Le plus simple : l'installeur prêt à l'emploi
+          (<code>setup-polakiosk-&lt;version&gt;.exe</code>, onglet <strong>Releases</strong> de la page GitHub de Polabooth, kit Canon inclus).
+          Matériel, réglages et installeur à votre nom : <a href="installation-borne.md">installation-borne.md</a>.</p>
+        <ol>
+          <li>Au premier démarrage, la borne demande l'adresse de votre SaaS. Tapez :</li>
+        </ol>
+        <div class="cmd"><pre data-fill>{APP_HOST}</pre></div>
+        <ol start="2">
+          <li>La borne affiche un code et un QR code. Scannez le QR code, ou ouvrez la page d'association et tapez le code.</li>
+          <li>Connectez-vous, donnez un nom à la borne et validez. Elle apparaît dans Bornes.</li>
+        </ol>
+        <div class="links"><a class="btn ext" data-link="{APP_URL}/associer" data-fallback="" href="#" target="_blank" rel="noopener">Page d'association</a></div>
+      </div>
+    </section>
+
+    <!-- Plus tard -->
+    <section class="step extra" id="etape-maj" aria-labelledby="h-maj">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">+</span>
+        <h2 id="h-maj">Plus tard : mettre à jour</h2>
+      </header>
+      <div class="step-body">
+        <p>Relancer l'installation est sans risque : rien n'est créé en double. Relancez-la après chaque changement d'<code>instance.env</code>, et pour installer une nouvelle version :</p>
+        <h3>Avec Git</h3>
+        <div data-os="windows"><div class="cmd"><pre data-fill>cd /d "{SAAS_DIR}"
+git pull
+npm ci
+npm run install-instance</pre></div></div>
+        <div data-os="mac linux"><div class="cmd"><pre data-fill>cd "{SAAS_DIR}"
+git pull
+npm ci
+npm run install-instance</pre></div></div>
+        <h3>Avec un ZIP</h3>
+        <p>Téléchargez et décompressez la nouvelle version, copiez votre <code>saas/instance.env</code> dans son dossier <code>saas</code>, puis lancez son programme d'installation (étape 7).</p>
+        <p>Dans les deux cas, remettez ensuite le dossier <code>dist</code> en ligne (étape 8).</p>
+      </div>
+    </section>
+
+    <section class="step extra" id="depannage" aria-labelledby="h-depannage">
+      <header class="step-head">
+        <span class="step-num" aria-hidden="true">?</span>
+        <h2 id="h-depannage">En cas de problème</h2>
+      </header>
+      <div class="step-body">
+        <table>
+          <thead><tr><th>Message</th><th>Solution</th></tr></thead>
+          <tbody>
+            <tr><td>Node.js introuvable</td><td>Étape 1, puis fermez et rouvrez le terminal (ou relancez le programme d'installation).</td></tr>
+            <tr><td><code>Fichier introuvable : … instance.env</code></td><td>Étape 6 : téléchargez le fichier et placez-le dans le dossier <code>saas</code>.</td></tr>
+            <tr><td><code>… contient N erreur(s)</code></td><td>Corrigez les champs cités à l'étape 6, retéléchargez le fichier et remplacez l'ancien.</td></tr>
+            <tr><td>L'email de test n'arrive pas</td><td>Vérifiez le serveur, le port 465, l'identifiant et le mot de passe SMTP (étape 5). Regardez les indésirables.</td></tr>
+            <tr><td>Le stockage est refusé</td><td>Clé d'accès avec droits de lecture et d'écriture, nom du bucket, adresse publique en <code>https://</code> (étape 4).</td></tr>
+            <tr><td>Le service Storage n'est toujours pas prêt</td><td>Projet tout neuf : attendez quelques minutes, puis relancez.</td></tr>
+            <tr><td>Échec avec le mot de passe de la base</td><td>Réinitialisez-le (étape 3, « Mot de passe de la base oublié ? ») et mettez le nouveau dans <code>instance.env</code>.</td></tr>
+            <tr><td>Pages du client ou galerie : « Service momentanément indisponible »</td><td>Secret <code>RATE_LIMIT_SALT</code> absent des fonctions : relancez l'installation, elle le pose.</td></tr>
+            <tr><td>La borne refuse l'adresse du SaaS</td><td>Vérifiez que <code>kiosk-config.json</code> s'ouvre (étape 8).</td></tr>
+          </tbody>
+        </table>
+        <p>Tous les messages : <a href="installation-instance.md">installation-instance.md</a>, section « En cas d'échec ».</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>Cette page n'envoie rien sur Internet. Seule la police d'écriture (Lexend) est chargée si vous êtes connecté.</p>
+    </footer>
+  </main>
+</div>
+
+<div class="sr-only" aria-live="polite" id="live"></div>
+
+<!-- Logique pure (sans page), relue par saas/scripts/guide-installation.test.mjs. -->
+<script id="guide-lib">
+var GuideLib = (function () {
+  'use strict';
+
+  var STORAGE_KEY = 'polabooth-guide-installation-v1';
+
+  // Champs secrets : jamais mémorisés (localStorage), jamais repris dans les liens ni les commandes.
+  var SECRET_KEYS = [
+    'SUPABASE_ACCESS_TOKEN',
+    'SUPABASE_DB_PASSWORD',
+    'SMTP_PASSWORD',
+    'STORAGE_ACCESS_KEY_ID',
+    'STORAGE_SECRET_ACCESS_KEY',
+  ];
+
+  var SECTIONS = {
+    supabase: 'Projet Supabase',
+    saas: 'SaaS',
+    smtp: 'Envoi des emails (SMTP)',
+    stockage: 'Stockage des photos et des messages audio (compatible S3)',
+  };
+
+  // Clés d'instance.env, dans l'ordre du fichier. `section` : titre dans le fichier ; `group` : bloc de la page.
+  var FIELDS = [
+    { key: 'SUPABASE_PROJECT_REF', section: 'supabase', group: 'supabase', label: 'Identifiant du projet', placeholder: 'abcdefghijklmnopqrst',
+      help: '20 lettres minuscules. Collez l\'adresse de la page du projet : l\'identifiant en est extrait.' },
+    { key: 'SUPABASE_ACCESS_TOKEN', section: 'supabase', group: 'supabase', label: 'Jeton d\'accès', placeholder: 'sbp_…',
+      help: 'Commence par sbp_. Le script s\'en sert pour régler le projet.' },
+    { key: 'SUPABASE_DB_PASSWORD', section: 'supabase', group: 'supabase', label: 'Mot de passe de la base', wide: true,
+      help: 'Choisi à la création du projet.' },
+    { key: 'APP_URL', section: 'saas', group: 'saas', label: 'Adresse du SaaS', placeholder: 'https://photobooth.mon-entreprise.fr', type: 'url',
+      help: 'En https, sans chemin ni barre finale. C\'est aussi l\'adresse à saisir sur la borne.' },
+    { key: 'COMPANY_NAME', section: 'saas', group: 'saas', label: 'Nom de votre entreprise',
+      help: 'Nom de l\'organisation et des emails envoyés.' },
+    { key: 'COMPANY_PHONE', section: 'saas', group: 'saas', label: 'Téléphone', optional: true, type: 'tel',
+      help: 'Affiché aux clients et sur la borne. Modifiable ensuite.' },
+    { key: 'ADMIN_EMAIL', section: 'saas', group: 'saas', label: 'Email de l\'administrateur', type: 'email',
+      help: 'Votre compte. Il reçoit l\'invitation et l\'email de test.' },
+    { key: 'SMTP_HOST', section: 'smtp', group: 'smtp', label: 'Serveur SMTP', placeholder: 'smtp.mon-hebergeur.fr' },
+    { key: 'SMTP_PORT', section: 'smtp', group: 'smtp', label: 'Port', placeholder: '465', defaultValue: '465', inputmode: 'numeric',
+      help: 'Laissez 465.' },
+    { key: 'SMTP_USER', section: 'smtp', group: 'smtp', label: 'Identifiant SMTP', placeholder: 'contact@mon-entreprise.fr',
+      help: 'En général l\'adresse email complète.' },
+    { key: 'SMTP_PASSWORD', section: 'smtp', group: 'smtp', label: 'Mot de passe SMTP',
+      help: 'Ou mot de passe d\'application.' },
+    { key: 'FROM_EMAIL', section: 'smtp', group: 'smtp', label: 'Adresse d\'expédition', type: 'email', placeholder: 'contact@mon-entreprise.fr',
+      help: 'Autorisée par votre messagerie (souvent la même que l\'identifiant).' },
+    { key: 'FROM_NAME', section: 'smtp', group: 'smtp', label: 'Nom d\'expéditeur', optional: true,
+      help: 'Vide : le nom de l\'entreprise.' },
+    { key: 'STORAGE_ENDPOINT', section: 'stockage', group: 'stockage', label: 'Adresse S3 (endpoint)', placeholder: 'https://<account_id>.r2.cloudflarestorage.com', type: 'url', wide: true },
+    { key: 'STORAGE_REGION', section: 'stockage', group: 'stockage', label: 'Région', optional: true, placeholder: 'auto',
+      help: 'R2 : auto. Vide : us-east-1.' },
+    { key: 'STORAGE_ACCESS_KEY_ID', section: 'stockage', group: 'stockage', label: 'Access Key ID' },
+    { key: 'STORAGE_SECRET_ACCESS_KEY', section: 'stockage', group: 'stockage', label: 'Secret Access Key' },
+    { key: 'STORAGE_BUCKET', section: 'stockage', group: 'stockage', label: 'Nom du bucket', placeholder: 'medias' },
+    { key: 'STORAGE_PUBLIC_URL', section: 'stockage', group: 'stockage', label: 'Adresse publique du bucket', placeholder: 'https://medias.mon-entreprise.fr', type: 'url', wide: true,
+      help: 'Adresse de lecture des photos, en https, sans barre finale.' },
+    { key: 'STORAGE_PHOTOS_BUCKET', section: 'stockage', group: 'stockage-avance', label: 'Bucket séparé pour les photos', optional: true,
+      help: 'Vide : le bucket ci-dessus.' },
+    { key: 'STORAGE_PHOTOS_PUBLIC_URL', section: 'stockage', group: 'stockage-avance', label: 'Adresse publique du bucket des photos', optional: true, type: 'url',
+      help: 'À remplir avec le bucket séparé.' },
+    { key: 'STORAGE_FORCE_PATH_STYLE', section: 'stockage', group: 'stockage-avance', label: 'Style des adresses S3', optional: true,
+      options: [['', 'Par défaut (endpoint/bucket/fichier)'], ['true', 'true (endpoint/bucket/fichier)'], ['false', 'false (bucket.endpoint/fichier)']] },
+  ];
+  FIELDS.forEach(function (f) { f.secret = SECRET_KEYS.indexOf(f.key) >= 0; });
+
+  var REF_RE = /^[a-z]{20}$/;
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var CF_ACCOUNT_RE = /^[0-9a-f]{32}$/;
+
+  function str(values, key) {
+    var value = values && values[key];
+    return value == null ? '' : String(value).trim();
+  }
+
+  function parseUrl(value, allowHttp) {
+    try {
+      var u = new URL(value);
+      if (u.protocol === 'https:' || (allowHttp && u.protocol === 'http:')) return u;
+    } catch (e) { /* invalide */ }
+    return null;
+  }
+
+  /** Identifiant tiré d'une adresse collée (projet ou tableau de bord), sinon la saisie telle quelle. */
+  function extractRef(input) {
+    var s = String(input == null ? '' : input).trim();
+    var m = /^https?:\/\/([a-z]{20})\.supabase\.co\b/.exec(s) || /\/project\/([a-z]{20})(?:[/?#]|$)/.exec(s);
+    return m ? m[1] : s;
+  }
+
+  /**
+   * Mêmes contrôles que validateInstanceEnv (saas/scripts/install-instance-lib.mjs), plus le jeton d'accès.
+   * Renvoie { errors, warnings } : listes de { key, message }.
+   */
+  function validate(values) {
+    var errors = [];
+    var warnings = [];
+    var v = function (key) { return str(values, key); };
+    var add = function (key, message) { errors.push({ key: key, message: message }); };
+    var required = function (key, what) {
+      if (!v(key)) add(key, 'À remplir : ' + what + '.');
+      return v(key);
+    };
+
+    var ref = required('SUPABASE_PROJECT_REF', 'l\'identifiant du projet Supabase');
+    if (ref && !REF_RE.test(ref)) add('SUPABASE_PROJECT_REF', 'Identifiant invalide : 20 lettres minuscules, visibles dans l\'adresse du projet.');
+    var token = required('SUPABASE_ACCESS_TOKEN', 'le jeton d\'accès Supabase');
+    if (token && token.indexOf('sbp_') !== 0) warnings.push({ key: 'SUPABASE_ACCESS_TOKEN', message: 'Un jeton d\'accès commence en général par sbp_ : vérifiez que ce n\'est pas une clé du projet.' });
+    required('SUPABASE_DB_PASSWORD', 'le mot de passe de la base');
+
+    var appUrl = required('APP_URL', 'l\'adresse du SaaS');
+    if (appUrl) {
+      var u = parseUrl(appUrl, false);
+      if (!u) add('APP_URL', 'Adresse complète en https:// attendue, par exemple https://photobooth.mon-entreprise.fr.');
+      else if (u.pathname !== '/' || u.search || u.hash) add('APP_URL', 'L\'adresse du site seule, sans chemin après le nom de domaine.');
+    }
+
+    required('COMPANY_NAME', 'le nom de votre entreprise');
+    var admin = required('ADMIN_EMAIL', 'l\'email de l\'administrateur').toLowerCase();
+    if (admin && !EMAIL_RE.test(admin)) add('ADMIN_EMAIL', 'Adresse email invalide.');
+    var from = required('FROM_EMAIL', 'l\'adresse d\'expédition');
+    if (from && !EMAIL_RE.test(from)) add('FROM_EMAIL', 'Adresse email invalide.');
+
+    required('SMTP_HOST', 'le serveur SMTP');
+    var port = v('SMTP_PORT') || '465';
+    if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) add('SMTP_PORT', 'Un numéro de port est attendu (465 en général).');
+    else if (port === '25' || port === '587') add('SMTP_PORT', 'Port ' + port + ' impossible : Supabase bloque les ports 25 et 587. Utilisez 465.');
+    required('SMTP_USER', 'l\'identifiant SMTP');
+    required('SMTP_PASSWORD', 'le mot de passe SMTP');
+
+    var endpoint = required('STORAGE_ENDPOINT', 'l\'adresse S3 du fournisseur');
+    if (endpoint && !parseUrl(endpoint, true)) add('STORAGE_ENDPOINT', 'Adresse complète attendue, en https://.');
+    required('STORAGE_ACCESS_KEY_ID', 'la clé d\'accès (Access Key ID)');
+    required('STORAGE_SECRET_ACCESS_KEY', 'la clé secrète (Secret Access Key)');
+    required('STORAGE_BUCKET', 'le nom du bucket');
+    required('STORAGE_PUBLIC_URL', 'l\'adresse publique du bucket');
+    ['STORAGE_PUBLIC_URL', 'STORAGE_PHOTOS_PUBLIC_URL'].forEach(function (key) {
+      var url = v(key).replace(/\/+$/, '');
+      if (url && !parseUrl(url, false)) add(key, 'Adresse en https:// attendue (la borne n\'enregistre que des photos en https).');
+    });
+    var pathStyle = v('STORAGE_FORCE_PATH_STYLE').toLowerCase();
+    if (pathStyle && pathStyle !== 'true' && pathStyle !== 'false') add('STORAGE_FORCE_PATH_STYLE', 'true, false ou vide.');
+    if (v('STORAGE_PHOTOS_BUCKET') && !v('STORAGE_PHOTOS_PUBLIC_URL')) {
+      warnings.push({ key: 'STORAGE_PHOTOS_PUBLIC_URL', message: 'Bucket des photos rempli sans son adresse publique.' });
+    }
+    return { errors: errors, warnings: warnings };
+  }
+
+  /**
+   * Valeur écrite pour le lecteur du script (parseEnvFile) : telle quelle si elle est simple, entre
+   * guillemets simples (littérale) sinon, entre guillemets doubles si elle contient une apostrophe.
+   */
+  function formatValue(value) {
+    var s = value == null ? '' : String(value).trim();
+    if (/[\r\n]/.test(s)) throw new Error('Une valeur sur plusieurs lignes n\'est pas acceptée.');
+    if (!/[\s#'"$\\`]/.test(s)) return s;
+    if (s.indexOf('\'') < 0) return '\'' + s + '\'';
+    return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+
+  /** Contenu complet d'instance.env (toutes les clés, vides comprises). */
+  function buildInstanceEnv(values, now) {
+    var lines = [
+      '# Configuration d\'une instance du SaaS photobooth, lue par « npm run install-instance ».',
+      '# Créé par docs/guide-installation.html' + (now ? ' le ' + now : '') + '. À placer dans le dossier saas/.',
+      '# Contient des mots de passe : ne le partagez pas, ne l\'envoyez jamais sur Git.',
+      '# Guide complet : docs/installation-instance.md',
+    ];
+    var section = null;
+    FIELDS.forEach(function (f) {
+      if (f.section !== section) {
+        section = f.section;
+        lines.push('', '# ── ' + SECTIONS[section] + ' ──', '');
+      }
+      lines.push(f.key + '=' + formatValue(values ? values[f.key] : ''));
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  /** Même contenu, valeurs secrètes masquées (aperçu à l'écran). */
+  function previewInstanceEnv(values) {
+    var masked = {};
+    FIELDS.forEach(function (f) {
+      var value = str(values, f.key);
+      masked[f.key] = f.secret && value ? '••••••••' : value;
+    });
+    return buildInstanceEnv(masked);
+  }
+
+  function withoutSecrets(fields) {
+    var out = {};
+    Object.keys(fields || {}).forEach(function (key) {
+      if (SECRET_KEYS.indexOf(key) < 0 && typeof fields[key] === 'string') out[key] = fields[key];
+    });
+    return out;
+  }
+
+  /** Ce qui peut être mémorisé : avancement, système, champs non secrets. */
+  function persistable(state) {
+    state = state || {};
+    var done = {};
+    Object.keys(state.done || {}).forEach(function (id) { if (state.done[id] === true) done[id] = true; });
+    return {
+      os: typeof state.os === 'string' ? state.os : null,
+      done: done,
+      fields: withoutSecrets(state.fields),
+      cfAccount: typeof state.cfAccount === 'string' ? state.cfAccount : '',
+    };
+  }
+
+  /** Seule écriture dans le stockage du navigateur. */
+  function saveState(storage, state) {
+    try {
+      storage.setItem(STORAGE_KEY, JSON.stringify(persistable(state)));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function loadState(storage) {
+    try {
+      var raw = storage.getItem(STORAGE_KEY);
+      return raw ? persistable(JSON.parse(raw)) : persistable({});
+    } catch (e) {
+      return persistable({});
+    }
+  }
+
+  function clearState(storage) {
+    try { storage.removeItem(STORAGE_KEY); } catch (e) { /* stockage indisponible */ }
+  }
+
+  /** Dossier saas/ déduit de l'adresse de la page (file://…/docs/guide-installation.html), sinon null. */
+  function saasDirFromHref(href) {
+    var m = /^file:\/\/(localhost)?(\/[^?#]*)/i.exec(String(href || ''));
+    if (!m) return null;
+    var path;
+    try { path = decodeURIComponent(m[2]); } catch (e) { return null; }
+    var parts = path.split('/');
+    parts.pop();
+    if (parts[parts.length - 1] !== 'docs') return null;
+    parts.pop();
+    parts.push('saas');
+    var joined = parts.join('/');
+    if (/^\/[A-Za-z]:\//.test(joined)) return joined.slice(1).replace(/\//g, '\\');
+    return joined;
+  }
+
+  /** Variables des liens et des commandes : uniquement des valeurs non secrètes et valides. */
+  function templateVars(fields, extra) {
+    var f = withoutSecrets(fields);
+    extra = extra || {};
+    var vars = {};
+    var ref = (f.SUPABASE_PROJECT_REF || '').trim();
+    if (REF_RE.test(ref)) vars.REF = ref;
+    var app = parseUrl((f.APP_URL || '').trim(), false);
+    if (app && app.pathname === '/' && !app.search && !app.hash) {
+      vars.APP_URL = app.origin;
+      vars.APP_HOST = app.host;
+    }
+    var admin = (f.ADMIN_EMAIL || '').trim();
+    if (EMAIL_RE.test(admin)) vars.ADMIN_EMAIL = admin;
+    var account = String(extra.cfAccount || '').trim().toLowerCase();
+    if (CF_ACCOUNT_RE.test(account)) vars.CF_ACCOUNT = account;
+    if (extra.saasDir) vars.SAAS_DIR = extra.saasDir;
+    return vars;
+  }
+
+  var PLACEHOLDERS = {
+    REF: '<identifiant>',
+    APP_URL: 'https://photobooth.mon-entreprise.fr',
+    APP_HOST: 'photobooth.mon-entreprise.fr',
+    ADMIN_EMAIL: 'l\'email de l\'administrateur',
+    CF_ACCOUNT: '<account_id>',
+    SAAS_DIR: '<dossier saas>',
+  };
+
+  /** Remplace {NOM} ; `strict` : null si une variable manque (lien de repli). */
+  function fill(template, vars, strict) {
+    var missing = false;
+    var out = String(template).replace(/\{([A-Z_]+)\}/g, function (all, name) {
+      if (vars[name]) return vars[name];
+      missing = true;
+      return PLACEHOLDERS[name] || all;
+    });
+    return strict && missing ? null : out;
+  }
+
+  var R2_ENDPOINT = function (account) { return 'https://' + account + '.r2.cloudflarestorage.com'; };
+
+  var PRESETS = {
+    scaleway: { STORAGE_ENDPOINT: 'https://s3.fr-par.scw.cloud', STORAGE_REGION: 'fr-par', publicUrl: 'https://{BUCKET}.s3.fr-par.scw.cloud' },
+    ovh: { STORAGE_ENDPOINT: 'https://s3.gra.io.cloud.ovh.net', STORAGE_REGION: 'gra', publicUrl: 'https://{BUCKET}.s3.gra.io.cloud.ovh.net' },
+    backblaze: { STORAGE_ENDPOINT: 'https://s3.eu-central-003.backblazeb2.com', STORAGE_REGION: 'eu-central-003', publicUrl: 'https://f003.backblazeb2.com/file/{BUCKET}' },
+    minio: { STORAGE_ENDPOINT: 'https://minio.mon-entreprise.fr', STORAGE_REGION: '', publicUrl: 'https://minio.mon-entreprise.fr/{BUCKET}' },
+  };
+
+  return {
+    STORAGE_KEY: STORAGE_KEY,
+    SECRET_KEYS: SECRET_KEYS,
+    FIELDS: FIELDS,
+    PRESETS: PRESETS,
+    CF_ACCOUNT_RE: CF_ACCOUNT_RE,
+    R2_ENDPOINT: R2_ENDPOINT,
+    extractRef: extractRef,
+    validate: validate,
+    formatValue: formatValue,
+    buildInstanceEnv: buildInstanceEnv,
+    previewInstanceEnv: previewInstanceEnv,
+    persistable: persistable,
+    saveState: saveState,
+    loadState: loadState,
+    clearState: clearState,
+    saasDirFromHref: saasDirFromHref,
+    templateVars: templateVars,
+    fill: fill,
+  };
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+  var L = GuideLib;
+  var OS_NAMES = { windows: 'Windows', mac: 'macOS', linux: 'Linux' };
+
+  var storage = null;
+  try { storage = window.localStorage; } catch (e) { storage = null; }
+  var saved = storage ? L.loadState(storage) : L.persistable({});
+
+  var state = {
+    os: saved.os || detectOs(),
+    done: saved.done,
+    fields: {},
+    cfAccount: saved.cfAccount,
+  };
+  L.FIELDS.forEach(function (f) {
+    var value = f.secret ? '' : saved.fields[f.key];
+    state.fields[f.key] = value != null ? value : (f.defaultValue || '');
+  });
+
+  var saasDir = L.saasDirFromHref(window.location.href);
+  var secretsTouched = false;
+  var downloadedSinceEdit = true;
+  var touched = {};
+
+  function detectOs() {
+    var ua = navigator.userAgent || '';
+    if (/Windows/i.test(ua)) return 'windows';
+    if (/Macintosh|Mac OS X/i.test(ua)) return 'mac';
+    if (/Linux|X11|CrOS/i.test(ua)) return 'linux';
+    return 'windows';
+  }
+
+  function save() {
+    if (storage) L.saveState(storage, state);
+  }
+
+  function announce(text) {
+    var live = document.getElementById('live');
+    live.textContent = '';
+    window.setTimeout(function () { live.textContent = text; }, 30);
+  }
+
+  // ── Copie ──────────────────────────────────────────────────────────────────────────────────
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    }
+    return legacyCopy(text);
+  }
+
+  function legacyCopy(text) {
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.top = '-1000px';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      area.setSelectionRange(0, text.length);
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(area);
+      if (ok) resolve(); else reject(new Error('copie refusée'));
+    });
+  }
+
+  var COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+
+  function addCopyButtons() {
+    document.querySelectorAll('.cmd').forEach(function (block) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn small copy';
+      button.innerHTML = COPY_ICON + '<span>Copier</span>';
+      button.addEventListener('click', function () {
+        var pre = Array.prototype.find.call(block.querySelectorAll('pre'), function (p) { return p.offsetParent !== null; }) || block.querySelector('pre');
+        var label = button.querySelector('span');
+        copyText(pre.textContent).then(function () {
+          button.classList.add('copied');
+          label.textContent = 'Copié';
+          announce('Copié dans le presse-papiers');
+        }, function () {
+          label.textContent = 'Sélectionnez et copiez';
+          var range = document.createRange();
+          range.selectNodeContents(pre);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+        window.setTimeout(function () { button.classList.remove('copied'); label.textContent = 'Copier'; }, 2000);
+      });
+      block.appendChild(button);
+    });
+  }
+
+  // ── Champs ─────────────────────────────────────────────────────────────────────────────────
+  function renderFields() {
+    L.FIELDS.forEach(function (f) {
+      var container = document.querySelector('.fields[data-group="' + f.group + '"]');
+      if (!container) return;
+      var id = 'f-' + f.key;
+      var wrap = document.createElement('div');
+      wrap.className = 'field' + (f.wide ? ' wide' : '');
+      wrap.dataset.key = f.key;
+
+      var label = document.createElement('label');
+      label.htmlFor = id;
+      label.textContent = f.label;
+      var tag = document.createElement('span');
+      tag.className = 'tag' + (f.secret ? ' secret' : '');
+      tag.textContent = f.secret ? 'secret, jamais enregistré' : (f.optional ? 'facultatif' : f.key);
+      label.appendChild(document.createTextNode(' '));
+      label.appendChild(tag);
+      wrap.appendChild(label);
+
+      var control = document.createElement('div');
+      control.className = 'control';
+      var input;
+      if (f.options) {
+        input = document.createElement('select');
+        f.options.forEach(function (o) {
+          var opt = document.createElement('option');
+          opt.value = o[0];
+          opt.textContent = o[1];
+          input.appendChild(opt);
+        });
+      } else {
+        input = document.createElement('input');
+        input.type = f.secret ? 'password' : (f.type === 'email' ? 'email' : 'text');
+        if (f.type === 'url') input.inputMode = 'url';
+        if (f.type === 'tel') input.type = 'tel';
+        if (f.inputmode) input.inputMode = f.inputmode;
+        input.autocomplete = f.secret ? 'new-password' : 'off';
+        input.spellcheck = false;
+        input.autocapitalize = 'off';
+        if (f.placeholder) input.placeholder = f.placeholder;
+      }
+      input.id = id;
+      input.name = f.key;
+      input.value = state.fields[f.key] || '';
+      var described = [];
+      if (f.help) described.push(id + '-help');
+      described.push(id + '-error');
+      input.setAttribute('aria-describedby', described.join(' '));
+      if (!f.optional) input.setAttribute('aria-required', 'true');
+      control.appendChild(input);
+
+      if (f.secret) {
+        var show = document.createElement('button');
+        show.type = 'button';
+        show.className = 'btn small';
+        show.textContent = 'Afficher';
+        show.setAttribute('aria-controls', id);
+        show.addEventListener('click', function () {
+          var hidden = input.type === 'password';
+          input.type = hidden ? 'text' : 'password';
+          show.textContent = hidden ? 'Masquer' : 'Afficher';
+        });
+        control.appendChild(show);
+      }
+      wrap.appendChild(control);
+
+      if (f.help) {
+        var help = document.createElement('div');
+        help.className = 'help';
+        help.id = id + '-help';
+        help.textContent = f.help;
+        wrap.appendChild(help);
+      }
+      var error = document.createElement('div');
+      error.className = 'error';
+      error.id = id + '-error';
+      wrap.appendChild(error);
+
+      var onChange = function () {
+        var value = input.value;
+        if (f.key === 'SUPABASE_PROJECT_REF') {
+          var ref = L.extractRef(value);
+          if (ref !== value.trim()) { input.value = ref; value = ref; }
+        }
+        setField(f.key, value);
+      };
+      input.addEventListener('input', onChange);
+      input.addEventListener('change', onChange);
+      input.addEventListener('blur', function () { touched[f.key] = true; refresh(); });
+      container.appendChild(wrap);
+    });
+  }
+
+  function setField(key, value) {
+    state.fields[key] = value;
+    if (L.SECRET_KEYS.indexOf(key) >= 0) secretsTouched = true;
+    downloadedSinceEdit = false;
+    save();
+    refresh();
+  }
+
+  function setFieldAndInput(key, value) {
+    var input = document.getElementById('f-' + key);
+    if (input) input.value = value;
+    touched[key] = true;
+    setField(key, value);
+  }
+
+  // ── Affichage ──────────────────────────────────────────────────────────────────────────────
+  var fillTargets = [];
+  var linkTargets = [];
+
+  function collectTemplates() {
+    document.querySelectorAll('[data-fill]').forEach(function (el) {
+      fillTargets.push({ el: el, tpl: el.textContent });
+    });
+    document.querySelectorAll('a[data-link]').forEach(function (a) {
+      linkTargets.push({ el: a, tpl: a.getAttribute('data-link'), fallback: a.getAttribute('data-fallback') || '' });
+    });
+  }
+
+  function renderTemplates() {
+    var vars = L.templateVars(state.fields, { cfAccount: state.cfAccount, saasDir: saasDir });
+    fillTargets.forEach(function (t) { t.el.textContent = L.fill(t.tpl, vars); });
+    linkTargets.forEach(function (t) {
+      var href = L.fill(t.tpl, vars, true);
+      var target = href || t.fallback;
+      if (target) {
+        t.el.href = target;
+        t.el.removeAttribute('aria-disabled');
+        t.el.removeAttribute('title');
+      } else {
+        t.el.removeAttribute('href');
+        t.el.setAttribute('aria-disabled', 'true');
+        t.el.title = 'Remplissez d\'abord l\'adresse du SaaS (étape 6)';
+      }
+    });
+    var found = Boolean(saasDir);
+    document.getElementById('code-found').hidden = !found;
+    document.getElementById('code-found-path').hidden = !found;
+  }
+
+  function renderValidation() {
+    var result = L.validate(state.fields);
+    var byKey = {};
+    result.errors.forEach(function (e) { if (!byKey[e.key]) byKey[e.key] = e.message; });
+    L.FIELDS.forEach(function (f) {
+      var wrap = document.querySelector('.field[data-key="' + f.key + '"]');
+      if (!wrap) return;
+      var hasValue = Boolean(String(state.fields[f.key] || '').trim());
+      var message = (touched[f.key] || hasValue) ? (byKey[f.key] || '') : '';
+      wrap.classList.toggle('invalid', Boolean(message));
+      wrap.querySelector('.error').textContent = message;
+      var input = wrap.querySelector('input, select');
+      if (message) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
+    });
+
+    var list = document.getElementById('check-list');
+    list.textContent = '';
+    var labelOf = function (key) {
+      var f = L.FIELDS.filter(function (x) { return x.key === key; })[0];
+      return f ? f.label : key;
+    };
+    var item = function (cls, key, message) {
+      var li = document.createElement('li');
+      li.className = cls;
+      if (key) {
+        var a = document.createElement('a');
+        a.href = '#f-' + key;
+        a.textContent = labelOf(key);
+        a.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          var input = document.getElementById('f-' + key);
+          var details = input.closest('details');
+          if (details) details.open = true;
+          input.focus();
+          input.scrollIntoView({ block: 'center' });
+        });
+        li.appendChild(a);
+        li.appendChild(document.createTextNode(' : ' + message));
+      } else li.textContent = message;
+      list.appendChild(li);
+    };
+    if (!result.errors.length) item('okk', null, 'Tout est rempli. Vous pouvez télécharger le fichier.');
+    result.errors.forEach(function (e) { item('err', e.key, e.message); });
+    result.warnings.forEach(function (w) { item('wrn', w.key, w.message); });
+    document.getElementById('env-preview').textContent = L.previewInstanceEnv(state.fields);
+    return result;
+  }
+
+  function renderProgress() {
+    var boxes = document.querySelectorAll('input[data-done]');
+    var count = 0;
+    boxes.forEach(function (box) {
+      var id = box.getAttribute('data-done');
+      box.checked = state.done[id] === true;
+      if (box.checked) count++;
+      box.closest('.step').classList.toggle('is-done', box.checked);
+      var tocItem = document.querySelector('#toc li[data-step="' + id + '"]');
+      if (tocItem) tocItem.classList.toggle('is-done', box.checked);
+    });
+    var total = boxes.length;
+    var pct = total ? Math.round((count / total) * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    var track = document.getElementById('progress-track');
+    track.setAttribute('aria-valuemax', String(total));
+    track.setAttribute('aria-valuenow', String(count));
+    document.getElementById('progress-label').textContent = count === total
+      ? 'Installation terminée'
+      : count + (count > 1 ? ' étapes' : ' étape') + ' sur ' + total;
+  }
+
+  function renderOs() {
+    document.body.setAttribute('data-os', state.os);
+    document.getElementById('os-name').textContent = OS_NAMES[state.os];
+    document.querySelectorAll('input[name="os"]').forEach(function (r) { r.checked = r.value === state.os; });
+  }
+
+  function refresh() {
+    renderTemplates();
+    renderValidation();
+  }
+
+  function buildToc() {
+    var toc = document.getElementById('toc');
+    document.querySelectorAll('.step[data-step]').forEach(function (section, i) {
+      var li = document.createElement('li');
+      li.dataset.step = section.getAttribute('data-step');
+      var a = document.createElement('a');
+      a.href = '#' + section.id;
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.setAttribute('aria-hidden', 'true');
+      dot.textContent = String(i + 1);
+      a.appendChild(dot);
+      a.appendChild(document.createTextNode(section.querySelector('h2').textContent));
+      li.appendChild(a);
+      toc.appendChild(li);
+    });
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────────────────────
+  function download() {
+    var result = L.validate(state.fields);
+    var status = document.getElementById('download-status');
+    if (result.errors.length && !window.confirm(result.errors.length + ' champ(s) à corriger : le script refusera ce fichier. Le télécharger quand même ?')) return;
+    var content;
+    try {
+      content = L.buildInstanceEnv(state.fields, new Date().toLocaleString('fr-FR'));
+    } catch (e) {
+      status.textContent = e.message;
+      return;
+    }
+    var blob = new Blob([content], { type: 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'instance.env';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    downloadedSinceEdit = true;
+    status.textContent = 'Fichier téléchargé. Placez-le dans le dossier saas (ci-dessous).';
+  }
+
+  function fillR2() {
+    var input = document.getElementById('cf-account');
+    var error = document.getElementById('cf-account-error');
+    var account = input.value.trim().toLowerCase();
+    if (!L.CF_ACCOUNT_RE.test(account)) {
+      error.textContent = 'L\'Account ID compte 32 caractères (chiffres et lettres de a à f).';
+      input.setAttribute('aria-invalid', 'true');
+      input.focus();
+      return;
+    }
+    error.textContent = '';
+    input.removeAttribute('aria-invalid');
+    setFieldAndInput('STORAGE_ENDPOINT', L.R2_ENDPOINT(account));
+    setFieldAndInput('STORAGE_REGION', 'auto');
+    if (!String(state.fields.STORAGE_BUCKET || '').trim()) setFieldAndInput('STORAGE_BUCKET', 'medias');
+    announce('Adresse S3 et région remplies pour Cloudflare R2');
+  }
+
+  function fillPreset() {
+    var preset = L.PRESETS[document.getElementById('preset').value];
+    if (!preset) return;
+    var bucket = String(state.fields.STORAGE_BUCKET || '').trim() || 'medias';
+    setFieldAndInput('STORAGE_BUCKET', bucket);
+    setFieldAndInput('STORAGE_ENDPOINT', preset.STORAGE_ENDPOINT);
+    setFieldAndInput('STORAGE_REGION', preset.STORAGE_REGION);
+    setFieldAndInput('STORAGE_PUBLIC_URL', preset.publicUrl.replace('{BUCKET}', bucket));
+    announce('Champs du stockage pré-remplis');
+  }
+
+  function reset() {
+    if (!window.confirm('Effacer l\'avancement et tous les champs de cette page ?')) return;
+    if (storage) L.clearState(storage);
+    state.done = {};
+    state.cfAccount = '';
+    L.FIELDS.forEach(function (f) {
+      state.fields[f.key] = f.defaultValue || '';
+      var input = document.getElementById('f-' + f.key);
+      if (input) input.value = state.fields[f.key];
+    });
+    document.getElementById('cf-account').value = '';
+    touched = {};
+    secretsTouched = false;
+    downloadedSinceEdit = true;
+    document.getElementById('download-status').textContent = '';
+    renderProgress();
+    refresh();
+    window.scrollTo(0, 0);
+    announce('Page remise à zéro');
+  }
+
+  // ── Démarrage ──────────────────────────────────────────────────────────────────────────────
+  buildToc();
+  renderFields();
+  collectTemplates();
+  addCopyButtons();
+  renderOs();
+  renderProgress();
+  document.getElementById('cf-account').value = state.cfAccount || '';
+  refresh();
+
+  document.querySelectorAll('input[name="os"]').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      state.os = radio.value;
+      save();
+      renderOs();
+    });
+  });
+  document.querySelectorAll('input[data-done]').forEach(function (box) {
+    box.addEventListener('change', function () {
+      var id = box.getAttribute('data-done');
+      if (box.checked) state.done[id] = true; else delete state.done[id];
+      save();
+      renderProgress();
+    });
+  });
+  document.getElementById('cf-account').addEventListener('input', function (ev) {
+    state.cfAccount = ev.target.value.trim();
+    save();
+    renderTemplates();
+  });
+  document.getElementById('cf-fill').addEventListener('click', fillR2);
+  document.getElementById('preset-fill').addEventListener('click', fillPreset);
+  document.getElementById('download').addEventListener('click', download);
+  document.getElementById('reset').addEventListener('click', reset);
+  document.querySelectorAll('a[data-link]').forEach(function (a) {
+    a.addEventListener('click', function (ev) {
+      if (!a.getAttribute('href')) { ev.preventDefault(); announce(a.title); }
+    });
+  });
+  window.addEventListener('beforeunload', function (ev) {
+    if (secretsTouched && !downloadedSinceEdit) {
+      ev.preventDefault();
+      ev.returnValue = '';
+    }
+  });
+})();
+</script>
+</body>
+</html>

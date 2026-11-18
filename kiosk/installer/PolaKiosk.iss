@@ -46,6 +46,9 @@ OutputBaseFilename=setup-polakiosk
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+; Icône Polabooth : fichier setup-polakiosk.exe et « Applications installées » de Windows
+SetupIconFile=..\PolaKiosk\Assets\Brand\polabooth.ico
+UninstallDisplayIcon={app}\{#ExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
@@ -56,11 +59,12 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis :"
 
 [Files]
-; App self-contained. On exclut appsettings.local.json : c'est un fichier d'overrides
-; DÉVELOPPEUR (clé Supabase de dev) qui ne doit jamais arriver sur un kiosk — sinon il
-; écraserait la config prod. Les réglages machine (imprimante…) sont gérés dans l'app
-; (écran admin) et stockés dans machine-settings.json du DataDirectory, hors dossier d'install.
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; Excludes: "appsettings.local.json"
+; App self-contained. On exclut appsettings.local.json et appsettings.Development.json : ce sont
+; des réglages DÉVELOPPEUR (base de dev, PIN de dev) qui ne doivent jamais arriver sur un kiosk.
+; Le publish ne les copie déjà plus (PolaKiosk.csproj) ; l'exclusion ici couvre un vieux dossier.
+; Les réglages machine (imprimante…) sont gérés dans l'app (écran admin) et stockés dans
+; machine-settings.json du DataDirectory, hors dossier d'install.
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; Excludes: "appsettings.local.json,appsettings.Development.json"
 ; Scripts watchdog + mise à jour
 Source: "{#ScriptsDir}\watchdog.ps1";     DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "{#ScriptsDir}\apply-update.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion

@@ -57,7 +57,7 @@ export function isoToParisLocal(iso) {
   return `${parisDay(iso)}T${parisTime(iso)}`;
 }
 
-export const KIND_LABEL = {
+const KIND_LABEL = {
   pickup: { retrait: 'Retrait', retour: 'Retour' },
   delivery: { retrait: 'Livraison', retour: 'Reprise' },
 };

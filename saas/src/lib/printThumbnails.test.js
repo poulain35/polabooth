@@ -49,8 +49,10 @@ test('miniature : photo de la séance, composite_url existant gardé, première 
 });
 
 test('getEventPrintLogs : une seule requête photos, seulement si une miniature manque', () => {
-  const src = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('export async function getEventPrintLogs'), src.indexOf('/** Historique des alertes parc kiosk'));
+  const src = readFileSync(new URL('./api/events.js', import.meta.url), 'utf8');
+  const start = src.indexOf('export async function getEventPrintLogs');
+  assert.ok(start >= 0);
+  const fn = src.slice(start, src.indexOf('\n}\n', start));
   assert.equal((fn.match(/\.from\('photos'\)/g) ?? []).length, 1);
   assert.match(fn, /sessionsNeedingThumbnail\(logs\)/);
   assert.match(fn, /if \(sessions\.length === 0\) return logs;/);

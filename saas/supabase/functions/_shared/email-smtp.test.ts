@@ -173,8 +173,12 @@ test('Brevo sans variable nouvelle : code d\'accès par modèle, payload identiq
       ACCESS_CODE: 'ABC123',
       EDITOR_URL: 'https://app.pola.fr/e/ABC123',
       EXPIRES_DATE: new Date('2026-12-31').toLocaleDateString('fr-FR'),
+      // Seul ajout (spec suivi-client-reservation, D8) : vide sans lien de suivi.
+      TRACKING_URL: '',
     },
   }));
+  await sendAccessCodeEmail({ ...ACCESS, templateId: 12, sender, trackingUrl: 'https://app.pola.fr/reservation/tok' });
+  assert.equal(JSON.parse(brevoCalls[1].body).params.TRACKING_URL, 'https://app.pola.fr/reservation/tok');
 });
 
 test('Brevo sans variable nouvelle : email de réservation avec pièce jointe et en-têtes, payload identique', async () => {

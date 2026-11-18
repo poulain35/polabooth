@@ -1,10 +1,10 @@
-// Tests des pièces jointes Brevo (LAB-88, LAB-90) : URL Pennylane sans extension → contenu base64 ; « .pdf » non PDF écarté.
+// Tests des pièces jointes Brevo (LAB-88, LAB-90) : URL de facture sans extension → contenu base64 ; « .pdf » non PDF écarté.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inlineAttachments, isPdf, toBase64 } from './email-attachments.ts';
 
 const PDF = new TextEncoder().encode('%PDF-1.4 devis');
-const PENNYLANE_URL = 'https://app.pennylane.com/public/invoice/pdf?encrypted_id=abc';
+const INVOICE_URL = 'https://factures.exemple/public/invoice/pdf?encrypted_id=abc';
 
 const fetchOf = (routes: Record<string, Response | Error>) => (async (url: string | URL) => {
   const r = routes[String(url)];
@@ -18,10 +18,10 @@ test('toBase64 : identique à Buffer, y compris au-delà d\'un bloc', () => {
   assert.equal(toBase64(big), Buffer.from(big).toString('base64'));
 });
 
-test('inlineAttachments : URL Pennylane téléchargée et envoyée en base64 avec son nom', async () => {
+test('inlineAttachments : URL de facture sans extension téléchargée et envoyée en base64 avec son nom', async () => {
   const out = await inlineAttachments(
-    [{ url: PENNYLANE_URL, name: 'Devis D-2026-196.pdf' }],
-    fetchOf({ [PENNYLANE_URL]: new Response(PDF) }),
+    [{ url: INVOICE_URL, name: 'Devis D-2026-196.pdf' }],
+    fetchOf({ [INVOICE_URL]: new Response(PDF) }),
   );
   assert.deepEqual(out, [{ content: Buffer.from(PDF).toString('base64'), name: 'Devis D-2026-196.pdf' }]);
 });
@@ -40,8 +40,8 @@ test('inlineAttachments : contenu déjà inline conservé, nom par défaut tiré
 test('inlineAttachments : téléchargement en échec (HTTP ou réseau) → pièce jointe retirée, avertissement', async () => {
   const warnings: string[] = [];
   const out = await inlineAttachments(
-    [{ url: PENNYLANE_URL, name: 'Facture.pdf' }, { url: 'https://down.example/f.pdf', name: 'CGL.pdf' }],
-    fetchOf({ [PENNYLANE_URL]: new Response('expiré', { status: 403 }), 'https://down.example/f.pdf': new Error('ECONNRESET') }),
+    [{ url: INVOICE_URL, name: 'Facture.pdf' }, { url: 'https://down.example/f.pdf', name: 'CGL.pdf' }],
+    fetchOf({ [INVOICE_URL]: new Response('expiré', { status: 403 }), 'https://down.example/f.pdf': new Error('ECONNRESET') }),
     (m) => warnings.push(m),
   );
   assert.deepEqual(out, []);
@@ -55,8 +55,8 @@ test('inlineAttachments : page HTML servie sous un nom .pdf (URL non déployée)
   const spa = new Response('<!doctype html><html lang="en">', { headers: { 'content-type': 'text/html; charset=utf-8' } });
   const warnings: string[] = [];
   const out = await inlineAttachments(
-    [{ url: PENNYLANE_URL, name: 'Facture-F-2026-144.pdf' }, { url: cgl, name: 'CGL-Studio-Exemple.pdf' }],
-    fetchOf({ [PENNYLANE_URL]: new Response(PDF), [cgl]: spa }),
+    [{ url: INVOICE_URL, name: 'Facture-F-2026-144.pdf' }, { url: cgl, name: 'CGL-Studio-Exemple.pdf' }],
+    fetchOf({ [INVOICE_URL]: new Response(PDF), [cgl]: spa }),
     (m) => warnings.push(m),
   );
   assert.deepEqual(out.map((a) => a.name), ['Facture-F-2026-144.pdf']);
@@ -96,16 +96,16 @@ function stubBrevo(files: Record<string, Response>) {
 
 const rendered = { subject: 'Votre devis', html: '<p>x</p>', params: {} };
 
-test('postBrevo : la pièce jointe Pennylane part en base64, plus jamais en URL', async () => {
-  const posted = stubBrevo({ [PENNYLANE_URL]: new Response(PDF) });
-  await sendBookingEmail({ to: 'client@exemple.fr', rendered, templateId: null, attachment: [{ url: PENNYLANE_URL, name: 'Devis.pdf' }] });
+test('postBrevo : la pièce jointe sans extension part en base64, plus jamais en URL', async () => {
+  const posted = stubBrevo({ [INVOICE_URL]: new Response(PDF) });
+  await sendBookingEmail({ to: 'client@exemple.fr', rendered, templateId: null, attachment: [{ url: INVOICE_URL, name: 'Devis.pdf' }] });
   assert.equal(posted.length, 1);
   assert.deepEqual(posted[0].attachment, [{ content: Buffer.from(PDF).toString('base64'), name: 'Devis.pdf' }]);
 });
 
 test('postBrevo : PDF indisponible → email envoyé sans champ attachment', async () => {
   const posted = stubBrevo({});
-  await sendBookingEmail({ to: 'client@exemple.fr', rendered, templateId: null, attachment: [{ url: PENNYLANE_URL, name: 'Devis.pdf' }] });
+  await sendBookingEmail({ to: 'client@exemple.fr', rendered, templateId: null, attachment: [{ url: INVOICE_URL, name: 'Devis.pdf' }] });
   assert.equal(posted.length, 1);
   assert.equal('attachment' in posted[0], false);
 });

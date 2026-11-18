@@ -48,7 +48,7 @@ public sealed class LiveViewModelTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { }
+        try { Directory.Delete(_dataDir, recursive: true); } catch { /* nettoyage d'un dossier temporaire */ }
     }
 
     private void VerifyNoResultNavigation()
@@ -213,8 +213,8 @@ public sealed class LiveViewModelTests : IDisposable
         _journey.PhotoConsent = Consent;
         Guid sessionId = default;
         Action<AppDbContext>? stage = null;
-        _sessions.Setup(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg", It.IsAny<Action<AppDbContext>?>()))
-                 .Callback<Guid, Guid, DateTime, string, string, Action<AppDbContext>?>((id, _, _, _, _, a) => (sessionId, stage) = (id, a))
+        _sessions.Setup(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg", It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>()))
+                 .Callback<Guid, Guid, DateTime, string, string, Action<AppDbContext>?, Guid?>((id, _, _, _, _, a, _) => (sessionId, stage) = (id, a))
                  .ReturnsAsync(() => sessionId);
 
         await _vm.StartAsync();
@@ -534,5 +534,48 @@ public sealed class LiveViewModelTests : IDisposable
 
         vm.HasError.Should().BeTrue();
         vm.ErrorMessage.Should().Contain("carte SD");
+    }
+
+    // ── LAB-315 : cadre choisi par l'invité ──────────────────────────
+
+    [Fact]
+    public async Task The_chosen_frame_is_shot_printed_on_its_paper_and_kept_with_the_session()
+    {
+        Directory.CreateDirectory(_dataDir);
+        string WritePng(string name)
+        {
+            var path = Path.Combine(_dataDir, name);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(FakeBitmap()));
+            using var file = File.Create(path);
+            encoder.Save(file);
+            return path;
+        }
+        var main  = new TemplateEntity { Id = Guid.NewGuid(), EventId = _eventId, Format = "portrait", SortOrder = 0, ThumbnailPath = WritePng("main.png") };
+        var strip = new TemplateEntity { Id = Guid.NewGuid(), EventId = _eventId, Format = "stripV", SortOrder = 1, ThumbnailPath = WritePng("strip.png") };
+        _sync.Setup(s => s.GetTemplatesAsync(_eventId)).ReturnsAsync(new List<TemplateEntity> { strip, main });
+        _composite.Setup(c => c.GetPhotoZonesAsync(main.Id, It.IsAny<string>())).ReturnsAsync(new List<PhotoZone> { new(0, 0, 400, 600) });
+        _composite.Setup(c => c.GetPhotoZonesAsync(strip.Id, It.IsAny<string>())).ReturnsAsync(new List<PhotoZone>
+        {
+            new(10, 10, 180, 180), new(10, 210, 180, 180), new(10, 410, 180, 180),
+        });
+        _composite.Setup(c => c.CreateCompositeAsync(It.IsAny<IReadOnlyList<string>>(), strip.ThumbnailPath, It.IsAny<IReadOnlyList<PhotoZone>>(),
+                "stripV", It.IsAny<string>(), It.IsAny<int>()))
+                  .ReturnsAsync("composite.jpg");
+        _camera.Setup(c => c.CaptureAsync(It.IsAny<string>())).ReturnsAsync("photo.jpg");
+        var selection = new Mock<IFrameSelection>();
+        selection.SetupGet(f => f.SelectedTemplateId).Returns(strip.Id);
+        var settings = new AppSettings();
+        settings.Kiosk.DataDirectory = _dataDir;
+        var vm = new LiveViewModel(_camera.Object, _nav.Object, settings, _composite.Object,
+            _sync.Object, _state.Object, _log.Object, new SessionPathService(settings), _sessions.Object,
+            _network.Object, _journey, frameSelection: selection.Object);
+
+        await vm.StartAsync();
+
+        _camera.Verify(c => c.CaptureAsync(It.IsAny<string>()), Times.Exactly(3));
+        _sessions.Verify(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg",
+            It.IsAny<Action<PolaKiosk.Models.LocalDb.AppDbContext>?>(), strip.Id), Times.Once);
+        _nav.Verify(n => n.NavigateTo<ResultView>(It.Is<object>(p => ((ResultParameters)p).PaperFormat == "2x6")), Times.Once);
     }
 }

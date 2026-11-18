@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FORMAT_LIST, FORMATS } from '../utils/formats';
+import { FORMAT_LIST, FORMATS, HOME_FORMAT, isHomeFormat } from '../utils/formats';
 import { fetchDbTemplatesMeta } from '../lib/supabase';
 
 const FORMAT_FILTERS = [
@@ -7,32 +7,35 @@ const FORMAT_FILTERS = [
   ...FORMAT_LIST.map((f) => ({ id: f.id, label: f.label })),
 ];
 
+// Zones photo de l'aperçu : damier (classe .checkerboard) aux couleurs des lignes de l'éditeur.
+const PHOTO_ZONE_CHECKER = {
+  '--checker-size': '6px',
+  '--checker-dark': 'hsl(var(--editor-line-strong))',
+  '--checker-light': 'hsl(var(--editor-line))',
+};
+
 // ── Static template mini-preview (CSS-drawn) ──────────────────────────────────
+// Sans couleur de fond (modèle sans aperçu), la vignette prend le gris doux de l'éditeur.
 function TemplateMiniPreview({ template, format }) {
   const { canvasWidth: W, canvasHeight: H } = format;
   const ratio = (H / W) * 100;
-  const bgColor = template.bgColor ?? template.bg_color ?? '#ffffff';
-  const border  = template.previewBorder ?? '#e2e8f0';
+  const bgColor = template.bgColor ?? template.bg_color;
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-md"
-      style={{ paddingBottom: `${ratio}%`, backgroundColor: bgColor, border: `1.5px solid ${border}` }}
+      className={`relative w-full overflow-hidden rounded-md border-[1.5px] border-editor-line ${bgColor ? '' : 'bg-editor-hover'}`}
+      style={{ paddingBottom: `${ratio}%`, ...(bgColor && { backgroundColor: bgColor }) }}
     >
       {format.photoZones.map((zone, i) => (
         <div
           key={i}
-          className="absolute"
+          className="absolute checkerboard"
           style={{
             left: `${(zone.x / W) * 100}%`,
             top:  `${(zone.y / H) * 100}%`,
             width:`${(zone.w / W) * 100}%`,
             height:`${(zone.h / H) * 100}%`,
-            backgroundImage:
-              'linear-gradient(45deg,#b8b8b8 25%,transparent 25%),linear-gradient(-45deg,#b8b8b8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#b8b8b8 75%),linear-gradient(-45deg,transparent 75%,#b8b8b8 75%)',
-            backgroundSize: '6px 6px',
-            backgroundPosition: '0 0,0 3px,3px -3px,-3px 0',
-            backgroundColor: '#e0e0e0',
+            ...PHOTO_ZONE_CHECKER,
           }}
         />
       ))}
@@ -61,7 +64,7 @@ function DbTemplateMiniPreview({ template, format }) {
       </div>
     );
   }
-  return <TemplateMiniPreview template={{ bgColor: '#f1f5f9', previewBorder: '#e2e8f0' }} format={format} />;
+  return <TemplateMiniPreview template={{}} format={format} />;
 }
 
 // ── Lazy-mount wrapper — ne monte l'enfant que quand il approche du viewport ──
@@ -82,7 +85,7 @@ function LazyVisible({ children, rootRef }) {
 
   return (
     <div ref={wrapperRef}>
-      {visible ? children : <div className="w-full rounded-md bg-gray-100 animate-pulse" style={{ paddingBottom: '150%' }} />}
+      {visible ? children : <div className="w-full rounded-md bg-editor-hover animate-pulse" style={{ paddingBottom: '150%' }} />}
     </div>
   );
 }
@@ -99,9 +102,9 @@ function TemplateCard({ template, format, onClick, isDb }) {
         ? <DbTemplateMiniPreview template={template} format={format} />
         : <TemplateMiniPreview   template={template} format={format} />
       }
-      <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent
+      <div className="absolute inset-0 flex items-end
         opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-        <span className="w-full px-2 py-1.5 text-[11px] font-medium text-white truncate text-left leading-tight">
+        <span className="w-full px-2 py-1.5 text-[11px] font-medium text-white bg-black/60 truncate text-left leading-tight">
           {template.name}
         </span>
       </div>
@@ -109,17 +112,9 @@ function TemplateCard({ template, format, onClick, isDb }) {
   );
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-function SectionLabel({ children }) {
-  return (
-    <p className="col-span-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider pt-2 pb-1">
-      {children}
-    </p>
-  );
-}
-
 // ── Main ─────────────────────────────────────────────────────────────────────
-export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onClose }) {
+// `adminMode` : dans l'admin, la bibliothèque s'appelle « Cadres photo » ; le client garde « Modèles ».
+export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onClose, adminMode = false }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeTag,    setActiveTag]    = useState(null);
   const [dbTemplates,  setDbTemplates]  = useState([]);
@@ -133,25 +128,29 @@ export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onCl
       .finally(() => setLoading(false));
   }, []);
 
-  const availableTags = [...new Set(dbTemplates.flatMap((t) => t.tags ?? []))].sort();
+  // Écran d'accueil (LAB-289) : seulement les modèles au format 'home', sans filtre de format ;
+  // modèle photo : jamais les modèles d'accueil.
+  const homeMode = isHomeFormat(currentFormat);
+  const kindTemplates = dbTemplates.filter((t) => (homeMode ? t.format_id === HOME_FORMAT.id : Boolean(FORMATS[t.format_id])));
+  const availableTags = [...new Set(kindTemplates.flatMap((t) => t.tags ?? []))].sort();
 
-  const dbCards = dbTemplates
-    .filter((t) => activeFilter === 'all' || t.format_id === activeFilter)
+  const dbCards = kindTemplates
+    .filter((t) => homeMode || activeFilter === 'all' || t.format_id === activeFilter)
     .filter((t) => !activeTag || (t.tags ?? []).includes(activeTag))
     .map((t) => ({
       template: t,
-      format: FORMATS[t.format_id] ?? currentFormat,
+      format: homeMode ? HOME_FORMAT : FORMATS[t.format_id],
       isDb: true,
     }));
 
   return (
-    <aside className="fixed md:relative inset-0 md:inset-auto md:w-80 bg-card md:border-r border-gray-200 flex flex-col overflow-hidden shrink-0 shadow-lg z-30">
+    <aside className={`fixed md:relative inset-0 md:inset-auto md:w-80 bg-card md:border-r border-editor-line flex flex-col overflow-hidden shrink-0 shadow-lg z-30 ${adminMode ? 'md:shadow-none' : ''}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h2 className="font-semibold text-sm text-gray-900">Modèles</h2>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-editor-line-soft">
+        <h2 className="font-editor-strong text-sm text-editor-fg">{adminMode ? 'Cadres photo' : 'Modèles'}</h2>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+          className={`p-1 ${adminMode ? 'rounded-sm' : 'rounded'} hover:bg-editor-hover text-editor-faint hover:text-editor-fg transition-colors`}
           title="Fermer"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -161,23 +160,23 @@ export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onCl
       </div>
 
       {/* Filters */}
-      <div className="px-3 pt-3 pb-2 border-b border-gray-100 space-y-2">
+      <div className="px-3 pt-3 pb-2 border-b border-editor-line-soft space-y-2">
         {/* Format */}
-        <div className="flex flex-wrap gap-1.5">
+        {!homeMode && <div className="flex flex-wrap gap-1.5">
           {FORMAT_FILTERS.map((f) => (
             <button
               key={f.id}
               onClick={() => setActiveFilter(f.id)}
               className={`px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all
                 ${activeFilter === f.id
-                  ? 'bg-primary text-white border-primary'
-                  : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-editor-line text-editor-ink hover:border-primary hover:text-editor-accent-fg'
                 }`}
             >
               {f.label}
             </button>
           ))}
-        </div>
+        </div>}
         {/* Tags — visibles uniquement s'il y en a */}
         {availableTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -185,8 +184,8 @@ export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onCl
               onClick={() => setActiveTag(null)}
               className={`px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all
                 ${!activeTag
-                  ? 'bg-gray-800 text-white border-gray-800'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-800'
+                  ? 'bg-editor-fg text-editor-panel border-editor-fg'
+                  : 'border-editor-line text-editor-ink hover:border-editor-line-strong hover:text-editor-fg'
                 }`}
             >
               Tous
@@ -197,8 +196,8 @@ export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onCl
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
                 className={`px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all
                   ${activeTag === tag
-                    ? 'bg-gray-800 text-white border-gray-800'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-800'
+                    ? 'bg-editor-fg text-editor-panel border-editor-fg'
+                    : 'border-editor-line text-editor-ink hover:border-editor-line-strong hover:text-editor-fg'
                   }`}
               >
                 {tag}
@@ -213,15 +212,17 @@ export default function TemplatesSidebar({ currentFormat, onSelectTemplate, onCl
         {loading ? (
           <div className="columns-2 gap-1">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="break-inside-avoid mb-1 w-full rounded-md bg-gray-100 animate-pulse"
+              <div key={i} className="break-inside-avoid mb-1 w-full rounded-md bg-editor-hover animate-pulse"
                 style={{ paddingBottom: i % 2 === 0 ? '150%' : '67%' }} />
             ))}
           </div>
         ) : (
           <div className="columns-2 gap-1">
             {dbCards.length === 0 && (
-              <p className="text-center text-xs text-gray-400 py-8" style={{ columnSpan: 'all' }}>
-                Aucun modèle disponible pour ce format.
+              <p className="text-center text-xs text-editor-muted py-8" style={{ columnSpan: 'all' }}>
+                {homeMode
+                  ? "Aucun modèle d'écran d'accueil pour l'instant."
+                  : adminMode ? 'Aucun cadre photo disponible pour ce format.' : 'Aucun modèle disponible pour ce format.'}
               </p>
             )}
             {dbCards.map(({ template, format, isDb }) => (

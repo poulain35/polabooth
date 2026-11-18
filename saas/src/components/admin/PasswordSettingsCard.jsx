@@ -7,6 +7,7 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import NewPasswordFields from '../NewPasswordFields';
+import { CardHeading, Notice } from './CardParts';
 
 /**
  * Carte « Mot de passe » des Paramètres (LAB-268). Si le projet Supabase exige une confirmation
@@ -70,14 +71,15 @@ export default function PasswordSettingsCard() {
   }
 
   return (
-    <Card className="p-4 sm:p-6">
-      <h2 className="font-semibold text-gray-800 mb-1">Mot de passe</h2>
-      <p className="text-sm text-gray-500 mb-5">
-        Mot de passe de connexion à l'administration{email ? <> ({email})</> : null}.
-      </p>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Card className="p-card">
+      <CardHeading
+        className="mb-5"
+        title="Mot de passe"
+        description={<>Mot de passe de connexion à l'administration{email ? <> ({email})</> : null}.</>}
+      />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {needCurrent && (
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="pwd-current">Mot de passe actuel</Label>
             <Input
               id="pwd-current" type="password" value={currentPassword} autoComplete="current-password"
@@ -93,24 +95,24 @@ export default function PasswordSettingsCard() {
           onConfirmation={(v) => { setConfirmation(v); setError(''); }}
         />
         {needNonce && (
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="pwd-nonce">Code de vérification</Label>
             <Input
               id="pwd-nonce" value={nonce} inputMode="numeric" autoComplete="one-time-code" autoFocus
               onChange={(e) => { setNonce(e.target.value); setError(''); }}
             />
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Par sécurité, saisissez le code envoyé à {email || 'votre adresse'}.{' '}
-              <button type="button" onClick={handleResend} disabled={saving} className="text-primary hover:underline">
+              <button type="button" onClick={handleResend} disabled={saving} className="font-medium text-primary-ink hover:underline">
                 Renvoyer le code
               </button>
             </p>
           </div>
         )}
 
-        {error && <p className="text-sm bg-red-50 text-red-700 rounded-md px-3 py-2">{error}</p>}
+        {error && <Notice role="alert" tone="red">{error}</Notice>}
 
-        <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+        <div className="flex items-center gap-3 border-t border-border pt-4">
           <Button type="submit" disabled={saving}>
             {saving ? 'Enregistrement…' : 'Changer le mot de passe'}
           </Button>

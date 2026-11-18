@@ -1,5 +1,5 @@
 // Pièces jointes Brevo (LAB-88) : Brevo déduit le format d'une pièce jointe { url } de l'extension
-// de l'URL et refuse les liens PDF de Pennylane (« /public/invoice/pdf?… » → « Unsupported file
+// de l'URL et refuse les liens PDF sans extension (« /public/invoice/pdf?… » → « Unsupported file
 // format »). On télécharge donc chaque pièce jointe par URL et on l'envoie en base64 avec son nom.
 // Module pur (fetch injecté) pour être testé sous `node --test`.
 

@@ -7,20 +7,14 @@ import {
 import { Download, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { CardHeading, Notice } from './CardParts';
 import { Skeleton } from '../ui/skeleton';
+import { StatusPill } from '../ui/status-pill';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/table';
 import { toast } from 'sonner';
+import { downloadBlob } from '../../lib/download';
 
 const PAGE_SIZE = 50;
-
-function downloadBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /**
  * Consentements photo donnés sur la borne (LAB-226) : nombre, liste paginée, export CSV de preuve.
@@ -84,32 +78,36 @@ export default function PhotoConsentsPanel({ event, licenses = [] }) {
   }
 
   return (
-    <Card className="p-5 rounded-2xl shadow-sm">
+    <Card className="p-card">
       {/* En-tête */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div>
-          <h2 className="font-semibold text-gray-800">
-            Consentements photo
-            {total > 0 && <span className="ml-2 px-2 py-0.5 bg-primary/15 text-primary text-xs font-semibold rounded-full">{total}</span>}
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">{photoConsentsRetentionLabel(event.expires_at)}</p>
-          <p className="text-xs text-gray-400 mt-1">Preuve qu'un invité a accepté le message affiché avant sa séance. Visible par les administrateurs seulement.</p>
-        </div>
-        <Button variant="outline" onClick={handleExport} disabled={exporting || total === 0} className="rounded-xl">
-          {exporting ? <Loader2 className="animate-spin" /> : <Download />}
-          Exporter en CSV
-        </Button>
-      </div>
+      <CardHeading
+        className="mb-4"
+        titleClassName="flex flex-wrap items-center gap-2"
+        title={<>
+          Consentements photo
+          {total > 0 && <StatusPill tone="gray" dot={false}>{total}</StatusPill>}
+        </>}
+        description={<>
+          {photoConsentsRetentionLabel(event.expires_at)}
+          <span className="mt-1 block text-xs">Preuve qu'un invité a accepté le message affiché avant sa séance. Visible par les administrateurs seulement.</span>
+        </>}
+        actions={(
+          <Button variant="outline" onClick={handleExport} disabled={exporting || total === 0} >
+            {exporting ? <Loader2 className="animate-spin" /> : <Download />}
+            Exporter en CSV
+          </Button>
+        )}
+      />
 
-      {error && <p className="text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 mb-3">{error}</p>}
+      {error && <Notice tone="red" className="mb-3">{error}</Notice>}
 
       {/* Liste */}
       {loading && rows.length === 0 ? (
         <div className="space-y-2">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 rounded-lg w-full" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full rounded-control" />)}
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">
+        <p className="text-sm text-muted-foreground text-center py-6">
           {rgpdEnabled
             ? 'Aucun consentement reçu pour le moment. La borne envoie chaque consentement dès qu\'elle a du réseau.'
             : 'La borne ne demande pas de consentement photo pour cet événement (écran de consentement désactivé).'}
@@ -130,20 +128,20 @@ export default function PhotoConsentsPanel({ event, licenses = [] }) {
                 const open = expanded === c.id;
                 return (
                   <TableRow key={c.id} className="align-top">
-                    <TableCell className="whitespace-nowrap text-gray-500">{formatParisDateTime(c.consented_at)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatParisDateTime(c.consented_at)}</TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <span className="font-mono text-xs text-gray-700" title={c.session_id}>{String(c.session_id).slice(0, 8)}</span>
+                      <span className="font-mono text-xs text-foreground" title={c.session_id}>{String(c.session_id).slice(0, 8)}</span>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-gray-900" title={c.machine_id}>{machineLabel(c.machine_id, licenses)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-foreground" title={c.machine_id}>{machineLabel(c.machine_id, licenses)}</TableCell>
                     <TableCell className="min-w-[16rem] whitespace-normal">
                       {c.consent_text ? (
                         <button type="button" onClick={() => setExpanded(open ? null : c.id)}
                           aria-expanded={open} title={open ? 'Réduire' : 'Afficher tout le texte'}
-                          className={`text-left text-xs text-gray-600 hover:text-gray-900 ${open ? 'whitespace-pre-line' : 'line-clamp-2'}`}>
+                          className={`text-left text-xs text-muted-foreground hover:text-foreground ${open ? 'whitespace-pre-line' : 'line-clamp-2'}`}>
                           {c.consent_text}
                         </button>
                       ) : (
-                        <span className="text-xs italic text-gray-400">Texte vide</span>
+                        <span className="text-xs italic text-muted-foreground">Texte vide</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -151,14 +149,14 @@ export default function PhotoConsentsPanel({ event, licenses = [] }) {
               })}
             </TableBody>
           </Table>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-            <span className="text-xs text-gray-400">
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <span className="text-xs text-muted-foreground">
               {total} consentement{total > 1 ? 's' : ''}{totalPages > 1 && ` · page ${page} / ${totalPages}`} · heure de Paris
             </span>
             {totalPages > 1 && (
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => p - 1)} disabled={page === 1 || loading}>← Précédent</Button>
-                <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => p + 1)} disabled={page === totalPages || loading}>Suivant →</Button>
+                <Button variant="outline" size="sm"  onClick={() => setPage((p) => p - 1)} disabled={page === 1 || loading}>← Précédent</Button>
+                <Button variant="outline" size="sm"  onClick={() => setPage((p) => p + 1)} disabled={page === totalPages || loading}>Suivant →</Button>
               </div>
             )}
           </div>

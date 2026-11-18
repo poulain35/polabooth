@@ -108,7 +108,7 @@ public sealed class InstanceSettingsTests : IDisposable
         state.SetupGet(s => s.ContactEmail).Returns(email);
         var settings = new AppSettings { Contact = { CompanyName = "Instance", Email = "contact@instance.fr" } };
 
-        LiveViewModel.QuestionnaireProviderFor(state.Object, settings)
+        CaptureFinisher.QuestionnaireProviderFor(state.Object, settings)
             .Should().Be(new PolaKiosk.Models.Supabase.QuestionnaireProvider(expectedName, expectedEmail));
     }
 }

@@ -1,9 +1,14 @@
 // Test d'une clé de service par un appel en lecture seule (open core L6a).
 // Logique pure (fetch et lecture des clés injectés) : testée par logic.test.ts sous `node --test`.
 // Ne renvoie jamais la clé ni le corps d'une erreur du fournisseur, seulement le statut HTTP.
+// Le test des clés d'un module privé est déclaré par le module (keyTests de son catalogue, LAB-403).
 
-import { GOOGLE_KEY_NAMES, getServiceKey } from '../_shared/service-keys.ts';
+import { GOOGLE_KEY_NAMES, SERVICE_KEY_NAMES, getServiceKey, type KeyTest } from '../_shared/service-keys.ts';
+import { PRIVATE_MODULES } from '../_shared/private-modules.ts';
 import type { EnvGet, ResolvedSecret, SecretSource } from '../_shared/secrets.ts';
+import { resolveEmailProvider, type EmailProvider } from '../_shared/email-provider.ts';
+import { smtpConfigFromEnv } from '../_shared/smtp.ts';
+import { identityDefaults } from '../_shared/org-identity.ts';
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 export type ReadSecret = (name: string) => Promise<ResolvedSecret>;
@@ -17,8 +22,6 @@ export const ENDPOINTS = {
   anthropic: 'https://api.anthropic.com/v1/models',
   replicate: 'https://api.replicate.com/v1/account',
   googleToken: 'https://oauth2.googleapis.com/token',
-  // Même base que _shared/modules/invoicing/pennylane.ts ; GET /customers fait partie des droits déjà utilisés.
-  pennylane: 'https://app.pennylane.com/api/external/v2/customers?limit=1',
 };
 
 const SOURCE_LABEL: Record<SecretSource, string> = {
@@ -29,11 +32,6 @@ const SOURCE_LABEL: Record<SecretSource, string> = {
 
 export function sourceLabel(source: SecretSource): string {
   return SOURCE_LABEL[source];
-}
-
-function isMockEnabled(env: EnvGet): boolean {
-  const v = (env('PENNYLANE_MOCK') ?? '').trim().toLowerCase();
-  return v !== '' && v !== '0' && v !== 'false';
 }
 
 function statusMessage(status: number): string {
@@ -53,38 +51,40 @@ async function call(fetchImpl: FetchLike, url: string, init: RequestInit): Promi
   }
 }
 
+/** Test des clés seules : celles du code ouvert, puis celles déclarées par les modules privés. */
+const KEY_TESTS: Record<string, KeyTest> = {
+  BREVO_API_KEY: {
+    request: (value) => ({ url: ENDPOINTS.brevo, init: { headers: { 'api-key': value, Accept: 'application/json' } } }),
+  },
+  ANTHROPIC_API_KEY: {
+    request: (value) => ({
+      url: ENDPOINTS.anthropic,
+      init: { headers: { 'x-api-key': value, 'anthropic-version': '2023-06-01' } },
+    }),
+  },
+  REPLICATE_API_TOKEN: {
+    request: (value) => ({ url: ENDPOINTS.replicate, init: { headers: { Authorization: `Bearer ${value}` } } }),
+  },
+  ...Object.assign({}, ...PRIVATE_MODULES.map((m) => m.keyTests ?? {})),
+};
+
 function requestFor(name: string, values: Record<string, string>): { url: string; init: RequestInit } {
-  switch (name) {
-    case 'BREVO_API_KEY':
-      return { url: ENDPOINTS.brevo, init: { headers: { 'api-key': values[name], Accept: 'application/json' } } };
-    case 'ANTHROPIC_API_KEY':
-      return {
-        url: ENDPOINTS.anthropic,
-        init: { headers: { 'x-api-key': values[name], 'anthropic-version': '2023-06-01' } },
-      };
-    case 'REPLICATE_API_TOKEN':
-      return { url: ENDPOINTS.replicate, init: { headers: { Authorization: `Bearer ${values[name]}` } } };
-    case 'PENNYLANE_API_KEY':
-      return {
-        url: ENDPOINTS.pennylane,
-        init: { headers: { Authorization: `Bearer ${values[name]}`, Accept: 'application/json' } },
-      };
-    default:
-      // Trio Google : échange du jeton d'actualisation contre un jeton d'accès (aucune écriture).
-      return {
-        url: ENDPOINTS.googleToken,
-        init: {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: values.GOOGLE_CLIENT_ID,
-            client_secret: values.GOOGLE_CLIENT_SECRET,
-            refresh_token: values.GOOGLE_REFRESH_TOKEN,
-            grant_type: 'refresh_token',
-          }).toString(),
-        },
-      };
-  }
+  const single = KEY_TESTS[name];
+  if (single) return single.request(values[name]);
+  // Trio Google : échange du jeton d'actualisation contre un jeton d'accès (aucune écriture).
+  return {
+    url: ENDPOINTS.googleToken,
+    init: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: values.GOOGLE_CLIENT_ID,
+        client_secret: values.GOOGLE_CLIENT_SECRET,
+        refresh_token: values.GOOGLE_REFRESH_TOKEN,
+        grant_type: 'refresh_token',
+      }).toString(),
+    },
+  };
 }
 
 /** `null` si `name` n'est pas une clé testable du catalogue. */
@@ -109,9 +109,8 @@ export async function testServiceKey(
     return { ok: false, source, message };
   }
 
-  if (name === 'PENNYLANE_API_KEY' && isMockEnabled(env)) {
-    return { ok: false, source, message: 'Simulation Pennylane active (PENNYLANE_MOCK) : test non effectué.' };
-  }
+  const skipped = KEY_TESTS[name]?.skip?.(env) ?? null;
+  if (skipped) return { ok: false, source, message: skipped };
 
   const values = Object.fromEntries(names.map((n, i) => [n, resolved[i].value as string]));
   const { url, init } = requestFor(name, values);
@@ -121,4 +120,46 @@ export async function testServiceKey(
     return { ok: true, source, message: names.length > 1 ? 'Clés Google valides.' : 'Clé valide.' };
   }
   return { ok: false, source, message: statusMessage(result.status) };
+}
+
+// ── Action « status » (mise en route de l'admin, LAB-344) ─────────────────────
+// Dit ce qui est réglé, sans appeler aucun fournisseur et sans renvoyer aucune valeur : seulement la
+// provenance de chaque clé et les NOMS des variables absentes (les noms ne sont pas des secrets).
+
+export interface ServiceStatus {
+  email: { provider: EmailProvider; ready: boolean; missing: string[] };
+  keys: Record<string, SecretSource>;
+}
+
+const filled = (v: string | undefined): boolean => typeof v === 'string' && v.trim() !== '';
+
+/**
+ * État des emails et des clés du catalogue. `email.ready` : transport réglé (Brevo : une clé ;
+ * SMTP : SMTP_HOST, SMTP_USER et SMTP_PASSWORD) et adresse d'expéditeur connue. `senderEmail` : l'adresse
+ * que les vrais envois utiliseront (`orgSender` : celle saisie pour l'organisation, sinon FROM_EMAIL) ;
+ * absente, seule FROM_EMAIL compte. FROM_EMAIL n'est donc réclamée que si aucune adresse n'est connue.
+ */
+export async function serviceStatus(
+  readSecret: ReadSecret,
+  env: EnvGet,
+  senderEmail?: string,
+): Promise<ServiceStatus> {
+  const resolved = await Promise.all(SERVICE_KEY_NAMES.map((name) => readSecret(name)));
+  const keys: Record<string, SecretSource> = Object.fromEntries(
+    SERVICE_KEY_NAMES.map((name, i) => [name, resolved[i].source]),
+  );
+  const brevo = resolved[SERVICE_KEY_NAMES.indexOf('BREVO_API_KEY')];
+  const provider = await resolveEmailProvider(() => Promise.resolve(brevo.value), env);
+
+  const missing: string[] = [];
+  if (provider === 'brevo') {
+    if (!brevo.value) missing.push('BREVO_API_KEY');
+  } else {
+    if (!smtpConfigFromEnv(env)) missing.push('SMTP_HOST');
+    if (!filled(env('SMTP_USER'))) missing.push('SMTP_USER');
+    if (!env('SMTP_PASSWORD')) missing.push('SMTP_PASSWORD');
+  }
+  if (!filled(senderEmail) && !filled(identityDefaults(env).senderEmail)) missing.push('FROM_EMAIL');
+
+  return { email: { provider, ready: missing.length === 0, missing }, keys };
 }

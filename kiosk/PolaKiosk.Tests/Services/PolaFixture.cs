@@ -19,9 +19,80 @@ internal static class PolaFixture
     public const string Email         = "bonjour@exemple.fr";
     public const string LogoUrl       = "https://cdn.example/kiosk-backgrounds/org/o1/logo.png?v=1";
 
+    // Écran d'accueil créé par le client et validé (LAB-291).
+    public static readonly Guid HomeDesignId = Guid.Parse("1b2c3d4e-3333-4444-8555-b66677778888");
+    public const string HomeDesignPngUrl     = "https://cdn.example/designs/ev/home/20261115_090000.png";
+
     public static readonly byte[] DesignPng      = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
     public static readonly byte[] HomeBackground = [0xFF, 0xD8, 0xFF, 4, 5];
     public static readonly byte[] Logo           = [0x89, 0x50, 0x4E, 0x47, 8, 9];
+    public static readonly byte[] HomeDesignPng  = [0x89, 0x50, 0x4E, 0x47, 5, 6, 7];
+
+    /// <summary>Champ home_design de kiosk_get_approved_design (et de la racine du .pola).</summary>
+    public static JObject HomeDesign() => new() { ["id"] = HomeDesignId.ToString(), ["final_png_url"] = HomeDesignPngUrl };
+
+    /// <summary>Réponse de kiosk_get_approved_design avec l'écran d'accueil validé.</summary>
+    public static JObject DesignWithHome()
+    {
+        var design = Design();
+        design["home_design"] = HomeDesign();
+        return design;
+    }
+
+    /// <summary>.pola d'un événement dont le client a un écran d'accueil validé (LAB-291).</summary>
+    public static JObject BundleWithHome()
+    {
+        var bundle = Bundle();
+        bundle["home_design"] = HomeDesign();
+        ((JObject)bundle["assets"]!)["home_design"] = Convert.ToBase64String(HomeDesignPng);
+        return bundle;
+    }
+
+    // Autres cadres validés du client (LAB-315) : une bandelette nommée, puis un 10×15 paysage sans nom.
+    public static readonly Guid StripFrameId     = Guid.Parse("3c4d5e6f-5555-4666-8777-d88899990000");
+    public static readonly Guid LandscapeFrameId = Guid.Parse("4d5e6f70-6666-4777-8888-e9990000aaaa");
+    public const string DesignLabel              = "Le cadre des mariés";
+    public const string StripFrameLabel          = "Bandelette";
+    public const string StripFramePngUrl         = "https://cdn.example/designs/ev/frames/strip.png";
+    public const string LandscapeFramePngUrl     = "https://cdn.example/designs/ev/frames/landscape.png";
+    public static readonly byte[] StripFramePng     = [0x89, 0x50, 0x4E, 0x47, 2, 2];
+    public static readonly byte[] LandscapeFramePng = [0x89, 0x50, 0x4E, 0x47, 3, 3];
+
+    /// <summary>Un cadre de frames (kiosk_get_approved_design et racine du .pola).</summary>
+    public static JObject Frame(Guid id, int slot, string? label, string format, string pngUrl) => new()
+    {
+        ["id"]            = id.ToString(),
+        ["slot"]          = slot,
+        ["label"]         = label,
+        ["format"]        = format,
+        ["canvas_json"]   = Canvas(),
+        ["final_png_url"] = pngUrl,
+    };
+
+    public static JArray Frames() => new(
+        Frame(StripFrameId, 2, StripFrameLabel, "stripV", StripFramePngUrl),
+        Frame(LandscapeFrameId, 3, null, "landscape", LandscapeFramePngUrl));
+
+    /// <summary>Réponse de kiosk_get_approved_design avec le choix du cadre actif (LAB-315).</summary>
+    public static JObject DesignWithFrames()
+    {
+        var design = Design();
+        design["label"]  = DesignLabel;
+        design["frames"] = Frames();
+        return design;
+    }
+
+    /// <summary>.pola d'un événement avec le choix du cadre : frames à la racine, PNG dans assets["frame/{id}"].</summary>
+    public static JObject BundleWithFrames()
+    {
+        var bundle = Bundle();
+        bundle["design"]!["label"] = DesignLabel;
+        bundle["frames"] = Frames();
+        var assets = (JObject)bundle["assets"]!;
+        assets[$"frame/{StripFrameId}"]     = Convert.ToBase64String(StripFramePng);
+        assets[$"frame/{LandscapeFrameId}"] = Convert.ToBase64String(LandscapeFramePng);
+        return bundle;
+    }
 
     /// <summary>Réponse de get_org_contact_by_event pour l'événement du fichier.</summary>
     public static PolaKiosk.Models.Supabase.OrgContact Contact() => new(Company, Phone, LogoUrl, Email);
@@ -78,6 +149,21 @@ internal static class PolaFixture
         },
         ["contact"] = new JObject { ["company"] = Company, ["phone"] = Phone, ["logo_url"] = LogoUrl, ["email"] = Email },
     };
+
+    /// <summary>.pola d'un autre événement (LAB-321) : id, nom, code, dates et design propres.</summary>
+    public static JObject BundleOf(Guid eventId, Guid designId, string name, string code,
+        string? startDate = null, string? endDate = null)
+    {
+        var bundle = Bundle();
+        var ev = (JObject)bundle["event"]!;
+        ev["id"]          = eventId.ToString();
+        ev["name"]        = name;
+        ev["access_code"] = code;
+        ev["start_date"]  = startDate;
+        ev["end_date"]    = endDate;
+        bundle["design"]!["id"] = designId.ToString();
+        return bundle;
+    }
 
     /// <summary>Ancien format (version 1) : bibliothèque de templates, pas de design.</summary>
     public static JObject OldBundle() => new()

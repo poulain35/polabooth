@@ -2,10 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildDefaultCapture, buildDefaultHome, buildDefaultHomeButtons, buildDefaultResultButtons, cleanKioskFormats, cleanResultConfig, DISPLAY_NAME_MAX, enabledFormats,
+  buildDefaultCapture, buildDefaultFrameChoice, buildDefaultHome, buildDefaultHomeButtons, buildDefaultResultButtons, cleanKioskFormats, cleanResultConfig, DISPLAY_NAME_MAX, enabledFormats,
   FORMAT_LABEL_MAX, KIOSK_FORMATS, NO_FORMAT_ERROR, validateKioskFormats, withCaptureDefaults, withHomeDefaults,
-  withResultButtonsDefaults,
+  withFrameChoiceDefaults, withResultButtonsDefaults,
 } from './kioskFormats.js';
+import { frameChoiceConfig } from './designKind.js';
 import { buildPolaBundle } from './polaBundle.js';
 import { animatedMediaLabel } from '../utils/media.js';
 
@@ -19,7 +20,7 @@ test('défauts : photo seule, GIF 4 photos à 1 s, boomerang 2 s sans impression
     gallery:   { enabled: false, label: 'Galerie' },
   });
   assert.deepEqual(buildDefaultHome(), {
-    background_url: null, personalized: false, display_name: '', buttons: buildDefaultHomeButtons(),
+    background_url: null, personalized: false, display_name: '', client_design: false, buttons: buildDefaultHomeButtons(),
   });
   assert.deepEqual(buildDefaultCapture(), {
     mirror: true, countdown_seconds: 5,
@@ -116,6 +117,17 @@ test('LAB-250 : nettoyage de l’accueil personnalisé (booléen strict, nom rog
   assert.equal(clean({ display_name: '   ' }).display_name, '');
   assert.equal(clean({ display_name: null }).display_name, '');
   assert.equal(clean({ personalized: true, background_url: 'https://cdn/bg.jpg' }).background_url, 'https://cdn/bg.jpg');
+});
+
+test('LAB-290 : écran d’accueil créé par le client, faux par défaut, booléen strict', () => {
+  assert.equal(buildDefaultHome().client_design, false);
+  assert.equal(withHomeDefaults(null).client_design, false);
+  assert.equal(withHomeDefaults({ client_design: true }).client_design, true);
+  const clean = (home) => cleanKioskFormats({ home }).home.client_design;
+  assert.equal(clean(undefined), false);
+  assert.equal(clean({ client_design: true }), true);
+  for (const v of ['true', 1, null, {}, [], 'oui']) assert.equal(clean({ client_design: v }), false, JSON.stringify(v));
+  assert.equal(cleanKioskFormats({ home: { personalized: true, client_design: true } }).home.personalized, true);
 });
 
 test('LAB-250 : nom affiché limité, erreur sur l’onglet Accueil', () => {
@@ -224,4 +236,40 @@ test('badges : GIF et Boomerang selon photos.media_type, rien pour une photo ou 
   assert.equal(animatedMediaLabel({ media_type: 'photo' }), null);
   assert.equal(animatedMediaLabel({ photo_url: 'https://cdn/a.mp4' }), null);
   assert.equal(animatedMediaLabel(null), null);
+});
+
+// ── LAB-314 : choix du cadre par l'invité (form_config.kiosk.frame_choice) ─────
+
+test('frame_choice : coupé et 2 cadres par défaut, booléen strict, max_frames 2, 3 ou 4', () => {
+  assert.deepEqual(buildDefaultFrameChoice(), { enabled: false, max_frames: 2 });
+  assert.deepEqual(withFrameChoiceDefaults(undefined), { enabled: false, max_frames: 2 });
+  assert.deepEqual(withFrameChoiceDefaults({ enabled: true, max_frames: 3 }), { enabled: true, max_frames: 3 });
+  assert.deepEqual(withFrameChoiceDefaults({ enabled: true, max_frames: 4 }), { enabled: true, max_frames: 4 });
+  for (const enabled of ['true', 1, null, 'oui']) {
+    assert.equal(withFrameChoiceDefaults({ enabled }).enabled, false, String(enabled));
+  }
+  for (const max_frames of [1, 5, '3', 2.5, null]) {
+    assert.equal(withFrameChoiceDefaults({ enabled: true, max_frames }).max_frames, 2, String(max_frames));
+  }
+  assert.deepEqual(withFrameChoiceDefaults({ enabled: true, max_frames: 3, extra: 'x' }), { enabled: true, max_frames: 3 });
+});
+
+test('frame_choice : même lecture que le serveur (frameChoiceConfig)', () => {
+  const cases = [undefined, {}, { enabled: true }, { enabled: 'true', max_frames: 4 }, { enabled: true, max_frames: 3 }, { max_frames: 9 }];
+  for (const fc of cases) {
+    assert.deepEqual(withFrameChoiceDefaults(fc), frameChoiceConfig({ kiosk: { frame_choice: fc } }), JSON.stringify(fc));
+  }
+});
+
+test('frame_choice : jamais ajouté à un événement qui n’en a pas (config inchangée)', () => {
+  const clean = cleanKioskFormats({ home: { title: 'B' } });
+  assert.equal('frame_choice' in clean, false);
+  assert.equal('frame_choice' in cleanKioskFormats({}), false);
+});
+
+test('frame_choice : nettoyé à l’enregistrement', () => {
+  assert.deepEqual(cleanKioskFormats({ frame_choice: { enabled: true, max_frames: 4 } }).frame_choice, { enabled: true, max_frames: 4 });
+  assert.deepEqual(cleanKioskFormats({ frame_choice: { enabled: 'true', max_frames: '3', old: 1 } }).frame_choice, { enabled: false, max_frames: 2 });
+  assert.deepEqual(cleanKioskFormats({ frame_choice: null }).frame_choice, { enabled: false, max_frames: 2 });
+  assert.deepEqual(validateKioskFormats({ frame_choice: { enabled: true, max_frames: 7 } }), []);
 });

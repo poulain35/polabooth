@@ -4,7 +4,9 @@
  * Pour chaque organisation ayant activé les relances (organizations.design_reminders.enabled),
  * parcourt ses événements actifs, calcule le nombre de jours restants avant end_date, et pour
  * chaque jalon configuré (« jours avant l'événement ») atteint et non encore envoyé, relance le
- * client si son design n'est ni soumis ni approuvé.
+ * client si aucun de ses cadres (designs 'print', LAB-312) n'est soumis ou approuvé, ou (LAB-322)
+ * s'il a plusieurs cadres et qu'un cadre créé reste à envoyer (brouillon, ou refusé pas renvoyé) :
+ * le texte dit alors combien. Mêmes jalons et même trace pour les deux cas.
  *
  * Idempotence : un jalon n'est envoyé qu'une seule fois par événement (trace dans email_logs
  * avec type = 'design_reminder_j<N>').
@@ -14,20 +16,16 @@
  */
 
 import { adminClient } from '../_shared/auth.ts';
+import { jsonResponse } from '../_shared/cors.ts';
 import { cronOnly } from '../_shared/admin-guard.ts';
 import { isFeatureEnabled } from '../_shared/features.ts';
 import { sendDesignReminderEmail } from '../_shared/email.ts';
 import { recordEmailLog } from '../_shared/email-log.ts';
 import { orgSenderCache } from '../_shared/org-identity.ts';
+import { reminderDaysLeft, reminderFramesLeft } from '../_shared/design-frames.ts';
+import { clientTrackingUrl } from '../_shared/client-tracking.ts';
 
 const DEFAULT_MILESTONES = [20, 10];
-
-/** Jours entiers restants entre aujourd'hui (UTC minuit) et une date de fin (incluse). */
-function daysUntil(endDate: string, now: number): number {
-  const end = new Date(`${endDate}T00:00:00Z`).getTime();
-  const today = new Date(new Date(now).toISOString().slice(0, 10) + 'T00:00:00Z').getTime();
-  return Math.round((end - today) / 86_400_000);
-}
 
 Deno.serve(async (req) => {
   const denied = cronOnly(req, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
@@ -42,8 +40,11 @@ Deno.serve(async (req) => {
     .select('id, features, design_reminders')
     .eq('design_reminders->>enabled', 'true');
 
-  if (orgErr) return json(500, { error: orgErr.message });
-  if (!orgs?.length) return json(200, { checked: 0, sent: 0 });
+  if (orgErr) {
+    console.error('send-design-reminders : lecture des organisations', orgErr);
+    return jsonResponse(500, { error: 'Lecture des organisations impossible' });
+  }
+  if (!orgs?.length) return jsonResponse(200, { checked: 0, sent: 0 });
 
   let sent = 0;
   const senderOf = orgSenderCache(db);
@@ -59,7 +60,7 @@ Deno.serve(async (req) => {
     // 2. Événements non archivés de cette org avec un email client et une date de fin
     const { data: events } = await db
       .from('events')
-      .select('id, name, status, end_date, client_name, client_email, access_code')
+      .select('id, name, status, end_date, client_name, client_email, access_code, form_config')
       .eq('org_id', org.id)
       .neq('status', 'archived')
       .not('client_email', 'is', null)
@@ -68,9 +69,9 @@ Deno.serve(async (req) => {
     for (const ev of events ?? []) {
       if (!ev.client_email) continue;
 
-      const daysLeft = daysUntil(ev.end_date, now);
-      // L'événement est passé ou n'est pas encore dans la fenêtre de relance
-      if (daysLeft < 0) continue;
+      const daysLeft = reminderDaysLeft(ev.end_date, now);
+      // Date illisible, ou événement passé
+      if (!Number.isFinite(daysLeft) || daysLeft < 0) continue;
 
       // Jalons dûs aujourd'hui : jour restant <= jalon (on ne rate pas un jalon si le cron
       // saute un jour), du plus proche au plus lointain
@@ -79,15 +80,15 @@ Deno.serve(async (req) => {
         .sort((a, b) => a - b);
       if (!dueMilestones.length) continue;
 
-      // 3. Le design est-il déjà soumis / approuvé ? (dernier design de l'événement)
-      const { data: design } = await db
+      // 3. Cadres du modèle photo : aucun envoyé (relance d'avant) ou cadres créés restant à envoyer
+      const { data: frames, error: framesErr } = await db
         .from('client_designs')
-        .select('status')
+        .select('id, slot, status')
         .eq('event_id', ev.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (design && (design.status === 'submitted' || design.status === 'approved')) continue;
+        .eq('kind', 'print');
+      if (framesErr) { console.error('Lecture des cadres', ev.id, framesErr.message); continue; }
+      const framesLeft = reminderFramesLeft(frames, ev.form_config);
+      if (framesLeft === null) continue;
 
       // 4. Quels jalons ont déjà été envoyés pour cet événement ?
       const { data: logs } = await db
@@ -108,8 +109,10 @@ Deno.serve(async (req) => {
           eventName:  ev.name ?? '',
           accessCode: ev.access_code,
           daysLeft,
+          framesLeft: framesLeft || undefined,
           templateId,
           sender:     await senderOf(org.id),
+          trackingUrl: await clientTrackingUrl(db, ev.id),
         });
         await recordEmailLog(db, {
           scope: { eventId: ev.id }, recipient: ev.client_email, type: `design_reminder_j${toSend}`, ...sentEmail,
@@ -121,12 +124,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json(200, { checked: orgs.length, sent });
+  return jsonResponse(200, { checked: orgs.length, sent });
 });
-
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

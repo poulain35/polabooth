@@ -31,7 +31,7 @@ public class PrintLogRpcTests
     [Fact]
     public void Body_uses_exactly_the_sql_argument_names()
     {
-        var body = Parse(SupabaseService.BuildRecordPrintBody(Record(), "MACHINE-1", "s3cret"));
+        var body = Parse(SupabaseRpcBodies.BuildRecordPrintBody(Record(), "MACHINE-1", "s3cret"));
 
         body.Properties().Select(p => p.Name).Should().Equal(
             "p_code", "p_event_id", "p_id", "p_session_id", "p_copies", "p_printed_at", "p_machine_id", "p_secret");
@@ -51,7 +51,7 @@ public class PrintLogRpcTests
     {
         var local = Record() with { PrintedAtUtc = new DateTime(2026, 11, 4, 21, 10, 5, DateTimeKind.Unspecified) };
 
-        Parse(SupabaseService.BuildRecordPrintBody(local, "MACHINE-1", "s3cret"))["p_printed_at"]!
+        Parse(SupabaseRpcBodies.BuildRecordPrintBody(local, "MACHINE-1", "s3cret"))["p_printed_at"]!
             .Value<string>().Should().Be("2026-11-04T21:10:05.000Z");
     }
 
@@ -64,7 +64,7 @@ public class PrintLogRpcTests
     [InlineData("", false)]
     [InlineData("<html>", false)]
     public void Only_a_json_true_is_an_acknowledgement(string body, bool expected)
-        => SupabaseService.IsTrueRpcResponse(body).Should().Be(expected);
+        => SupabaseRpcResponses.IsTrueRpcResponse(body).Should().Be(expected);
 
     [Fact]
     public async Task Accepted_and_refused_prints_are_told_apart()

@@ -2,7 +2,7 @@ using System.IO;
 
 namespace PolaKiosk.Services;
 
-// Stub utilisé pendant le développement sans Canon R100 branché
+// Stub utilisé pendant le développement sans appareil Canon branché
 public class MockCameraService : ICameraService
 {
     public bool IsConnected => true;

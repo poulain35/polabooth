@@ -151,7 +151,7 @@ public class PairingRpcTests
     [Fact]
     public void Start_body_uses_exactly_the_sql_argument_names()
     {
-        var body = JObject.Parse(SupabaseService.BuildPairingStartBody("MACHINE-1", "PC-SALON", "1.0.30", Hash));
+        var body = JObject.Parse(SupabaseRpcBodies.BuildPairingStartBody("MACHINE-1", "PC-SALON", "1.0.30", Hash));
 
         body.Properties().Select(p => p.Name).Should().BeEquivalentTo(
             "p_machine_id", "p_machine_name", "p_app_version", "p_device_key_hash");
@@ -164,7 +164,7 @@ public class PairingRpcTests
     [Fact]
     public void Start_body_respects_the_server_lengths()
     {
-        var body = JObject.Parse(SupabaseService.BuildPairingStartBody("MACHINE-1", new string('n', 300), new string('v', 80), Hash));
+        var body = JObject.Parse(SupabaseRpcBodies.BuildPairingStartBody("MACHINE-1", new string('n', 300), new string('v', 80), Hash));
 
         body["p_machine_name"]!.Value<string>().Should().HaveLength(200);
         body["p_app_version"]!.Value<string>().Should().HaveLength(50);
@@ -173,7 +173,7 @@ public class PairingRpcTests
     [Fact]
     public void Get_event_body_sends_the_machine_and_its_secret()
     {
-        var body = JObject.Parse(SupabaseService.BuildGetEventBody("TUQNA5", "MACHINE-1", "s3cret"));
+        var body = JObject.Parse(SupabaseRpcBodies.BuildGetEventBody("TUQNA5", "MACHINE-1", "s3cret"));
 
         body.Properties().Select(p => p.Name).Should().BeEquivalentTo("p_code", "p_machine_id", "p_secret");
         body["p_code"]!.Value<string>().Should().Be("TUQNA5");
@@ -183,7 +183,7 @@ public class PairingRpcTests
     [Fact]
     public void Start_response_is_read_without_converting_the_date()
     {
-        var code = SupabaseService.ParsePairingStart(
+        var code = SupabaseRpcResponses.ParsePairingStart(
             $$"""{"pairing_id":"{{PairingId}}","code":"k7m4px","expires_at":"2026-11-05T10:20:00.123+00:00"}""");
 
         code.PairingId.Should().Be(PairingId);
@@ -197,7 +197,7 @@ public class PairingRpcTests
     [InlineData("""{"pairing_id":"3c2b1a00-1111-4222-8333-944455556666","code":"K7M4PX"}""")]
     public void Incomplete_start_response_is_an_error(string body)
     {
-        var act = () => SupabaseService.ParsePairingStart(body);
+        var act = () => SupabaseRpcResponses.ParsePairingStart(body);
 
         act.Should().Throw<InvalidDataException>();
     }
@@ -212,7 +212,7 @@ public class PairingRpcTests
     [InlineData("""{"status":"nouveau_statut"}""", PairingStatus.Unknown)]
     public void Poll_statuses_are_mapped(string body, PairingStatus expected)
     {
-        var result = SupabaseService.ParsePairingPoll(body);
+        var result = SupabaseRpcResponses.ParsePairingPoll(body);
 
         result.Status.Should().Be(expected);
         result.Secret.Should().BeNull();
@@ -221,7 +221,7 @@ public class PairingRpcTests
     [Fact]
     public void Approved_poll_carries_the_secret_and_the_account()
     {
-        var result = SupabaseService.ParsePairingPoll(
+        var result = SupabaseRpcResponses.ParsePairingPoll(
             $$"""{"status":"approved","secret":"s3cret","license_id":"{{LicenseId}}","label":" Borne salon ","org_name":"Studio Lumière","org_id":"{{OrgId}}"}""");
 
         result.Should().Be(new PairingPollResult(PairingStatus.Approved, "s3cret", LicenseId, "Borne salon", "Studio Lumière", OrgId));
@@ -233,7 +233,7 @@ public class PairingRpcTests
     [InlineData("""{"status":"approved","secret":null}""")]
     [InlineData("""{"status":"approved","secret":42}""")]
     public void Approved_poll_without_secret_has_no_secret(string body)
-        => SupabaseService.ParsePairingPoll(body).Secret.Should().BeNull();
+        => SupabaseRpcResponses.ParsePairingPoll(body).Secret.Should().BeNull();
 
     [Fact]
     public async Task Start_calls_kiosk_pairing_start_and_reads_the_code()

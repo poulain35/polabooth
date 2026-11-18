@@ -3,8 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Background="{StaticResource KioskCreamBrush}">
 
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+
+        <!-- Logo du logiciel (Polabooth) au lancement -->
+        <Image Source="pack://application:,,,/Assets/Brand/polabooth-logo-horizontal.png"
+               Width="420" Margin="0,0,0,56" RenderOptions.BitmapScalingMode="HighQuality"/>
+
         <!-- Anneau qui tourne : un quart vert forêt sur un cercle sauge -->
-        <Grid Width="56" Height="56" HorizontalAlignment="Center" VerticalAlignment="Center"
+        <Grid Width="56" Height="56" HorizontalAlignment="Center"
               RenderTransformOrigin="0.5,0.5">
             <Grid.RenderTransform>
                 <RotateTransform x:Name="SpinnerRotate"/>
@@ -24,6 +30,8 @@
             <Border CornerRadius="28" BorderBrush="{StaticResource KioskSageBrush}" BorderThickness="4" Opacity="0.45"/>
             <Border CornerRadius="28" BorderBrush="{StaticResource KioskForestBrush}" BorderThickness="4,4,0,0"/>
         </Grid>
+
+        </StackPanel>
 
     </Grid>
 </UserControl>

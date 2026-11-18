@@ -17,7 +17,7 @@
  * Dégradation propre : si un secret manque, répond 200 { skipped: true } sans planter.
  */
 
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsResponse, handleCors } from '../_shared/cors.ts';
 import { adminClient, sessionUser } from '../_shared/auth.ts';
 import { requireServiceOrOrgAdmin, resolveOrgId, type OrgResource } from '../_shared/admin-guard.ts';
 import { isFeatureEnabled, requireFeature } from '../_shared/features.ts';
@@ -28,27 +28,21 @@ import { publicAppUrl } from '../_shared/app-url.ts';
 const APP_URL = publicAppUrl()
   .replace(/\/+$/, '');
 
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
 /** Confie l'appel au module de réservation (service_role) et renvoie sa réponse telle quelle. */
 async function delegateToBooking(eventId: string): Promise<Response> {
   const url = Deno.env.get('SUPABASE_URL');
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!url || !key) return json(500, { error: 'Configuration Supabase absente.' });
+  if (!url || !key) return corsResponse(500, { error: 'Configuration Supabase absente.' });
   try {
     const res = await fetch(`${url}/functions/v1/booking-gcal-sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({ event_id: eventId }),
     });
-    return json(res.status, await res.json().catch(() => ({})));
+    return corsResponse(res.status, await res.json().catch(() => ({})));
   } catch (e) {
-    return json(502, { error: e instanceof Error ? e.message : 'booking-gcal-sync injoignable.' });
+    console.error('gcal-sync : booking-gcal-sync injoignable', eventId, e);
+    return corsResponse(502, { error: 'booking-gcal-sync injoignable.' });
   }
 }
 
@@ -61,9 +55,9 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     eventId = typeof payload?.event_id === 'string' ? payload.event_id : null;
   } catch {
-    return json(400, { error: 'Corps JSON invalide.' });
+    return corsResponse(400, { error: 'Corps JSON invalide.' });
   }
-  if (!eventId) return json(400, { error: 'event_id requis.' });
+  if (!eventId) return corsResponse(400, { error: 'event_id requis.' });
 
   const db = adminClient();
   // Appel interne (service_role) ou admin propriétaire de l'org de l'événement.
@@ -82,5 +76,5 @@ Deno.serve(async (req) => {
 
   const deps = await gcalDeps(db, orgId, APP_URL, fetch as unknown as FetchLike);
   const outcome = deps ? await syncEventGcal(deps, eventId) : GCAL_NOT_CONFIGURED;
-  return json(outcome.status, outcome.body);
+  return corsResponse(outcome.status, outcome.body);
 });

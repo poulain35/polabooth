@@ -72,11 +72,6 @@ export async function getSecrets(
   return Object.fromEntries(names.map((name, i) => [name, values[i]]));
 }
 
-/** Oublie les valeurs en cache d'un client (après un enregistrement, ou dans les tests). */
-export function clearSecretCache(db: SecretsDb): void {
-  caches.delete(db);
-}
-
 /**
  * Réglage non secret (organizations.service_settings, ex. assistant_model) : valeur de l'org,
  * sinon variable d'environnement `envName`, sinon null. Sans `orgId` : la première entreprise de

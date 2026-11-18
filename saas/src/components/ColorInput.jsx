@@ -1,8 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 
-const TRANSPARENT_BG = 'linear-gradient(45deg,#bbb 25%,transparent 25%),linear-gradient(-45deg,#bbb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#bbb 75%),linear-gradient(-45deg,transparent 75%,#bbb 75%)';
-export const TRANSPARENT_STYLE = { backgroundImage: TRANSPARENT_BG, backgroundSize: '8px 8px', backgroundPosition: '0 0,0 4px,4px -4px,-4px 0' };
+// Couleur « transparent » : petit damier (classe .checkerboard) sur le fond du panneau.
+const TRANSPARENT_CLASS = 'checkerboard';
+const TRANSPARENT_STYLE = {
+  '--checker-size': '8px',
+  '--checker-dark': 'hsl(var(--editor-line-strong))',
+  '--checker-light': 'transparent',
+};
 
 const HAS_EYE_DROPPER = typeof window !== 'undefined' && 'EyeDropper' in window;
 
@@ -62,12 +67,12 @@ export default function ColorInput({ label, value, onChange, showTransparent = t
   return (
     <div className="flex items-center justify-between" ref={wrapRef}>
       {label && (
-        <label className="text-[12px] font-semibold text-[#1D1D1F] block mb-1.5">{label}</label>
+        <label className="text-[12px] font-editor-strong text-editor-fg block mb-1.5">{label}</label>
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-7 h-7 rounded-full border-2 border-white shadow-md ring-1 ring-gray-200
-          transition-transform hover:scale-110 shrink-0 focus:outline-none"
+        className={`w-7 h-7 rounded-full border-2 border-editor-panel shadow-md ring-1 ring-editor-line
+          transition-transform hover:scale-110 shrink-0 focus:outline-none ${isTransparent ? TRANSPARENT_CLASS : ''}`}
         style={isTransparent ? TRANSPARENT_STYLE : { background: value }}
         title={isTransparent ? 'Transparent' : value}
       />
@@ -75,7 +80,7 @@ export default function ColorInput({ label, value, onChange, showTransparent = t
       {open && (
         <div
           ref={popRef}
-          className="fixed z-[70] bg-card rounded-2xl shadow-2xl border border-gray-100 p-3 w-[220px]"
+          className="fixed z-[70] bg-card rounded-editor-popover shadow-editor-float border border-editor-line-soft p-3 w-[220px]"
           style={{ top: popPos.top, left: popPos.left }}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -87,12 +92,12 @@ export default function ColorInput({ label, value, onChange, showTransparent = t
 
           <div className="flex items-center gap-2 mt-3">
             <div
-              className="w-8 h-8 rounded-lg border border-gray-200 shrink-0"
+              className={`w-8 h-8 rounded-lg border border-editor-line shrink-0 ${isTransparent ? TRANSPARENT_CLASS : ''}`}
               style={isTransparent ? TRANSPARENT_STYLE : { background: value }}
             />
-            <div className="flex-1 flex items-center border border-gray-200 rounded-lg overflow-hidden
+            <div className="flex-1 flex items-center border border-editor-line rounded-lg overflow-hidden
               focus-within:border-primary transition-colors">
-              <span className="pl-2.5 text-xs text-gray-400 font-mono select-none">#</span>
+              <span className="pl-2.5 text-xs text-editor-faint font-mono select-none">#</span>
               <input
                 type="text"
                 value={hexField}
@@ -110,8 +115,8 @@ export default function ColorInput({ label, value, onChange, showTransparent = t
               <button
                 onClick={handleEyeDropper}
                 title="Pipette — choisir une couleur à l'écran"
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200
-                  text-gray-500 hover:bg-gray-50 hover:text-primary transition-colors shrink-0"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-editor-line
+                  text-editor-muted hover:bg-editor-hover hover:text-editor-accent-fg transition-colors shrink-0"
               >
                 {/* Eyedropper / colorize icon */}
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -125,9 +130,9 @@ export default function ColorInput({ label, value, onChange, showTransparent = t
             <button
               onClick={() => { onChange('transparent'); setOpen(false); }}
               className={`flex items-center gap-2.5 w-full px-2 py-2 mt-2 rounded-xl text-xs font-medium transition-colors
-                ${isTransparent ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50'}`}
+                ${isTransparent ? 'bg-editor-selected text-editor-accent-fg' : 'text-editor-muted hover:bg-editor-hover'}`}
             >
-              <div className="w-5 h-5 rounded-md border border-gray-200 shrink-0" style={TRANSPARENT_STYLE} />
+              <div className={`w-5 h-5 rounded-md border border-editor-line shrink-0 ${TRANSPARENT_CLASS}`} style={TRANSPARENT_STYLE} />
               Transparent
             </button>
           )}

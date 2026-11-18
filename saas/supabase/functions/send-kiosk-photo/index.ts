@@ -5,8 +5,10 @@
  * Appelé depuis le kiosk avec la clé anon (pas d'authentification utilisateur).
  * Refusé si l'événement n'est pas actif ou si la photo n'a pas de ligne `photos` dans cet événement
  * (montage envoyé sur R2 puis enregistré par kiosk_record_photo, LAB-213) — voir _shared/kiosk-photo.ts.
- * Un envoi accepté par Brevo est compté dans event_activity ('kiosk_email', sans l'adresse, LAB-232).
+ * Un envoi accepté (Brevo ou SMTP) est compté dans event_activity ('kiosk_email', sans l'adresse, LAB-232).
  * GIF et boomerang (LAB-235) : affiche + bouton « Voir mon animation » vers la galerie, sans pièce jointe.
+ * Objet, titre, message, bouton, couleur et logo de l'événement (LAB-300) : _shared/kiosk-email.ts,
+ * le même module que l'aperçu de l'admin (kiosk-email-preview). Aucun fournisseur configuré : « simulé ».
  *
  * Body: { "event_id": "uuid", "to": "email@example.com", "photo_url": "https://..." }
  */
@@ -14,12 +16,11 @@
 import { handleCors, corsResponse } from '../_shared/cors.ts';
 import { adminClient } from '../_shared/auth.ts';
 import { EmailSendError, sendHtmlEmail } from '../_shared/email.ts';
-import { renderKioskPhotoEmail } from '../_shared/saas-emails.ts';
+import { buildKioskEmail } from '../_shared/kiosk-email.ts';
 import { LIMITS, publicGuard } from '../_shared/public-rate-limit.ts';
-import { isActiveEventStatus, kioskEmailMedia, verifyKioskPhoto } from '../_shared/kiosk-photo.ts';
+import { isActiveEventStatus, verifyKioskPhoto } from '../_shared/kiosk-photo.ts';
 import { sendKioskEmailAndCount } from '../_shared/event-activity.ts';
 import { getOrgIdentity, identityDefaults } from '../_shared/org-identity.ts';
-import { serviceSecret } from '../_shared/service-secrets.ts';
 import { publicAppUrl } from '../_shared/app-url.ts';
 
 const APP_URL = publicAppUrl();
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
 
   const { data: event, error: evErr } = await db
     .from('events')
-    .select('id, org_id, name, status, access_code, form_config')
+    .select('id, org_id, name, status, access_code, start_date, client_name, form_config')
     .eq('id', event_id)
     .single();
 
@@ -74,35 +75,23 @@ Deno.serve(async (req) => {
     return corsResponse(403, { error: 'Envoi par email désactivé pour cet événement' });
   }
 
-  if (!(await serviceSecret('BREVO_API_KEY'))) {
-    console.warn('BREVO_API_KEY non configurée — email non envoyé');
-    return corsResponse(200, { message: 'Email simulé (BREVO_API_KEY manquante)' });
-  }
-
-  const subject     = (emailCfg.subject || 'Vos photos — {event_name}')
-    .replace('{event_name}', event.name);
-  // Identité de l'entreprise (Paramètres → Entreprise) : signature du message par défaut et expéditeur
-  // (celui de l'événement, sinon celui de l'entreprise, sinon son nom avec l'adresse FROM_EMAIL).
+  // Identité de l'entreprise (Paramètres → Entreprise) : signature du message par défaut et expéditeur.
   const identity = await getOrgIdentity(db, event.org_id, { ...identityDefaults(), senderName: '' });
-  const message     = (emailCfg.message || `Bonjour,\n\nRetrouvez votre photo en cliquant sur le lien ci-dessous.\n\nBonne fête !\n${identity.companyName}`.trimEnd())
-    .replace('{event_name}', event.name)
-    .replace('{photo_url}', photo_url);
+  const { subject, html, sender } = buildKioskEmail({
+    event, email: emailCfg, branding: event.form_config?.branding, identity,
+    photo: photoCheck.photo, photoUrl: photo_url, appUrl: APP_URL,
+  });
 
-  const media = kioskEmailMedia({ photo: photoCheck.photo, photoUrl: photo_url, appUrl: APP_URL, accessCode: event.access_code });
-  const htmlBody = renderKioskPhotoEmail({ eventName: event.name, photoUrl: photo_url, message, media });
-
-  const sender = {
-    email: emailCfg.sender_email || identity.senderEmail,
-    name:  emailCfg.sender_name  || identity.senderName || identity.companyName,
-  };
-
+  let messageId: string | null;
   try {
-    await sendKioskEmailAndCount(db, event.id, () =>
-      sendHtmlEmail({ to, subject, html: htmlBody, sender }));
+    messageId = await sendKioskEmailAndCount(db, event.id, () =>
+      sendHtmlEmail({ to, subject, html, sender }));
   } catch (e) {
-    if (e instanceof EmailSendError) return corsResponse(502, { error: `Erreur Brevo : ${e.status}` });
+    if (e instanceof EmailSendError) return corsResponse(502, { error: `Erreur d'envoi : ${e.status}` });
     throw e;
   }
+  // Aucun fournisseur (ni clé Brevo ni SMTP) ou destinataire hors EMAIL_ALLOWLIST : rien n'est parti (D14).
+  if (!messageId) return corsResponse(200, { message: 'Email simulé (aucun envoi)' });
 
   return corsResponse(200, { message: 'Email envoyé avec succès' });
 });

@@ -1,8 +1,9 @@
 // Réponses au questionnaire de la borne (LAB-221, spec LAB-208) : recherche, lignes d'export,
 // CSV (Excel FR) et .xlsx fait maison. Fonctions pures, sauf toXlsx qui charge jszip à la demande.
 import { escapeLike } from './emailTracking.js';
+import { formatParisDate, formatParisDateTime } from './dates.js';
 
-export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 export const EXPORT_KINDS = { consent: 'consent', all: 'all' };
 
 const PARIS = 'Europe/Paris';
@@ -37,27 +38,8 @@ export function guestSearchFilter(query) {
 
 // ── Formatage des cellules ───────────────────────────────────────────────────────────────────
 
-function parisParts(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const parts = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: PARIS, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(d);
-  return Object.fromEntries(parts.map((p) => [p.type, p.value]));
-}
-
-/** JJ/MM/AAAA HH:MM, heure de Paris. */
-export function formatParisDateTime(iso) {
-  const p = iso ? parisParts(iso) : null;
-  return p ? `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}` : '';
-}
-
-/** JJ/MM/AAAA, heure de Paris. */
-export function formatParisDate(iso) {
-  const p = iso ? parisParts(iso) : null;
-  return p ? `${p.day}/${p.month}/${p.year}` : '';
-}
+// Dates des cellules : définies dans dates.js (LAB-395), réexportées pour les appelants existants.
+export { formatParisDate, formatParisDateTime };
 
 /** +33612345678 → 06 12 34 56 78 ; les numéros étrangers restent en E.164. */
 export function formatPhone(value) {
@@ -69,9 +51,13 @@ export function formatPhone(value) {
 
 const yesNo = (b) => (b ? 'Oui' : 'Non');
 
-function formatAnswer(value, type) {
+/**
+ * Réponse en texte : choix multiples joints par `separator` (« | » dans les exports, « , » à l'écran),
+ * booléens en Oui/Non, téléphone lisible. Sert aussi aux réponses du formulaire client (LAB-395).
+ */
+export function formatAnswer(value, { type, separator = ' | ' } = {}) {
   if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) return value.map((v) => String(v)).join(' | ');
+  if (Array.isArray(value)) return value.map((v) => String(v)).join(separator);
   if (typeof value === 'boolean') return yesNo(value);
   if (type === 'checkbox') return yesNo(value === true || value === 'true');
   if (type === 'tel') return formatPhone(value);
@@ -147,7 +133,7 @@ export function buildExportTable({ responses, configQuestions = [], photos = [],
       : [];
     return [
       formatParisDateTime(r.answered_at),
-      ...questions.map((q) => formatAnswer(answers[q.id], q.type)),
+      ...questions.map((q) => formatAnswer(answers[q.id], { type: q.type })),
       yesNo(r.marketing_consent === true),
       r.consent_text ?? '',
       links.join(' | '),
@@ -177,22 +163,9 @@ export function exportFileName(event, { kind = EXPORT_KINDS.consent, format = 'x
   return `${prefix}-${slug}-${date}.${format === 'csv' ? 'csv' : 'xlsx'}`;
 }
 
-// ── CSV ──────────────────────────────────────────────────────────────────────────────────────
+// ── CSV (format commun de lib/csv.js) ────────────────────────────────────────────────────────
 
-const UTF8_BOM = String.fromCharCode(0xfeff);
-const FORMULA_START = /^[=+\-@\t\r]/;
-
-/** Anti-injection : une cellule qui commence par = + - @ tabulation ou retour chariot prend un '. */
-export function csvCell(value) {
-  let s = String(value ?? '');
-  if (FORMULA_START.test(s)) s = `'${s}`;
-  return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-/** CSV pour Excel FR : séparateur ;, fins de ligne CRLF, BOM UTF-8. */
-export function toGuestCsv({ header, rows }) {
-  return `${UTF8_BOM}${[header, ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n')}\r\n`;
-}
+export { csvCell, toCsv as toGuestCsv } from './csv.js';
 
 // ── .xlsx (une feuille, cellules inlineStr) ──────────────────────────────────────────────────
 

@@ -261,9 +261,9 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
     private async Task DiscardAsync(QuestionnaireParameters p)
     {
         // Le montage peut encore écrire dans le dossier d'attente : on attend sa fin avant de supprimer.
-        try { await p.Capture; } catch { }
+        try { await p.Capture; } catch { /* montage raté : il n'y a que le dossier à supprimer */ }
         if (p.RequiredForPhoto) _sessions.DiscardPendingSession(p.SessionId);
-        try { await _log.LogInfoAsync("questionnaire", CancelLogMessage); } catch { }
+        try { await _log.LogInfoAsync("questionnaire", CancelLogMessage); } catch { /* journal indisponible */ }
     }
 
     // ── Validation ───────────────────────────────────────────────────
@@ -289,7 +289,7 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
         {
             // Une transaction : séance + réponse + consentement photo, puis la photo quitte le
             // dossier d'attente. Sur un abandon, rien de tout cela n'est écrit.
-            var stageConsent = LiveViewModel.StagePhotoConsent(p.PhotoConsent, result.SessionId, result.EventId, p.AccessCode);
+            var stageConsent = CaptureFinisher.StagePhotoConsent(p.PhotoConsent, result.SessionId, result.EventId, p.AccessCode);
             var displayed = await _sessions.CommitPendingSessionAsync(
                 result.SessionId, result.EventId, result.EventName, result.CapturedAtUtc,
                 result.PhotoPaths[0], result.CompositePath,
@@ -297,12 +297,13 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
                 {
                     _responses.Stage(db, submission);
                     stageConsent?.Invoke(db);
-                });
+                },
+                result.TemplateId);
             result = result.WithCompositePath(displayed);
 
             // Envoi anticipé seulement après la validation, et sans choix d'effet.
             if (!result.ChoosesEffect && _network.IsOnline)
-                _ = LiveViewModel.UploadEarlyAsync(_sessions, _log, result.SessionId);
+                _ = CaptureFinisher.UploadEarlyAsync(_sessions, _log, result.SessionId);
         }
         else
         {
@@ -310,7 +311,7 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
             try { await _responses.SaveAsync(submission); }
             catch (Exception ex)
             {
-                try { await _log.LogErrorAsync("questionnaire", $"Réponse non enregistrée : {ex.GetType().Name}"); } catch { }
+                try { await _log.LogErrorAsync("questionnaire", $"Réponse non enregistrée : {ex.GetType().Name}"); } catch { /* journal indisponible */ }
             }
         }
 
@@ -343,7 +344,7 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
         catch (Exception ex)
         {
             // Ne devrait pas arriver (la tâche ne lève pas) : on n'affiche jamais une photo inconnue.
-            try { await _log.LogErrorAsync("questionnaire", $"Montage indisponible : {ex.Message}", ex.ToString()); } catch { }
+            try { await _log.LogErrorAsync("questionnaire", $"Montage indisponible : {ex.Message}", ex.ToString()); } catch { /* journal indisponible */ }
             return null;
         }
         finally { IsWaitingForPhoto = false; }

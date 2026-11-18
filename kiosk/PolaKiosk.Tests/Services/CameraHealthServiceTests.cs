@@ -193,6 +193,43 @@ public sealed class CameraHealthServiceTests
         => CameraTest.LowDefinitionWarning(w, h, isWebcam).Should().Be(expected);
 
     [Fact]
+    public async Task The_camera_model_is_logged_once_per_launch_then_when_it_comes_back()
+    {
+        var check = new FakeCheck();
+        var model = "Canon EOS R100";
+        var health = new CameraHealthService(check, _log.Object, null, () => _now, () => model);
+
+        await health.CheckNowAsync(Ct);
+        await health.CheckNowAsync(Ct); // toujours là : rien de plus
+        _log.Verify(l => l.LogInfoAsync("camera", "Caméra détectée : Canon EOS R100."), Times.Once);
+
+        check.Answer = _ => Task.FromResult(false);
+        await health.CheckNowAsync(Ct);
+        check.Answer = _ => Task.FromResult(true);
+        model = "Canon EOS R50";
+        await health.CheckNowAsync(Ct);
+        _log.Verify(l => l.LogInfoAsync("camera", "Appareil photo de nouveau détecté : Canon EOS R50."), Times.Once);
+        _log.Verify(l => l.LogInfoAsync("camera", It.IsAny<string>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task An_unreadable_model_never_blocks_the_detection()
+    {
+        var health = new CameraHealthService(new FakeCheck(), _log.Object, null, () => _now,
+            () => throw new InvalidOperationException("EDSDK"));
+
+        (await health.CheckNowAsync(Ct)).Should().Be(CameraHealth.Present);
+        _log.Verify(l => l.LogInfoAsync("camera", "Caméra détectée : modèle inconnu."), Times.Once);
+    }
+
+    [Fact]
+    public void Each_camera_source_is_named_in_the_logs()
+    {
+        CameraPresence.Describe(new MockCameraService()).Should().Be("caméra simulée");
+        CameraPresence.Describe(new EdsdkCameraService()).Should().Be("Canon (modèle non lu)");
+    }
+
+    [Fact]
     public void Webcam_size_is_read_from_machine_settings_in_camel_case_with_a_1080p_default()
     {
         using var dir = new TempDir();

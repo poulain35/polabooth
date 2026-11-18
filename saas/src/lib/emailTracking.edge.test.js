@@ -178,7 +178,7 @@ test('syncErrorMessage : 401, 404 et 502 en français', () => {
 // Relevé du 2026-10-27 : grep recordEmailLog / logEmail / logType dans supabase/functions.
 
 const LOGGED_TYPES = [
-  'access_code', 'delivery', 'design_approved', 'design_rejected', 'design_reminder_j7', 'design_reminder_j3',
+  'access_code', 'delivery', 'design_approved', 'design_rejected', 'home_design_approved', 'home_design_rejected', 'design_reminder_j7', 'design_reminder_j3',
   'quote_reminder_j3', 'quote_reminder_j10',
   'booking_new_request_admin', 'booking_request_received', 'booking_recap_link', 'booking_refused',
   'booking_deadline_extended', 'booking_reactivation', 'booking_recap_reminder_j3', 'booking_recap_reminder_j14',

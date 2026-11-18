@@ -15,12 +15,9 @@
         </Style>
 
         <!-- Bouton secondaire : vert d'eau -->
-        <Style x:Key="QSecondaryButton" TargetType="Button" BasedOn="{StaticResource KioskSecondaryButton}">
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="MinHeight" Value="72"/>
-            <Setter Property="MinWidth" Value="240"/>
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="Padding" Value="32,0"/>
+        <Style x:Key="QSecondaryButton" TargetType="Button" BasedOn="{StaticResource QPrimaryButton}">
+            <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="Background" Value="{StaticResource KioskMintBrush}"/>
         </Style>
 
         <!-- Lien discret (« En savoir plus », suggestion d'e-mail) -->
@@ -57,7 +54,7 @@
                                 <TextBlock x:Name="Mark" Text="✓" FontSize="24" FontWeight="Bold"
                                            Foreground="{StaticResource KioskForestBrush}" Margin="0,0,12,0" Visibility="Collapsed"
                                            VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding Label}" FontSize="22" FontWeight="SemiBold"
+                                <TextBlock Text="{Binding Label}" FontSize="{DynamicResource KioskLargeTextSize}" FontWeight="SemiBold"
                                            Foreground="{StaticResource KioskForestBrush}" TextWrapping="Wrap" MaxWidth="520"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
@@ -228,7 +225,7 @@
                     <Button HorizontalAlignment="Left" Focusable="False" Cursor="Hand"
                             Template="{StaticResource CheckTile}" Command="{Binding ToggleMarketingCommand}"
                             Tag="{Binding MarketingConsent}">
-                        <TextBlock Text="{Binding MarketingLabel}" FontSize="22" Foreground="{StaticResource KioskForestBrush}"
+                        <TextBlock Text="{Binding MarketingLabel}" FontSize="{StaticResource KioskLargeTextSize}" Foreground="{StaticResource KioskForestBrush}"
                                    TextWrapping="Wrap" MaxWidth="780"/>
                     </Button>
                     <TextBlock Text="{x:Static vm:QuestionnaireViewModel.MarketingHint}" FontSize="17"

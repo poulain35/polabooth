@@ -1,0 +1,131 @@
+<UserControl x:Class="PolaKiosk.Views.FrameSelectView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:PolaKiosk.ViewModels"
+             xmlns:local="clr-namespace:PolaKiosk.Views">
+    <!-- Choix du cadre (LAB-315), surface 1280×800 : 2 à 4 cartes sur une ligne, toute la carte est
+         touchable, « Retour » en bas à gauche, cadenas admin en haut à droite. -->
+    <UserControl.Resources>
+        <!-- Carte d'un cadre : enfoncée (0,97) au toucher, l'écran suivant s'ouvre au relâcher -->
+        <Style x:Key="FrameCard" TargetType="Button" BasedOn="{StaticResource KioskTileButton}">
+            <Setter Property="Width" Value="260"/>
+            <Setter Property="Height" Value="452"/>
+            <Setter Property="Margin" Value="14,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource KioskForestLineBrush}"
+                                BorderThickness="1" CornerRadius="{DynamicResource KioskTileRadius}" Padding="20"
+                                Effect="{StaticResource KioskSoftShadow}" SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="300"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Miniature : PNG troué posé sur du sauge, à la proportion du cadre -->
+                                <Border Background="{StaticResource KioskSageBrush}"
+                                        Width="{Binding ImageWidth}" Height="{Binding ImageHeight}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image Source="{Binding Image}" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+                                <TextBlock Grid.Row="1" Text="{Binding Name}" Margin="0,16,0,0"
+                                           FontFamily="{StaticResource KioskTextFont}" FontWeight="SemiBold" FontSize="24"
+                                           Foreground="{StaticResource KioskForestBrush}" TextAlignment="Center"
+                                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                           LineHeight="30" LineStackingStrategy="BlockLineHeight" MaxHeight="60"/>
+                                <TextBlock Grid.Row="2" Text="{Binding PhotoCountText}" Margin="0,4,0,0"
+                                           FontFamily="{StaticResource KioskTextFont}" FontSize="18"
+                                           Foreground="{StaticResource KioskBrownBrush}" TextAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{StaticResource KioskCreamBrush}">
+        <Viewbox Stretch="Uniform">
+            <Grid Width="1280" Height="800">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Choisissez votre cadre" Style="{StaticResource KioskTitleText}"
+                           FontSize="56" HorizontalAlignment="Center" Margin="0,56,0,0"/>
+
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding Tiles}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:FrameTile}">
+                            <Button Style="{StaticResource FrameCard}" CommandParameter="{Binding}"
+                                    Command="{Binding DataContext.ChooseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Button Grid.Row="2" Command="{Binding BackCommand}" Style="{StaticResource KioskBackButton}"
+                        Height="72" FontSize="{StaticResource KioskLargeTextSize}" HorizontalAlignment="Left" Margin="48,0,0,36"
+                        Focusable="False" IsTabStop="False"/>
+
+                <!-- Problème technique (LAB-263) : appareil photo débranché pendant le choix. Placé avant
+                     le cadenas pour que l'accès admin reste possible. -->
+                <Border Grid.RowSpan="3" Background="{StaticResource KioskCreamBrush}"
+                        Visibility="{Binding IsCameraMissing, Converter={StaticResource BoolToVisibility}}">
+                    <Border Style="{StaticResource KioskTile}" Width="820" Padding="64,56"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel>
+                            <Grid Width="96" Height="96" HorizontalAlignment="Center" Margin="0,0,0,28">
+                                <Ellipse Fill="{StaticResource KioskErrorBrush}"/>
+                                <Path Width="44" Height="44" Stretch="Uniform" StrokeThickness="1.7"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Stroke="{StaticResource KioskCreamBrush}" Data="{StaticResource KioskCameraIcon}"/>
+                            </Grid>
+                            <TextBlock Text="Problème technique" Style="{StaticResource KioskTitleText}"
+                                       FontSize="56" TextAlignment="Center" Margin="0,0,0,24"/>
+                            <TextBlock Text="{Binding TechnicalProblemText}" Style="{StaticResource KioskBodyText}"
+                                       FontSize="28" LineHeight="40" TextAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Border>
+
+                <Button Grid.RowSpan="3" Command="{Binding PinPad.OpenAdminPinCommand}"
+                        VerticalAlignment="Top" HorizontalAlignment="Right"
+                        Margin="24" Width="56" Height="56" Opacity="0.7"
+                        Focusable="False" IsTabStop="False"
+                        Style="{StaticResource KioskIconButton}"
+                        Visibility="{Binding PinPad.ShowPinEntry, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
+                    <Path Width="24" Height="24" Stretch="Uniform" Fill="{StaticResource KioskForestBrush}"
+                          Data="{StaticResource KioskLockIcon}"/>
+                </Button>
+            </Grid>
+        </Viewbox>
+
+        <local:AdminPinOverlay DataContext="{Binding PinPad}"/>
+    </Grid>
+</UserControl>

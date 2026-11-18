@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { FormPage } from '../../components/admin/AdminPage';
 import { supabase, getGlobalFormConfig } from '../../lib/supabase';
+import { generateAccessCode } from '../../lib/accessCode';
 import DateTimePicker from '../../components/DateTimePicker';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Badge } from '../../components/ui/badge';
-import { Card } from '../../components/ui/card';
+import { Card, CardTitle } from '../../components/ui/card';
+import { Checkbox } from '../../components/ui/checkbox';
+import { StatusPill } from '../../components/ui/status-pill';
+import { Notice } from '../../components/admin/CardParts';
 
 const FORMATS = [
   { id: 'portrait',  label: 'Portrait (10×15 cm)' },
@@ -16,10 +19,6 @@ const FORMATS = [
   { id: 'stripH',    label: 'Bandelette horizontale (15×5 cm)' },
 ];
 
-const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function generateCode() {
-  return Array.from({ length: 6 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join('');
-}
 
 // Décale une valeur "YYYY-MM-DD[THH:MM]" de `days` jours (heure conservée).
 function addDays(iso, days) {
@@ -97,7 +96,7 @@ export default function AdminNewEvent() {
     if (!org) { setError('Organisation introuvable.'); setSaving(false); return; }
 
     // Générer un code unique (retry si collision)
-    let access_code = generateCode();
+    let access_code = generateAccessCode();
     for (let i = 0; i < 5; i++) {
       const { data: existing } = await supabase
         .from('events')
@@ -105,7 +104,7 @@ export default function AdminNewEvent() {
         .eq('access_code', access_code)
         .maybeSingle();
       if (!existing) break;
-      access_code = generateCode();
+      access_code = generateAccessCode();
     }
 
     const { data: event, error: insertError } = await supabase
@@ -132,25 +131,13 @@ export default function AdminNewEvent() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-xl">
-
-      {/* Breadcrumb */}
-      <button
-        onClick={() => navigate('/admin/events')}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        Événements
-      </button>
-
-      <h1 className="text-2xl font-bold text-foreground mb-8">Nouvel événement</h1>
-
+    <FormPage back="/admin/events" backLabel="Événements" title="Nouvel événement">
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* Événement */}
-        <Card className="p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800">Événement</h2>
-          <p className="text-xs text-gray-400 -mt-2">
+        <Card className="space-y-4 p-card">
+          <CardTitle as="h2">Événement</CardTitle>
+          <p className="-mt-2 text-[13px] text-muted-foreground">
             Le client choisira le nom de l'événement lors de sa première connexion.
           </p>
 
@@ -182,8 +169,8 @@ export default function AdminNewEvent() {
         </Card>
 
         {/* Client */}
-        <Card className="p-6 space-y-4">
-          <h2 className="font-semibold text-gray-800">Client</h2>
+        <Card className="space-y-4 p-card">
+          <CardTitle as="h2">Client</CardTitle>
 
           <div className="space-y-1.5">
             <Label htmlFor="client_name">Nom du client</Label>
@@ -205,34 +192,32 @@ export default function AdminNewEvent() {
               onChange={(e) => set('client_email', e.target.value)}
               placeholder="client@example.com"
             />
-            <p className="text-xs text-gray-400">L'email d'accès sera envoyé manuellement depuis le détail de l'événement.</p>
+            <p className="text-[13px] text-muted-foreground">L'email d'accès sera envoyé manuellement depuis le détail de l'événement.</p>
           </div>
         </Card>
 
         {/* Formats */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">Formats autorisés</h2>
+        <Card className="p-card">
+          <CardTitle as="h2" className="mb-4">Formats autorisés</CardTitle>
           <div className="space-y-2.5">
             {FORMATS.map(({ id, label }) => (
               <label key={id} className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={form.allowed_formats.includes(id)}
-                  onChange={() => toggleFormat(id)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  onCheckedChange={() => toggleFormat(id)}
                 />
-                <span className="text-sm text-gray-700">{label}</span>
+                <span className="text-sm text-foreground">{label}</span>
               </label>
             ))}
           </div>
         </Card>
 
         {/* Expiration */}
-        <Card className="p-6">
-          <h2 className="font-semibold text-gray-800 mb-1">Expiration des liens photos &amp; audio</h2>
-          <p className="text-xs text-gray-400 mb-4">
+        <Card className="p-card">
+          <CardTitle as="h2" className="mb-1">Expiration des liens photos &amp; audio</CardTitle>
+          <p className="mb-4 text-[13px] text-muted-foreground">
             Par défaut, 2 mois après la fin de l'événement. Passé cette date, la galerie photos et le
-            livre d'or audio ne sont plus accessibles. Le lien du modèle, lui, expire automatiquement à
+            livre d'or audio ne sont plus accessibles. Le lien de l'éditeur du cadre photo, lui, expire automatiquement à
             la fin de l'événement. Laissez vide pour un accès illimité.
           </p>
           <DateTimePicker
@@ -244,28 +229,28 @@ export default function AdminNewEvent() {
         </Card>
 
         {/* Info formulaire pré-édition */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
+        <Card className="p-card">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-semibold text-gray-800">Formulaire pré-édition</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <CardTitle as="h2">Formulaire pré-édition</CardTitle>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
                 {globalFormEnabled
-                  ? 'Activé — hérité des paramètres globaux.'
-                  : 'Désactivé — hérité des paramètres globaux.'}
+                  ? 'Activé — hérité des réglages.'
+                  : 'Désactivé — hérité des réglages.'}
                 {' '}
-                <a href="/admin/settings" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-                  Modifier dans Paramètres →
+                <a href="/admin/reglages#editeur" className="text-primary-ink hover:underline" target="_blank" rel="noopener noreferrer">
+                  Modifier dans les Réglages →
                 </a>
               </p>
             </div>
-            <Badge variant={globalFormEnabled ? 'default' : 'secondary'}>
+            <StatusPill tone={globalFormEnabled ? 'green' : 'gray'}>
               {globalFormEnabled ? 'Activé' : 'Désactivé'}
-            </Badge>
+            </StatusPill>
           </div>
         </Card>
 
         {error && (
-          <p className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-lg">{error}</p>
+          <Notice tone="red">{error}</Notice>
         )}
 
         <div className="flex gap-3">
@@ -277,6 +262,6 @@ export default function AdminNewEvent() {
           </Button>
         </div>
       </form>
-    </div>
+    </FormPage>
   );
 }

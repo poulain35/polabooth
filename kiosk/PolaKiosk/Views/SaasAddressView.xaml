@@ -32,7 +32,7 @@
                            Style="{StaticResource KioskTitleText}" FontSize="44"
                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
                 <TextBlock Text="Tapez l'adresse où vous gérez vos événements, par exemple photobooth.mon-entreprise.fr"
-                           FontSize="22" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="900"
+                           FontSize="{StaticResource KioskLargeTextSize}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="900"
                            Foreground="{StaticResource KioskBrownBrush}"/>
             </StackPanel>
 
@@ -70,17 +70,17 @@
 
             <!-- Vérification en cours / erreur -->
             <Grid Grid.Row="2" Margin="0,14,0,0" MinHeight="34">
-                <TextBlock Text="Vérification de l'adresse…" FontSize="22" FontWeight="SemiBold"
+                <TextBlock Text="Vérification de l'adresse…" FontSize="{StaticResource KioskLargeTextSize}" FontWeight="SemiBold"
                            Foreground="{StaticResource KioskForestBrush}" HorizontalAlignment="Center"
                            Visibility="{Binding IsChecking, Converter={StaticResource BoolToVisibility}}"/>
-                <TextBlock Text="{Binding Error}" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
+                <TextBlock Text="{Binding Error}" FontSize="{StaticResource KioskLargeTextSize}" FontWeight="SemiBold" TextWrapping="Wrap"
                            TextAlignment="Center" HorizontalAlignment="Center"
                            Foreground="{StaticResource KioskErrorBrush}"
                            Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}"/>
             </Grid>
 
             <!-- Clavier tactile intégré (jamais le clavier Windows), agrandi à la place disponible -->
-            <Border Grid.Row="3" Margin="0,16,0,0" Padding="16" CornerRadius="28"
+            <Border Grid.Row="3" Margin="0,16,0,0" Padding="16" CornerRadius="{StaticResource KioskTileRadius}"
                     Background="{StaticResource KioskCreamDarkBrush}">
                 <Viewbox Stretch="Uniform">
                     <controls:TouchKeyboard Layout="Url" EnterLabel="Valider"

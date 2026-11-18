@@ -8,7 +8,7 @@ using PolaKiosk.ViewModels;
 namespace PolaKiosk.Tests.Services;
 
 /// <summary>
-/// Le conteneur de l'app (App.ConfigureServices) résout les services du démarrage et de l'association,
+/// Le conteneur de l'app (KioskServices.Configure) résout les services du démarrage et de l'association,
 /// sans boucle d'injection (régression corrigée par 2e99782 : journaux → licence → PIN admin → journaux).
 /// </summary>
 public sealed class ServiceRegistrationTests : IDisposable
@@ -26,7 +26,7 @@ public sealed class ServiceRegistrationTests : IDisposable
                 ["Supabase:Url"]        = "https://projet.supabase.co",
                 ["Supabase:AnonKey"]    = "anon-key",
             }))
-            .ConfigureServices(App.ConfigureServices)
+            .ConfigureServices(KioskServices.Configure)
             .Build();
     }
 
@@ -45,6 +45,7 @@ public sealed class ServiceRegistrationTests : IDisposable
     [InlineData(typeof(ISupabaseService))]
     [InlineData(typeof(IPairingService))]
     [InlineData(typeof(ISyncService))]
+    [InlineData(typeof(IPolaHistory))]
     [InlineData(typeof(IEventPushService))]
     [InlineData(typeof(PairingViewModel))]
     [InlineData(typeof(EventSetupViewModel))]
@@ -52,6 +53,12 @@ public sealed class ServiceRegistrationTests : IDisposable
     [InlineData(typeof(IKioskConfigClient))]
     [InlineData(typeof(ISaasSwitchService))]
     [InlineData(typeof(IAppRestart))]
+    [InlineData(typeof(IFrameSelection))]
+    [InlineData(typeof(FrameSelectViewModel))]
+    [InlineData(typeof(IKioskLogContext))]
+    [InlineData(typeof(IGuestJourneyService))]
+    [InlineData(typeof(ICameraHealthService))]
+    [InlineData(typeof(IPrinterDriver))]
     public void Service_resolves(Type type)
     {
         object? resolved = null;
@@ -71,6 +78,18 @@ public sealed class ServiceRegistrationTests : IDisposable
         thread.Join(TimeSpan.FromSeconds(20)).Should().BeTrue($"{type.Name} doit se résoudre sans boucle");
         error.Should().BeNull();
         resolved.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task The_log_context_reads_the_event_loaded_after_the_start()
+    {
+        var context = _host.Services.GetRequiredService<IKioskLogContext>();
+        context.Current.EventId.Should().BeNull();
+
+        var ev = Guid.NewGuid();
+        await _host.Services.GetRequiredService<IKioskStateService>().SetActiveEventAsync(ev, "Salon", "ABC123");
+
+        context.Current.Should().Be((ev, (Guid?)null));
     }
 
     [Fact]
@@ -135,7 +154,7 @@ public sealed class ServiceRegistrationTests : IDisposable
         {
             ["Kiosk:DataDirectory"] = dataDir,
         }))
-        .ConfigureServices(App.ConfigureServices)
+        .ConfigureServices(KioskServices.Configure)
         .Build();
 
     [Fact]
@@ -148,7 +167,7 @@ public sealed class ServiceRegistrationTests : IDisposable
                 ["Kiosk:DataDirectory"] = _dir.Path,
                 ["Kiosk:LicenseSecret"] = "secret-dev",
             }))
-            .ConfigureServices(App.ConfigureServices)
+            .ConfigureServices(KioskServices.Configure)
             .Build();
 
         host.Services.GetRequiredService<IKioskCredentials>().Secret.Should().BeEmpty();

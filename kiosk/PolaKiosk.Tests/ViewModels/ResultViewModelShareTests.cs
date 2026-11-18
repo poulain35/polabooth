@@ -248,7 +248,7 @@ public sealed class ResultViewModelShareTests
     [InlineData("https://photobooth.exemple.fr", "", "")]
     [InlineData("", "XY9", "")]
     public void Gallery_link_has_no_scheme_nor_parameters(string saasUrl, string code, string expected) =>
-        ResultViewModel.BuildGalleryLink(saasUrl, code).Should().Be(expected);
+        ShareLinks.BuildGalleryLink(saasUrl, code).Should().Be(expected);
 
     // ── Retour automatique à l'accueil ────────────────────────────────────
 

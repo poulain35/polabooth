@@ -33,7 +33,8 @@ Les deux applications lisent et écrivent dans la **même instance Supabase**.
 - `kiosk_guest_responses` : réponses au questionnaire de la borne (écrites par la borne via RPC,
   lues et exportées par le SaaS, supprimées 30 jours après l'événement)
 - `kiosk_photo_consents` : preuves de consentement photo données sur la borne
-- `print_logs`, `kiosk_logs` : impressions et journaux des bornes
+- `print_logs`, `kiosk_logs` : impressions et journaux des bornes (journaux avec l'événement et la
+  séance quand la borne les envoie, supprimés après 90 jours par le cron `purge-kiosk-logs`)
 
 La borne n'utilise que la clé `anon` et passe par des RPC qui vérifient sa licence (identifiant de
 machine + secret reçu à l'association). Elle n'a aucun accès direct aux tables, journaux compris
@@ -89,7 +90,8 @@ avec les mêmes cas.
 Fichier exporté depuis la fiche de l'événement dans le SaaS (« Télécharger .pola »), importé sur la
 borne sans réseau. Version 2 : JSON compressé en GZip qui contient ce que la synchro en ligne
 récupère, et rien de plus (`event` avec `form_config.kiosk` seul, `design` approuvé, `assets` en
-base64, `contact`). Sans design approuvé, l'export est bloqué.
+base64, `contact`, et `home_design` facultatif : l'écran d'accueil créé par le client, s'il est
+validé). Sans design approuvé, l'export est bloqué.
 
 Constructeur pur et testé : `saas/src/lib/polaBundle.js` ; lecture côté borne : `PolaBundle.Parse`.
 Description complète et règles de lecture : `docs/format-pola.md`. Tout changement du format se

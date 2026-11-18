@@ -1,48 +1,60 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { supabase } from './lib/supabase';
 import { Toaster } from './components/ui/sonner';
 import { useFeatures } from './hooks/useFeatures';
 import { useAppAdmin } from './hooks/useAppAdmin';
 import { moduleRoutes } from './features/modules';
 import { RESET_PASSWORD_PATH } from './lib/passwordRules';
+import { ADMIN_HOME } from './features/adminRoutes';
+import { releaseStaleAdminTheme } from './hooks/useAdminTheme';
+import { isProductScreenPath } from './lib/theme';
+import { PolaboothLoader } from './components/PolaboothBrand';
+import { useInAdminLayout } from './pages/admin/adminLayoutContext';
+import RouteError from './components/RouteError';
 
-// Points d'entrée légers → chargés immédiatement
+// Seul point d'entrée chargé immédiatement : l'accueil public, léger.
 import Landing     from './pages/Landing';
-import AdminLogin  from './pages/AdminLogin';
-import AdminLayout from './pages/admin/AdminLayout';
+import { Spinner } from './components/ui/spinner';
 
-// Routes lourdes (éditeur Fabric.js, admin) → chargées à la demande
+// Tout le reste est chargé à la demande. Le menu de l'admin (AdminLayout : liste « À faire », recherche
+// Ctrl+K, pastilles) et la connexion ne sont jamais téléchargés par les pages client (LAB-349).
+const loadAdminLayout    = () => import('./pages/admin/AdminLayout');
+const AdminLayout        = lazy(loadAdminLayout);
+const AdminLogin         = lazy(() => import('./pages/AdminLogin'));
 const EditorPage         = lazy(() => import('./pages/EditorPage'));
 const Assistance         = lazy(() => import('./pages/Assistance'));
 const PhotoGallery       = lazy(() => import('./pages/PhotoGallery'));
 const Slideshow          = lazy(() => import('./pages/Slideshow'));
 const AdminEvents        = lazy(() => import('./pages/admin/AdminEvents'));
 const AdminEventDetail   = lazy(() => import('./pages/admin/AdminEventDetail'));
-const AdminSettings      = lazy(() => import('./pages/admin/AdminSettings'));
-const AdminFeatures      = lazy(() => import('./pages/admin/AdminFeatures'));
-const AdminKeys          = lazy(() => import('./pages/admin/AdminKeys'));
-const AdminLicenses      = lazy(() => import('./pages/admin/AdminLicenses'));
-const AdminPlanning      = lazy(() => import('./pages/admin/AdminPlanning'));
-const AdminEmails        = lazy(() => import('./pages/admin/AdminEmails'));
+const AdminSales         = lazy(() => import('./pages/admin/AdminSales'));
+const AdminBornes        = lazy(() => import('./pages/admin/AdminBornes'));
+const AdminReglages      = lazy(() => import('./pages/admin/AdminReglages'));
+const AdminLibrary       = lazy(() => import('./pages/admin/AdminLibrary'));
+const AdminKioskScreens  = lazy(() => import('./pages/admin/AdminKioskScreens'));
 const AdminNewEvent      = lazy(() => import('./pages/admin/AdminNewEvent'));
 const AdminTemplates     = lazy(() => import('./pages/admin/AdminTemplates'));
 const AdminTemplateEditor = lazy(() => import('./pages/admin/AdminTemplateEditor'));
-const AdminPhotoList     = lazy(() => import('./pages/admin/AdminPhotoList'));
-const AdminPhotoEvent    = lazy(() => import('./pages/admin/AdminPhotoEvent'));
 const AdminDecorations   = lazy(() => import('./pages/admin/AdminDecorations'));
 const AdminFonts         = lazy(() => import('./pages/admin/AdminFonts'));
 const AdminDashboard     = lazy(() => import('./pages/admin/AdminDashboard'));
-const AdminStats         = lazy(() => import('./pages/admin/AdminStats'));
 const AdminPair          = lazy(() => import('./pages/AdminPair'));
 const AdminResetPassword = lazy(() => import('./pages/AdminResetPassword'));
 const EventReport        = lazy(() => import('./pages/EventReport'));
 
-/** Spinner plein écran, utilisé comme fallback de chargement de chunk. */
+/**
+ * Chargement plein écran (session, fonctionnalités, téléchargement d'une page). Écrans du logiciel :
+ * chargement animé Polabooth, réduit dans le menu de l'admin ; aide et pages client : spinner neutre.
+ */
 function PageSpinner() {
+  const inLayout = useInAdminLayout();
+  const { pathname } = useLocation();
+  if (inLayout) return <PolaboothLoader compact />;
+  if (isProductScreenPath(pathname)) return <PolaboothLoader />;
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Spinner className="h-8 w-8" />
     </div>
   );
 }
@@ -88,12 +100,16 @@ function RequireAuth({ children, withNext = false }) {
 /** Layout admin si une session existe, page seule sinon (lien signé ouvert sans être connecté). */
 function MaybeAdminLayout() {
   const session = useAdminSession();
+  const { pathname } = useLocation();
+  // Sans session, la page s'affiche seule, en clair : retire le thème posé par index.html (session
+  // enregistrée mais expirée).
+  useLayoutEffect(() => { if (session === null) releaseStaleAdminTheme(pathname); }, [session, pathname]);
   if (session === undefined) return <PageSpinner />;
-  return session ? <AdminLayout /> : <Outlet />;
+  return session ? L(<AdminLayout />) : <Outlet />;
 }
 
 /**
- * Route d'une fonctionnalité activable : message si elle est désactivée (Paramètres → Fonctionnalités).
+ * Route d'une fonctionnalité activable : message si elle est désactivée (Réglages → Fonctionnalités).
  * Pendant la lecture des fonctionnalités : spinner, jamais le message.
  */
 function RequireFeature({ id, children }) {
@@ -106,8 +122,8 @@ function RequireFeature({ id, children }) {
         <p className="text-base font-semibold text-foreground">Cette fonctionnalité est désactivée</p>
         <p className="mt-2 text-sm text-muted-foreground">
           Vous pouvez la réactiver dans{' '}
-          <Link to="/admin/settings/features" className="text-primary underline underline-offset-2">
-            Paramètres → Fonctionnalités
+          <Link to="/admin/reglages#fonctionnalites" className="text-primary underline underline-offset-2">
+            Réglages → Fonctionnalités
           </Link>.
         </p>
       </div>
@@ -148,7 +164,7 @@ const adminMaybeModuleRoutes = routesOf('adminMaybe', (el, feature) => F(feature
 const adminStandaloneModuleRoutes = routesOf('adminStandalone', (el, feature) => <RequireAuth>{F(feature, el)}</RequireAuth>);
 const adminModuleRoutes = routesOf('admin', (el, feature) => F(feature, el));
 
-const router = createBrowserRouter([
+const routes = [
   { path: '/',             element: <Landing /> },
   { path: '/e/:code',      element: L(<EditorPage />) },
   { path: '/photos/:code', element: L(<PhotoGallery />) },
@@ -159,7 +175,7 @@ const router = createBrowserRouter([
   // Pages des modules : galerie audio, récap de réservation à jeton, CGL, désinscription…
   ...publicModuleRoutes,
   ...clientModuleRoutes,
-  { path: '/admin/login',  element: <AdminLogin /> },
+  { path: '/admin/login',  element: L(<AdminLogin />) },
   // Lien de l'email « Mot de passe oublié » : publique, la session de récupération vient du lien.
   { path: RESET_PASSWORD_PATH, element: L(<AdminResetPassword />) },
   // Association d'une borne (QR code affiché par le kiosk) : page seule, pensée pour le téléphone.
@@ -173,34 +189,54 @@ const router = createBrowserRouter([
       // Pages de module seules, sans le menu (ex. preuve d'acceptation imprimable).
       ...adminStandaloneModuleRoutes,
       {
-        element: <RequireAuth><AdminLayout /></RequireAuth>,
+        element: <RequireAuth>{L(<AdminLayout />)}</RequireAuth>,
         children: [
-          { index: true,                    element: <Navigate to="dashboard" replace /> },
-          { path: 'dashboard',              element: L(<AdminDashboard />) },
-          { path: 'stats',                  element: F('guest_form', <AdminStats />) },
+          { index: true,                    element: <Navigate to={ADMIN_HOME} replace /> },
+          { path: 'aujourdhui',             element: L(<AdminDashboard />) },
+          { path: 'ventes',                 element: L(<AdminSales />) },
           { path: 'events',                 element: L(<AdminEvents />) },
-          { path: 'emails',                 element: L(<AdminEmails />) },
           { path: 'events/new',             element: L(<AdminNewEvent />) },
           { path: 'events/:id',             element: L(<AdminEventDetail />) },
-          { path: 'templates',              element: A(<AdminTemplates />) },
+          { path: 'bornes',                 element: L(<AdminBornes />) },
+          { path: 'ecrans-borne/:kind',     element: L(<AdminKioskScreens />) },
+          { path: 'reglages',               element: L(<AdminReglages />) },
+          // Bibliothèque : modèles, décorations et polices sous une barre d'onglets commune.
+          {
+            element: A(<AdminLibrary />),
+            children: [
+              { path: 'templates',          element: L(<AdminTemplates />) },
+              { path: 'decorations',        element: L(<AdminDecorations />) },
+              { path: 'fonts',              element: L(<AdminFonts />) },
+            ],
+          },
           { path: 'templates/new',          element: A(<AdminTemplateEditor />) },
           { path: 'templates/:id/edit',     element: A(<AdminTemplateEditor />) },
-          { path: 'photos',                 element: F('gallery', <AdminPhotoList />) },
-          { path: 'photos/:id',             element: F('gallery', <AdminPhotoEvent />) },
-          { path: 'decorations',            element: A(<AdminDecorations />) },
-          { path: 'fonts',                  element: A(<AdminFonts />) },
-          { path: 'settings',               element: L(<AdminSettings />) },
-          { path: 'settings/features',      element: L(<AdminFeatures />) },
-          { path: 'settings/keys',          element: L(<AdminKeys />) },
-          { path: 'licenses',               element: L(<AdminLicenses />) },
-          { path: 'planning',               element: F('planning', <AdminPlanning />) },
           ...adminModuleRoutes,
         ],
       },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
-]);
+];
+
+// Écran d'erreur sur chaque route de premier niveau (les routes enfants y remontent) : page de
+// l'ancienne version introuvable après une mise en ligne → rechargement automatique (RouteError).
+const router = createBrowserRouter(routes.map((route) => ({ errorElement: <RouteError />, ...route })));
+
+/**
+ * Adresse de l'admin (connexion comprise) : le menu se télécharge tout de suite, pendant la lecture de
+ * la session, plutôt qu'après (pas d'attente en plus à l'ouverture de l'admin ni après la connexion).
+ */
+function preloadAdminLayout(pathname) {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) loadAdminLayout().catch(() => {});
+}
+preloadAdminLayout(window.location.pathname);
+
+router.subscribe(({ location }) => {
+  // Mode sombre (LAB-340) : la classe posée par index.html est retirée si la page n'est pas sous le menu.
+  releaseStaleAdminTheme(location.pathname);
+  preloadAdminLayout(location.pathname);
+});
 
 export default function App() {
   return (

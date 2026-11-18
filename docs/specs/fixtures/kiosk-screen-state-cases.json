@@ -1,0 +1,807 @@
+{
+  "_doc": [
+    "Cas de test communs des valeurs et états des écrans de la borne (spec docs/specs/apercu-borne.md, D5).",
+    "Lus par saas/src/lib/kioskScreenState.test.js et par les tests kiosk (ShareScreenState, EventDateFormatter, HomeScreen, HomeViewModel, DesignedScreen).",
+    "`share` : `inputs` = ShareScreenInputs (mêmes noms que le record C#) ; `actions` = ShareScreenState.Actions (active, disabled, hidden) ; `texts` = ShareScreenState.Texts ; `print_banner` = ShareScreenState.PrintBanner(false, inputs), plan sans texte print_status (avec ce texte, le bandeau est toujours vide).",
+    "`print_status` : ShareScreenState.PrintStatus(isPrinting, error, notice, canPrint). `remaining_text` : ShareScreenState.RemainingText.",
+    "`event_dates` : EventDateFormatter.Format(start, end) (`long`) et FormatShort(start) (`short`) ; instants ISO 8601, null = pas de date ; jour à l'heure de Paris.",
+    "`display_name` : HomeScreen.DisplayName({ DisplayName = display_name }, event_name). `home_actions` : HomeViewModel.HomeActionStates selon HasPhotos.",
+    "`display_text` : DesignedScreen.DisplayText(value, spec { Uppercase, CharSpacing }) ; espacement = round(char_spacing / 200) espaces fines U+2009 entre deux caractères (arrondi loin de zéro).",
+    "`text_visible` : DesignedScreen, un texte vivant s'affiche s'il n'est pas vide et, en mode neutre, s'il n'est pas personalized_only."
+  ],
+  "share": [
+    {
+      "name": "au repos, 1 copie, 120 tirages restants",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "au repos, 3 copies",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 3,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "active",
+        "copies_plus": "active",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "3",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "photo en préparation : email et QR grisés",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": false,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": "Préparation de votre photo…"
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "disabled",
+        "qr": "disabled",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": "Préparation de votre photo…"
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "impression en cours : bloc d'impression grisé",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": true,
+        "Copies": 2,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "Impression…",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "disabled",
+        "copies_minus": "disabled",
+        "copies_plus": "disabled",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "2",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "Impression…",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": "Impression…"
+    },
+    {
+      "name": "plus de tirage après une impression : bloc grisé",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": false,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 1,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 0,
+        "PrintStatus": "Plus de tirage disponible",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "disabled",
+        "copies_minus": "disabled",
+        "copies_plus": "disabled",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "",
+        "print_status": "Plus de tirage disponible",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": "Plus de tirage disponible"
+    },
+    {
+      "name": "plus de tirage avant toute impression : bloc masqué",
+      "inputs": {
+        "ShowPrintBlock": false,
+        "CanPrint": false,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 1,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 0,
+        "PrintStatus": "Plus de tirage disponible",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "hidden",
+        "copies_minus": "hidden",
+        "copies_plus": "hidden",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "",
+        "prints_remaining": "",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "sans plafond, 10 copies : « + » grisé",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 10,
+        "MaxCopies": 10,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": null,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "active",
+        "copies_plus": "disabled",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "10",
+        "prints_remaining": "",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "un seul tirage restant",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 1,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 1,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "disabled",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 1 tirage possible",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "tirages restants cachés par le réglage",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": false,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "erreur d'impression",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "Impression indisponible. Réessayez ou utilisez le QR code.",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "Impression indisponible. Réessayez ou utilisez le QR code.",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": ""
+      },
+      "print_banner": "Impression indisponible. Réessayez ou utilisez le QR code."
+    },
+    {
+      "name": "toutes les fonctions coupées",
+      "inputs": {
+        "ShowPrintBlock": false,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": false,
+        "ShowQrTile": false,
+        "IsShareReady": false,
+        "ShowRetake": false,
+        "ShowFinish": false,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": false,
+        "SecondsLeft": 30,
+        "ShareStatus": "Préparation de votre photo…"
+      },
+      "actions": {
+        "print": "hidden",
+        "copies_minus": "hidden",
+        "copies_plus": "hidden",
+        "email": "hidden",
+        "qr": "hidden",
+        "retake": "hidden",
+        "finish": "hidden"
+      },
+      "texts": {
+        "copies": "",
+        "prints_remaining": "",
+        "print_status": "",
+        "countdown": "",
+        "share_status": ""
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "QR seul, envoi en échec",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": false,
+        "ShowQrTile": true,
+        "IsShareReady": false,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 30,
+        "ShareStatus": "Envoi impossible pour le moment : la photo est gardée sur la borne et sera renvoyée automatiquement."
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "hidden",
+        "qr": "disabled",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 30 s",
+        "share_status": "Envoi impossible pour le moment : la photo est gardée sur la borne et sera renvoyée automatiquement."
+      },
+      "print_banner": ""
+    },
+    {
+      "name": "compte à rebours en cours",
+      "inputs": {
+        "ShowPrintBlock": true,
+        "CanPrint": true,
+        "IsPrinting": false,
+        "Copies": 1,
+        "MaxCopies": 20,
+        "ShowEmailTile": true,
+        "ShowQrTile": true,
+        "IsShareReady": true,
+        "ShowRetake": true,
+        "ShowFinish": true,
+        "ShowRemainingPrints": true,
+        "RemainingPrints": 120,
+        "PrintStatus": "",
+        "ShowCountdown": true,
+        "SecondsLeft": 5,
+        "ShareStatus": ""
+      },
+      "actions": {
+        "print": "active",
+        "copies_minus": "disabled",
+        "copies_plus": "active",
+        "email": "active",
+        "qr": "active",
+        "retake": "active",
+        "finish": "active"
+      },
+      "texts": {
+        "copies": "1",
+        "prints_remaining": "encore 120 tirages possibles",
+        "print_status": "",
+        "countdown": "Retour à l'accueil dans 5 s",
+        "share_status": ""
+      },
+      "print_banner": ""
+    }
+  ],
+  "print_status": [
+    {
+      "isPrinting": true,
+      "error": "Erreur",
+      "notice": "Confirmation",
+      "canPrint": false,
+      "expected": "Impression…"
+    },
+    {
+      "isPrinting": false,
+      "error": "Erreur",
+      "notice": "Confirmation",
+      "canPrint": false,
+      "expected": "Erreur"
+    },
+    {
+      "isPrinting": false,
+      "error": "",
+      "notice": "C'est parti ! Votre tirage arrive.",
+      "canPrint": false,
+      "expected": "C'est parti ! Votre tirage arrive."
+    },
+    {
+      "isPrinting": false,
+      "error": "",
+      "notice": "",
+      "canPrint": false,
+      "expected": "Plus de tirage disponible"
+    },
+    {
+      "isPrinting": false,
+      "error": "",
+      "notice": "",
+      "canPrint": true,
+      "expected": ""
+    }
+  ],
+  "remaining_text": [
+    {
+      "remaining": null,
+      "expected": ""
+    },
+    {
+      "remaining": 0,
+      "expected": ""
+    },
+    {
+      "remaining": -3,
+      "expected": ""
+    },
+    {
+      "remaining": 1,
+      "expected": "encore 1 tirage possible"
+    },
+    {
+      "remaining": 2,
+      "expected": "encore 2 tirages possibles"
+    },
+    {
+      "remaining": 120,
+      "expected": "encore 120 tirages possibles"
+    }
+  ],
+  "event_dates": [
+    {
+      "start": null,
+      "end": null,
+      "long": null,
+      "short": null
+    },
+    {
+      "start": null,
+      "end": "2026-06-15T10:00:00Z",
+      "long": null,
+      "short": null
+    },
+    {
+      "start": "2026-06-14T14:00:00Z",
+      "end": null,
+      "long": "Dimanche 14 juin 2026",
+      "short": "14 · 06 · 2026"
+    },
+    {
+      "start": "2026-08-01T10:00:00Z",
+      "end": null,
+      "long": "Samedi 1er août 2026",
+      "short": "01 · 08 · 2026"
+    },
+    {
+      "start": "2027-06-12T14:00:00Z",
+      "end": null,
+      "long": "Samedi 12 juin 2027",
+      "short": "12 · 06 · 2027"
+    },
+    {
+      "start": "2026-06-14T14:00:00Z",
+      "end": "2026-06-15T02:00:00Z",
+      "long": "Du 14 au 15 juin 2026",
+      "short": "14 · 06 · 2026"
+    },
+    {
+      "start": "2026-06-30T14:00:00Z",
+      "end": "2026-07-02T10:00:00Z",
+      "long": "Du 30 juin au 2 juillet 2026",
+      "short": "30 · 06 · 2026"
+    },
+    {
+      "start": "2026-02-28T12:00:00Z",
+      "end": "2026-03-01T12:00:00Z",
+      "long": "Du 28 février au 1er mars 2026",
+      "short": "28 · 02 · 2026"
+    },
+    {
+      "start": "2026-12-31T18:00:00Z",
+      "end": "2027-01-01T03:00:00Z",
+      "long": "Du 31 décembre 2026 au 1er janvier 2027",
+      "short": "31 · 12 · 2026"
+    },
+    {
+      "start": "2026-06-14T10:00:00Z",
+      "end": "2026-06-14T21:30:00Z",
+      "long": "Dimanche 14 juin 2026",
+      "short": "14 · 06 · 2026"
+    },
+    {
+      "start": "2026-06-14T14:00:00Z",
+      "end": "2026-06-13T10:00:00Z",
+      "long": "Dimanche 14 juin 2026",
+      "short": "14 · 06 · 2026"
+    },
+    {
+      "start": "2026-03-28T23:30:00Z",
+      "end": null,
+      "long": "Dimanche 29 mars 2026",
+      "short": "29 · 03 · 2026"
+    },
+    {
+      "start": "2026-06-14T22:30:00Z",
+      "end": null,
+      "long": "Lundi 15 juin 2026",
+      "short": "15 · 06 · 2026"
+    },
+    {
+      "start": "2026-06-14T21:30:00Z",
+      "end": null,
+      "long": "Dimanche 14 juin 2026",
+      "short": "14 · 06 · 2026"
+    },
+    {
+      "start": "2026-10-24T22:30:00Z",
+      "end": null,
+      "long": "Dimanche 25 octobre 2026",
+      "short": "25 · 10 · 2026"
+    },
+    {
+      "start": "2026-12-12T23:30:00Z",
+      "end": null,
+      "long": "Dimanche 13 décembre 2026",
+      "short": "13 · 12 · 2026"
+    },
+    {
+      "start": "2026-12-12T22:30:00Z",
+      "end": null,
+      "long": "Samedi 12 décembre 2026",
+      "short": "12 · 12 · 2026"
+    },
+    {
+      "start": "2026-06-14T23:30:00+02:00",
+      "end": null,
+      "long": "Dimanche 14 juin 2026",
+      "short": "14 · 06 · 2026"
+    }
+  ],
+  "display_name": [
+    {
+      "display_name": "Camille & Thomas",
+      "event_name": "Mariage Camille et Thomas",
+      "expected": "Camille & Thomas"
+    },
+    {
+      "display_name": "  Camille & Thomas ",
+      "event_name": "Mariage",
+      "expected": "Camille & Thomas"
+    },
+    {
+      "display_name": "  ",
+      "event_name": "Mariage Camille et Thomas",
+      "expected": "Mariage Camille et Thomas"
+    },
+    {
+      "display_name": null,
+      "event_name": " Soirée Orange ",
+      "expected": "Soirée Orange"
+    }
+  ],
+  "home_actions": [
+    {
+      "has_photos": false,
+      "actions": {
+        "start": "active",
+        "gallery": "hidden"
+      }
+    },
+    {
+      "has_photos": true,
+      "actions": {
+        "start": "active",
+        "gallery": "active"
+      }
+    }
+  ],
+  "display_text": [
+    {
+      "value": "  Camille & Thomas ",
+      "uppercase": false,
+      "char_spacing": 0,
+      "expected": "Camille & Thomas"
+    },
+    {
+      "value": "élodie & josé",
+      "uppercase": true,
+      "char_spacing": 0,
+      "expected": "ÉLODIE & JOSÉ"
+    },
+    {
+      "value": "Léa",
+      "uppercase": false,
+      "char_spacing": 200,
+      "expected": "L\u2009é\u2009a"
+    },
+    {
+      "value": "Léa",
+      "uppercase": false,
+      "char_spacing": 100,
+      "expected": "L\u2009é\u2009a"
+    },
+    {
+      "value": "Léa",
+      "uppercase": false,
+      "char_spacing": 99,
+      "expected": "Léa"
+    },
+    {
+      "value": "Léa",
+      "uppercase": false,
+      "char_spacing": 300,
+      "expected": "L\u2009\u2009é\u2009\u2009a"
+    },
+    {
+      "value": "Léa",
+      "uppercase": false,
+      "char_spacing": -200,
+      "expected": "Léa"
+    },
+    {
+      "value": " a b ",
+      "uppercase": true,
+      "char_spacing": 400,
+      "expected": "A\u2009\u2009 \u2009\u2009B"
+    }
+  ],
+  "text_visible": [
+    {
+      "value": "Camille",
+      "personalized_only": false,
+      "personalized": false,
+      "visible": true
+    },
+    {
+      "value": "Camille",
+      "personalized_only": true,
+      "personalized": false,
+      "visible": false
+    },
+    {
+      "value": "Camille",
+      "personalized_only": true,
+      "personalized": true,
+      "visible": true
+    },
+    {
+      "value": "",
+      "personalized_only": false,
+      "personalized": true,
+      "visible": false
+    },
+    {
+      "value": "   ",
+      "personalized_only": false,
+      "personalized": true,
+      "visible": false
+    },
+    {
+      "value": null,
+      "personalized_only": false,
+      "personalized": true,
+      "visible": false
+    }
+  ]
+}

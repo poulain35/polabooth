@@ -1,7 +1,9 @@
-// Logique pure d'évaluation des alertes parc kiosk — aucune I/O, testable (Vitest + Deno).
-// Importée par index.ts (Deno) et par le test alerts.test.ts (Vitest).
+// Logique pure d'évaluation des alertes parc kiosk — aucune I/O, testable (node --test + Deno).
+// Alertes matériel (battement de cœur, imprimante, appareil photo, quota, papier) et messages de
+// résolution ; erreurs graves de la borne lues dans ses journaux (LAB-329) : kiosk-errors.ts.
 
-export type AlertType = 'machine_offline' | 'printer_problem' | 'print_quota_near' | 'paper_low' | 'camera_problem';
+export type AlertType = 'machine_offline' | 'printer_problem' | 'print_quota_near' | 'paper_low' | 'camera_problem'
+  | 'kiosk_errors';
 
 export interface AlertCandidate {
   type: AlertType;
@@ -11,7 +13,7 @@ export interface AlertCandidate {
   color: string;
 }
 
-export const PRINTER_BAD = ['paper_out', 'paper_jam', 'error', 'offline', 'not_found'];
+const PRINTER_BAD = ['paper_out', 'paper_jam', 'error', 'offline', 'not_found'];
 
 const PRINTER_LABEL: Record<string, string> = {
   paper_out: 'plus de papier',
@@ -36,7 +38,7 @@ export interface AlertInputs {
 }
 
 /** Délai (min) au-delà duquel la machine est considérée hors ligne (réglage de machine_offline). */
-function offlineAfterMinutes(cfg: Record<string, any>): number {
+export function offlineAfterMinutes(cfg: Record<string, any>): number {
   return Number(cfg.machine_offline?.after_minutes ?? 10);
 }
 
@@ -138,6 +140,9 @@ export function evaluateAlerts(inp: AlertInputs): AlertCandidate[] {
   return out;
 }
 
+/** Délai sans nouvelle erreur avant « rentré dans l'ordre » (min) ; aussi fenêtre d'un plantage (kiosk-errors.ts). */
+export const KIOSK_ERRORS_QUIET_MIN = 30;
+
 /** Messages de résolution (problème rentré dans l'ordre). */
 export const RESOLVE: Record<AlertType, { subject: string; heading: string; detail: (m: string) => string }> = {
   machine_offline: {
@@ -159,6 +164,11 @@ export const RESOLVE: Record<AlertType, { subject: string; heading: string; deta
     subject: '✅ Appareil photo OK',
     heading: '✅ Appareil photo opérationnel',
     detail: (m) => `L'appareil photo de la machine <strong>${m}</strong> est de nouveau détecté : les invités peuvent reprendre des photos.`,
+  },
+  kiosk_errors: {
+    subject: "✅ Plus d'erreur sur la borne",
+    heading: '✅ Borne revenue à la normale',
+    detail: (m) => `Aucune nouvelle erreur grave sur la borne <strong>${m}</strong> depuis ${KIOSK_ERRORS_QUIET_MIN} minutes.`,
   },
   paper_low: {
     subject: '✅ Papier rechargé',

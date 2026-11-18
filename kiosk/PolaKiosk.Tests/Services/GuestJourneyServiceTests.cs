@@ -45,4 +45,25 @@ public class GuestJourneyServiceTests
         NavigateTo<HomeView>();
         journey.PhotoConsent.Should().BeNull();
     }
+
+    [Fact]
+    public void The_log_session_ends_on_the_home_screen_or_the_event_code_screen()
+    {
+        var ev = Guid.NewGuid();
+        var context = new KioskLogContext(() => ev);
+        _ = new GuestJourneyService(_nav.Object, context);
+
+        var session = Guid.NewGuid();
+        context.BeginSession(session, ev);
+        NavigateTo<ResultView>();
+        NavigateTo<GalleryView>();
+        context.Current.Should().Be((ev, session));
+
+        NavigateTo<HomeView>();
+        context.Current.Should().Be((ev, (Guid?)null));
+
+        context.BeginSession(Guid.NewGuid(), ev);
+        NavigateTo<EventSetupView>();
+        context.Current.SessionId.Should().BeNull();
+    }
 }

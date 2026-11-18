@@ -1,0 +1,406 @@
+import { fabric } from 'fabric';
+import { ACTION_LABELS, ACTION_BUTTON_TEXTS, VARIABLE_LABELS, VARIABLE_SAMPLES } from '../../lib/kioskScreenLayout';
+import { KIOSK_COLORS, KIOSK_FONT_TITLE, KIOSK_FONT_TEXT } from '../../lib/kioskScreenTemplates';
+import { ensureKioskFonts } from '../../utils/kioskFonts';
+import { findPhotoZones } from '../../lib/photoZones';
+import { maxImagePx } from '../../lib/designImages';
+import { isCompactViewport } from '../../lib/editorMobile';
+import { createPhotoZoneRect } from './canvasStyle';
+import { preparePhoto } from './imageTools';
+
+  // ── Copy / Paste / Duplicate ─────────────────────────────────────────────────
+const CLONE_PROPS = ['fontFamily', 'fontWeight', 'fontStyle', 'underline', 'charSpacing', 'textAlign', 'originX', 'originY', 'isPhotoZone', 'locked',
+  'textTransform', 'kioskAction', 'kioskVariable', 'kioskSlot', 'personalizedOnly'];
+
+// Les zones photo sont structurelles (définies par le format) : jamais dupliquées,
+// sinon elles s'empilent en doublons invisibles (designs vus avec 20+ zones fantômes).
+const involvesPhotoZone = (obj) => !!obj && findPhotoZones([obj]).length > 0;
+
+// Actions sur les objets du canvas : ajout (formes, texte, image, éléments de la borne, zone photo),
+// suppression, plans, alignement, copier / coller, groupe, verrou, grille, menu contextuel.
+// Fonctions recréées à chaque rendu, comme lorsqu'elles étaient écrites dans l'éditeur.
+export function useObjectActions({
+  currentFormat, homeMode, kioskMode, storesImages, kioskAllowed, setActivePanel, fabricRef, isSavingRef,
+  clipboardRef, setSelectedObject, setObjectVersion, setContextMenu, setSnapGrid, snapGridRef,
+  saveHistorySnapshot,
+}) {
+  // ── Add elements ─────────────────────────────────────────────────────────────
+  // isSavingRef=true during canvas mutations to block any spurious object:modified
+  // events fired internally by Fabric, then one explicit snapshot is saved.
+
+  function addObjectToCanvas(obj) {
+    const canvas = fabricRef.current;
+    isSavingRef.current = true;
+    canvas.add(obj);
+    canvas.setActiveObject(obj);
+    canvas.renderAll();
+    isSavingRef.current = false;
+    setSelectedObject(obj);
+    saveHistorySnapshot(canvas);
+    // Téléphone (LAB-353) : le panneau plein écran se referme pour montrer l'objet ajouté, sélectionné.
+    if (isCompactViewport(window.innerWidth)) setActivePanel(null);
+
+    // Re-sync bounding box after the browser has rendered with the real font
+    if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+      requestAnimationFrame(() => {
+        if (!fabricRef.current) return;
+        obj.initDimensions?.();
+        obj.setCoords();
+        fabricRef.current.renderAll();
+      });
+    }
+  }
+
+  async function addText() {
+    const W = currentFormat.canvasWidth;
+    const fontSize = W < 300 ? 12 : 20;
+    const fontFamily = 'Montserrat';
+    // Wait for the font to be loaded before creating the object
+    // so Fabric calculates dimensions with the real font metrics
+    try { await document.fonts.load(`${fontSize}px "${fontFamily}"`); } catch (_) { /* ignore */ }
+    addObjectToCanvas(new fabric.IText('Votre texte', {
+      left: W / 2,
+      top: currentFormat.canvasHeight / 2,
+      fontFamily,
+      fontSize,
+      fill: '#1e293b',
+      textAlign: 'center',
+      originX: 'center',
+      originY: 'center',
+    }));
+  }
+
+  function addRect() {
+    addObjectToCanvas(new fabric.Rect({
+      left: 50, top: 50,
+      width: Math.min(120, currentFormat.canvasWidth * 0.3),
+      height: Math.min(80, currentFormat.canvasHeight * 0.15),
+      fill: '#e2e8f0', stroke: '#94a3b8', strokeWidth: 1,
+    }));
+  }
+
+  function addCircle() {
+    addObjectToCanvas(new fabric.Circle({
+      left: 50, top: 50,
+      radius: Math.min(50, currentFormat.canvasWidth * 0.12),
+      fill: '#e2e8f0', stroke: '#94a3b8', strokeWidth: 1,
+    }));
+  }
+
+  function addLine() {
+    const W = currentFormat.canvasWidth;
+    const H = currentFormat.canvasHeight;
+    addObjectToCanvas(new fabric.Line([W * 0.1, H * 0.5, W * 0.9, H * 0.5], {
+      stroke: '#334155', strokeWidth: 1.5,
+    }));
+  }
+
+  function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (storesImages) {
+      // LAB-348 : photo réduite à la résolution d'export avant l'ajout (puis l'envoi au stockage).
+      e.target.value = '';
+      preparePhoto(file, maxImagePx(currentFormat)).then((imgEl) => {
+        const fabricImg = new fabric.Image(imgEl, { left: 50, top: 50 });
+        const maxW = currentFormat.canvasWidth * 0.6;
+        if (fabricImg.width > maxW) fabricImg.scaleToWidth(maxW);
+        addObjectToCanvas(fabricImg);
+      }).catch((err) => console.error('Import de photo impossible :', err));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const imgEl = new Image();
+      imgEl.onload = () => {
+        const fabricImg = new fabric.Image(imgEl, { left: 50, top: 50 });
+        const maxW = currentFormat.canvasWidth * 0.6;
+        if (fabricImg.width > maxW) fabricImg.scaleToWidth(maxW);
+        addObjectToCanvas(fabricImg);
+      };
+      imgEl.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  // ── Écrans de la borne (LAB-296) : bouton, texte vivant, emplacement ─────────
+  // Tailles en px canvas (export ×2). Un bouton fait au moins 50 px canvas = 100 px à l'écran.
+  async function addKioskButton(action) {
+    if (!kioskAllowed?.actions.includes(action)) return;
+    await ensureKioskFonts();
+    const W = currentFormat.canvasWidth;
+    const H = currentFormat.canvasHeight;
+    const label = ACTION_BUTTON_TEXTS[action] ?? ACTION_LABELS[action] ?? action;
+    const fontSize = 14;
+    const caption = new fabric.Text(label, {
+      fontFamily: KIOSK_FONT_TEXT, fontWeight: '600', fontSize,
+      fill: KIOSK_COLORS.cream, originX: 'center', originY: 'center', left: 0, top: 0,
+    });
+    const w = Math.max(110, Math.ceil(caption.width) + 48);
+    const h = 52;
+    const shape = new fabric.Rect({
+      width: w, height: h, rx: h / 2, ry: h / 2, fill: KIOSK_COLORS.forest, strokeWidth: 0,
+      originX: 'center', originY: 'center', left: 0, top: 0,
+    });
+    const button = new fabric.Group([shape, caption], {
+      left: W / 2, top: H / 2, originX: 'center', originY: 'center',
+    });
+    button.kioskAction = action;
+    addObjectToCanvas(button);
+  }
+
+  async function addKioskVariable(variable) {
+    if (!kioskAllowed?.variables.includes(variable)) return;
+    await ensureKioskFonts();
+    const W = currentFormat.canvasWidth;
+    const H = currentFormat.canvasHeight;
+    const isTitle = variable === 'event_name';
+    const width = isTitle ? 420 : 260;
+    const box = new fabric.Textbox(VARIABLE_SAMPLES[variable] ?? VARIABLE_LABELS[variable] ?? variable, {
+      left: (W - width) / 2, top: H / 2 - 20, width,
+      fontFamily: isTitle ? KIOSK_FONT_TITLE : KIOSK_FONT_TEXT,
+      fontWeight: isTitle ? '600' : '500',
+      fontSize: isTitle ? 32 : 16,
+      fill: KIOSK_COLORS.dark, textAlign: 'center', strokeWidth: 0,
+    });
+    box.kioskVariable = variable;
+    addObjectToCanvas(box);
+  }
+
+  function addKioskSlot(slot) {
+    if (!kioskAllowed?.slots.includes(slot)) return;
+    const W = currentFormat.canvasWidth;
+    const H = currentFormat.canvasHeight;
+    const w = 240, h = 160;
+    const rect = new fabric.Rect({
+      left: (W - w) / 2, top: (H - h) / 2, width: w, height: h,
+      fill: KIOSK_COLORS.mint, strokeWidth: 0,
+    });
+    rect.kioskSlot = slot;
+    addObjectToCanvas(rect);
+  }
+
+  function addPhotoZone() {
+    if (homeMode || kioskMode) return;
+    const canvas = fabricRef.current;
+    const W = currentFormat.canvasWidth;
+    const H = currentFormat.canvasHeight;
+    const w = Math.round(W * 0.6);
+    const h = Math.round(H * 0.6);
+    const rect = createPhotoZoneRect({
+      x: Math.round((W - w) / 2),
+      y: Math.round((H - h) / 2),
+      w, h,
+    });
+    isSavingRef.current = true;
+    canvas.add(rect);
+    canvas.sendToBack(rect);
+    canvas.setActiveObject(rect);
+    canvas.renderAll();
+    isSavingRef.current = false;
+    setSelectedObject(rect);
+    saveHistorySnapshot(canvas);
+  }
+
+  function deleteSelected() {
+    const canvas = fabricRef.current;
+    const active = canvas.getActiveObjects();
+    if (!active.length) return;
+    active.forEach((o) => canvas.remove(o));
+    canvas.discardActiveObject();
+    setSelectedObject(null);
+    canvas.renderAll();
+    saveHistorySnapshot(canvas);
+  }
+
+  function bringForward() {
+    const canvas = fabricRef.current;
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    canvas.bringForward(obj);
+    canvas.renderAll();
+  }
+
+  function sendBackward() {
+    const canvas = fabricRef.current;
+    const obj = canvas.getActiveObject();
+    if (!obj) return;
+    canvas.sendBackwards(obj);
+    canvas.renderAll();
+  }
+
+  function bringToFront() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    canvas.bringToFront(obj);
+    canvas.renderAll();
+  }
+
+  function sendToBack() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    canvas.sendToBack(obj);
+    canvas.renderAll();
+  }
+
+  // ── Alignment helpers ─────────────────────────────────────────────────────────
+  function alignObj(getNewCenter) {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    const br = obj.getBoundingRect(true);
+    const cp = obj.getCenterPoint();
+    const { x, y } = getNewCenter(br, cp, currentFormat.canvasWidth, currentFormat.canvasHeight);
+    obj.setPositionByOrigin(new fabric.Point(x, y), 'center', 'center');
+    canvas.renderAll();
+    saveHistorySnapshot(canvas);
+    setObjectVersion((v) => v + 1);
+  }
+
+  function alignLeft()    { alignObj((br, cp)       => ({ x: cp.x - br.left,                           y: cp.y })); }
+  function alignRight()   { alignObj((br, cp, cw)   => ({ x: cp.x + (cw - br.left - br.width),        y: cp.y })); }
+  function alignTop()     { alignObj((br, cp)       => ({ x: cp.x,                                    y: cp.y - br.top })); }
+  function alignBottom()  { alignObj((br, cp, cw, ch) => ({ x: cp.x,                                  y: cp.y + (ch - br.top - br.height) })); }
+
+  function centerH() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    const cp = obj.getCenterPoint();
+    obj.setPositionByOrigin(new fabric.Point(currentFormat.canvasWidth / 2, cp.y), 'center', 'center');
+    canvas.renderAll();
+    saveHistorySnapshot(canvas);
+    setObjectVersion((v) => v + 1);
+  }
+
+  function centerV() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    const cp = obj.getCenterPoint();
+    obj.setPositionByOrigin(new fabric.Point(cp.x, currentFormat.canvasHeight / 2), 'center', 'center');
+    canvas.renderAll();
+    saveHistorySnapshot(canvas);
+    setObjectVersion((v) => v + 1);
+  }
+
+  // ── Copy / Paste / Duplicate ─────────────────────────────────────────────────
+  function copyObject() {
+    const obj = fabricRef.current?.getActiveObject();
+    if (!obj || involvesPhotoZone(obj)) return;
+    obj.clone((cloned) => { clipboardRef.current = cloned; }, CLONE_PROPS);
+  }
+
+  function pasteObject() {
+    const canvas = fabricRef.current;
+    if (!canvas || !clipboardRef.current || involvesPhotoZone(clipboardRef.current)) return;
+    clipboardRef.current.clone((copy) => {
+      copy.set({ left: (copy.left ?? 0) + 15, top: (copy.top ?? 0) + 15, evented: true });
+      canvas.discardActiveObject();
+      canvas.add(copy);
+      canvas.setActiveObject(copy);
+      canvas.renderAll();
+      setSelectedObject(copy);
+      saveHistorySnapshot(canvas);
+      clipboardRef.current = copy;
+    }, CLONE_PROPS);
+  }
+
+  function duplicateObject() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj || involvesPhotoZone(obj)) return;
+    obj.clone((copy) => {
+      copy.set({ left: (copy.left ?? 0) + 15, top: (copy.top ?? 0) + 15, evented: true });
+      canvas.discardActiveObject();
+      canvas.add(copy);
+      canvas.setActiveObject(copy);
+      canvas.renderAll();
+      setSelectedObject(copy);
+      saveHistorySnapshot(canvas);
+    }, CLONE_PROPS);
+  }
+
+  // ── Group / Ungroup ──────────────────────────────────────────────────────────
+  function groupSelected() {
+    const canvas = fabricRef.current;
+    const active = canvas?.getActiveObject();
+    if (!active || active.type !== 'activeSelection') return;
+    const group = active.toGroup();
+    canvas.setActiveObject(group);
+    canvas.renderAll();
+    setSelectedObject(group);
+    saveHistorySnapshot(canvas);
+  }
+
+  function ungroupSelected() {
+    const canvas = fabricRef.current;
+    const group = canvas?.getActiveObject();
+    if (!group || group.type !== 'group') return;
+    const sel = group.toActiveSelection();
+    canvas.renderAll();
+    setSelectedObject(sel);
+    saveHistorySnapshot(canvas);
+  }
+
+  // ── Lock / Unlock ────────────────────────────────────────────────────────────
+  function toggleLock() {
+    const canvas = fabricRef.current;
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    const locked = !obj.locked;
+    obj.set({
+      locked,
+      lockMovementX:  locked,
+      lockMovementY:  locked,
+      lockScalingX:   locked,
+      lockScalingY:   locked,
+      lockRotation:   locked || !!obj.isPhotoZone,
+      hasControls:    !locked,
+      hoverCursor:    locked ? 'default' : null,
+    });
+    canvas.renderAll();
+    setObjectVersion((v) => v + 1);
+    saveHistorySnapshot(canvas);
+  }
+
+  // ── Snap grid ────────────────────────────────────────────────────────────────
+  function toggleSnapGrid() {
+    const next = !snapGridRef.current;
+    snapGridRef.current = next;
+    setSnapGrid(next);
+  }
+
+  // ── Properties panel callback ────────────────────────────────────────────────
+  function handleObjectChange() {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    canvas.renderAll();
+    // Increment version to trigger PropertiesPanel re-render
+    // (selectedObject is the actual Fabric object — no need to re-assign)
+    setObjectVersion((v) => v + 1);
+    saveHistorySnapshot(canvas);
+  }
+
+  // ── Context menu ─────────────────────────────────────────────────────────────
+  function handleCanvasContextMenu(e) {
+    e.preventDefault();
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const obj = canvas.getActiveObject();
+    if (obj) {
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  }
+
+  return {
+    addObjectToCanvas, addText, addRect, addCircle, addLine, handleImageUpload, addKioskButton,
+    addKioskVariable, addKioskSlot, addPhotoZone, deleteSelected, bringForward, sendBackward, bringToFront,
+    sendToBack, alignLeft, alignRight, alignTop, alignBottom, centerH, centerV, copyObject, pasteObject,
+    duplicateObject, groupSelected, ungroupSelected, toggleLock, toggleSnapGrid, handleObjectChange,
+    handleCanvasContextMenu,
+  };
+}

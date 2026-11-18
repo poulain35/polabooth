@@ -17,9 +17,9 @@ export interface SmtpConfig {
   password: string | null;
 }
 
-export interface SmtpAddress { name?: string; address: string }
+interface SmtpAddress { name?: string; address: string }
 
-export type SmtpAttachment =
+type SmtpAttachment =
   | { filename: string; content: string; encoding: 'base64' }
   | { filename?: string; href: string };
 
@@ -35,14 +35,14 @@ export interface SmtpMessage {
   attachments?: SmtpAttachment[];
 }
 
-export interface SmtpTransport {
+interface SmtpTransport {
   sendMail(message: SmtpMessage): Promise<{ messageId?: string | null }>;
 }
 
 /** `name` : nom annoncé au serveur (EHLO), le domaine de l'expéditeur. */
 export type SmtpTransportFactory = (config: SmtpConfig, name: string | undefined) => SmtpTransport | Promise<SmtpTransport>;
 
-export const DEFAULT_SMTP_PORT = 465;
+const DEFAULT_SMTP_PORT = 465;
 
 const text = (v: string | undefined): string | null => (v && v.trim() ? v.trim() : null);
 

@@ -53,10 +53,16 @@ public class KioskService : IKioskService, IDisposable
 
             if (fullscreen)
             {
+                // Au retour de l'Admin, la fenêtre est déjà agrandie avec sa bordure : Windows l'a
+                // calée sur la zone de travail, barre des tâches exclue. Il faut la rétablir avant de
+                // retirer la bordure puis l'agrandir de nouveau, sinon la barre reste visible (LAB-390).
+                if (win.WindowState == WindowState.Maximized)
+                    win.WindowState = WindowState.Normal;
                 win.WindowStyle = WindowStyle.None;
-                win.WindowState = WindowState.Maximized;
                 win.ResizeMode  = ResizeMode.NoResize;
+                win.WindowState = WindowState.Maximized;
                 win.Topmost     = true;
+                win.Activate();
             }
             else
             {

@@ -5,7 +5,7 @@ using PolaKiosk.Services;
 namespace PolaKiosk.ViewModels;
 
 /// <summary>
-/// Tout ce que <see cref="LiveViewModel.FinishCaptureAsync"/> doit savoir, figé à la fin de la
+/// Tout ce que <see cref="CaptureFinisher.FinishCaptureAsync"/> doit savoir, figé à la fin de la
 /// prise de vue : la tâche de montage ne dépend plus de la durée de vie de l'écran Live.
 /// </summary>
 /// <param name="CapturedAtUtc">Début de la séance (avant le premier compte à rebours), heure de la
@@ -44,7 +44,8 @@ public sealed record CaptureResult(
     IReadOnlyList<string> PhotoPaths,
     string TemplateFormat,
     bool IsPending,
-    object NextParameters)
+    object NextParameters,
+    Guid? TemplateId = null)
 {
     /// <summary>L'invité choisit un effet : pas d'envoi anticipé (le montage final vient après).</summary>
     public bool ChoosesEffect => NextParameters is EffectSelectParams;

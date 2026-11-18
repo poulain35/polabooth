@@ -12,7 +12,7 @@ import { getSignedUrl }               from 'npm:@aws-sdk/s3-request-presigner';
 import { handleCors, corsResponse }   from '../_shared/cors.ts';
 import { adminClient }                from '../_shared/auth.ts';
 import { LIMITS, publicGuard }        from '../_shared/public-rate-limit.ts';
-import { requireFeature } from '../_shared/features.ts';
+import { eventByCode, normalizeAccessCode } from '../_shared/event-by-code.ts';
 import { qrOpenActivity, recordEventActivity } from '../_shared/event-activity.ts';
 import { photosBucket, storageClient } from '../_shared/storage.ts';
 
@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'GET') return corsResponse(405, { error: 'Method not allowed' });
 
   const params = new URL(req.url).searchParams;
-  const code = params.get('code')?.toUpperCase().trim();
+  const code = normalizeAccessCode(params.get('code'));
   if (!code) return corsResponse(400, { error: 'Paramètre code manquant' });
 
   const db = adminClient();
@@ -31,22 +31,17 @@ Deno.serve(async (req) => {
   const limited = await guard.check([[LIMITS.getPhotosIp, guard.ip]], { codeFailures: true });
   if (limited) return limited;
 
-  const { data: event, error } = await db
-    .from('events')
-    .select('id, org_id, name, status, expires_at')
-    .eq('access_code', code)
-    .single();
-
-  if (error || !event) {
-    await guard.codeFailed();
-    return corsResponse(404, { error: "Code d'accès invalide" });
-  }
-  if (event.status === 'archived') return corsResponse(403, { error: 'Cet événement est clôturé' });
-  if (event.expires_at && new Date(event.expires_at) < new Date()) {
-    return corsResponse(403, { error: 'Ce lien a expiré' });
-  }
-  const disabled = await requireFeature(db, event.org_id, 'gallery');
-  if (disabled) return disabled;
+  const found = await eventByCode<{ name: string }>(db, code, {
+    fn: 'get-photos',
+    columns: ['name'],
+    guard,
+    notFound: { status: 404, error: "Code d'accès invalide" },
+    archived: { status: 403, error: 'Cet événement est clôturé' },
+    expiry: { rule: 'media', refusal: { status: 403, error: 'Ce lien a expiré' } },
+    feature: 'gallery',
+  });
+  if (found.response) return found.response;
+  const { event } = found;
 
   // service_role contourne la RLS : la modération (photos invités en attente ou rejetées) doit
   // être filtrée ici, comme dans get_public_photos (LAB-114).
@@ -62,14 +57,15 @@ Deno.serve(async (req) => {
   const qrOpen = recordEventActivity(db, qrOpenActivity(event.id, params, (photos ?? []).map((p) => p.id)));
 
   // Générer des presigned GET URLs pour les photos du stockage (storage_path présent).
-  // Client créé seulement s'il sert : une galerie de photos webhook ne dépend pas du stockage.
+  // Client créé seulement s'il sert : une galerie de photos externes (lien de partage, sans
+  // fichier dans le stockage) n'en dépend pas.
   const s3 = (photos ?? []).some((p) => p.storage_path) ? storageClient() : null;
   const bucket = photosBucket();
 
   const photosWithDownload = await Promise.all(
     (photos ?? []).map(async (p, i) => {
       if (!p.storage_path) {
-        // Photo webhook (fotoshare) — pas dans le stockage
+        // Photo externe (lien de partage, sans fichier dans le stockage)
         return { ...p, download_url: p.share_url ?? p.photo_url };
       }
       const ext = p.storage_path.split('.').pop()?.toLowerCase() ?? 'jpg';

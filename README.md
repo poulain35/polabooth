@@ -68,6 +68,11 @@ partie de Polabooth.
 
 Commencez par [docs/installation.md](docs/installation.md) : composants, coûts, ordre des étapes.
 
+**Le plus simple :** ouvrez [docs/guide-installation.html](docs/guide-installation.html) par un double-clic
+(dans le dossier téléchargé). Ce guide pas à pas fonctionne hors ligne, prépare le fichier de
+configuration et indique les commandes à lancer ; le programme d'installation
+(`saas/installer.cmd` sous Windows, `saas/installer.sh` sous macOS et Linux) fait le reste.
+
 1. Le SaaS : [docs/installation-instance.md](docs/installation-instance.md). Un script
    (`npm run install-instance`) crée la base, déploie les fonctions et construit le site.
 2. La borne : [docs/installation-borne.md](docs/installation-borne.md). Matériel, installeur prêt
@@ -87,6 +92,17 @@ Le format du fichier `.pola`, qui emporte un événement sur une borne sans rés
 | `docs/` | Guides d'installation et format `.pola` | |
 
 Détails techniques : [saas/CLAUDE.md](saas/CLAUDE.md) et [kiosk/CLAUDE.md](kiosk/CLAUDE.md).
+
+---
+
+## Questions, bugs et nouveautés
+
+- **Une question** (installation, matériel, réglage) : posez-la dans l'onglet **Discussions** du
+  dépôt.
+- **Un bug** : ouvrez une issue (onglet **Issues**), voir [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Ce qui change d'une version à l'autre** et ce qu'il faut faire pour mettre à jour votre
+  instance : [CHANGELOG.md](CHANGELOG.md).
+- **Le matériel déjà testé** sur une vraie borne : [docs/installation-borne.md](docs/installation-borne.md#matériel-testé).
 
 ---
 

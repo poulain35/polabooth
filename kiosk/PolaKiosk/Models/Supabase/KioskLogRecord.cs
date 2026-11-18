@@ -8,7 +8,9 @@ public sealed record KioskLogRecord(
     string Message,
     string? StackTrace,
     string? AppVersion,
-    DateTime OccurredAtUtc);
+    DateTime OccurredAtUtc,
+    Guid? EventId = null,
+    Guid? SessionId = null);
 
 /// <summary>Résultat de la RPC : lot accepté (2xx, doublons compris), ou refusé avec un code.</summary>
 public sealed record KioskLogSendResult(bool Accepted, string? ErrorCode)

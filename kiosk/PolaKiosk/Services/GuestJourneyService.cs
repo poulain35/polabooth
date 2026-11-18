@@ -2,7 +2,8 @@ namespace PolaKiosk.Services;
 
 /// <summary>
 /// État du parcours invité en cours, en mémoire seulement (spec LAB-208, « État du parcours ») :
-/// remis à zéro à chaque arrivée sur l'accueil. Rien n'est écrit sur le disque.
+/// remis à zéro à chaque arrivée sur l'accueil. Rien n'est écrit sur le disque. Ferme aussi la séance
+/// des journaux (LAB-326) à l'accueil et à la saisie du code.
 /// </summary>
 public interface IGuestJourneyService
 {
@@ -25,12 +26,14 @@ public sealed class GuestJourneyService : IGuestJourneyService
 {
     private readonly INavigationService _navigation;
 
-    public GuestJourneyService(INavigationService navigation)
+    public GuestJourneyService(INavigationService navigation, IKioskLogContext? logContext = null)
     {
         _navigation = navigation;
         _navigation.Navigated += (_, _) =>
         {
-            if (_navigation.CurrentViewType == typeof(Views.HomeView)) Reset();
+            var view = _navigation.CurrentViewType;
+            if (view == typeof(Views.HomeView)) Reset();
+            if (view == typeof(Views.HomeView) || view == typeof(Views.EventSetupView)) logContext?.EndSession();
         };
     }
 

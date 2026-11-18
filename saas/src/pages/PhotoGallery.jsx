@@ -5,11 +5,17 @@ import { fetchPhotosByAccessCode, getGalleryConfig, getPublicFeatures, trackGall
 import { FEATURE_UNAVAILABLE_MESSAGE, hasPublicFeature, isFeatureDisabledError } from '../features/featureGate';
 import { shouldShowBookingBanner } from '../lib/galleryBanner';
 import { qrLinkParams } from '../lib/galleryTracking';
+import { safeHttpsUrl } from '../lib/urls';
 import { animatedMediaLabel, isVideoPhoto } from '../utils/media';
 import GalleryBookingBanner, { BAR_OFFSET_VAR } from '../components/GalleryBookingBanner';
 import GuestUploader from '../components/GuestUploader';
-import BrandLogo from '../components/BrandLogo';
-import { BRAND } from '../lib/instanceBrand';
+import GalleryHeading from '../components/GalleryHeading';
+import { galleryLook } from '../lib/galleryBranding';
+import { usePfFonts } from '../components/public/clientEditorStyles';
+import { Lightbox } from '../components/ui/lightbox';
+import { downloadBlob } from '../lib/download';
+import { copyText } from '../lib/clipboard';
+import { Spinner } from '../components/ui/spinner';
 
 const PAGE_SIZE = 60; // photos rendues par paquet (défilement infini)
 
@@ -40,16 +46,15 @@ async function fetchPhotoFile(photo, index) {
 // ── Télécharger une photo ─────────────────────────────────────────────────────
 async function downloadPhoto(photo, index, code) {
   if (!photo.storage_path && !photo.download_url) {
+    // Photo hors de notre stockage : ouverte dans un onglet, en https seulement.
+    const url = safeHttpsUrl(photo.photo_url);
+    if (!url) return;
     trackGalleryEvent(code, 'download');
-    window.open(photo.share_url ?? photo.photo_url, '_blank'); // photo fotoshare externe
+    window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
   const file = await fetchPhotoFile(photo, index);
-  const url  = URL.createObjectURL(file);
-  const a    = document.createElement('a');
-  a.href = url; a.download = file.name;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(file, file.name);
   trackGalleryEvent(code, 'download');
 }
 
@@ -73,7 +78,7 @@ async function sharePhoto(photo, index, code) {
   } catch (e) {
     if (e?.name === 'AbortError') return;
   }
-  await navigator.clipboard.writeText(link);
+  if (!(await copyText(link))) throw new Error('Copie impossible');
   trackGalleryEvent(code, 'share');
 }
 
@@ -97,11 +102,7 @@ async function zipDownload(list, filename, onProgress) {
     zip.file(name, await res.arrayBuffer());
     onProgress?.(Math.round(((i + 1) / items.length) * 100));
   }
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(await zip.generateAsync({ type: 'blob' }), filename);
   return items.length;
 }
 
@@ -110,16 +111,11 @@ const ICON = {
   download: <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
   share:    <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />,
   check:    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />,
+  plus:     <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />,
 };
-const Spinner = ({ sz = 'w-4 h-4' }) => (
-  <svg className={`${sz} animate-spin`} viewBox="0 0 24 24" fill="none">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-  </svg>
-);
 
 // ── Petit bouton d'action (télécharger / partager) ────────────────────────────
-function ActionBtn({ action, icon, title, photo, index, code, small = false, idleClass = 'text-gray-400 hover:text-primary' }) {
+function ActionBtn({ action, icon, title, photo, index, code, small = false, onDark = false }) {
   const [state, setState] = useState('idle');
   async function handle(e) {
     e.stopPropagation();
@@ -129,12 +125,13 @@ function ActionBtn({ action, icon, title, photo, index, code, small = false, idl
     setTimeout(() => setState('idle'), 2000);
   }
   const sz  = small ? 'w-4 h-4' : 'w-5 h-5';
-  const cls = `shrink-0 transition-colors ${
-    state === 'done' ? 'text-green-500' : state === 'error' ? 'text-red-400' : state === 'loading' ? 'text-gray-300' : idleClass
-  }`;
+  const tone = onDark
+    ? { done: 'text-pf-sage-soft', error: 'text-pola-error-soft', loading: 'text-white/40', idle: 'text-white hover:text-pf-line' }
+    : { done: 'text-pf-sage', error: 'text-pola-error', loading: 'text-pf-line', idle: 'text-pf-muted hover:text-pf-noyer' };
+  const cls = `shrink-0 transition-colors ${tone[state] ?? tone.idle}`;
   return (
     <button onClick={handle} title={title} className={cls}>
-      {state === 'loading' ? <Spinner sz={sz} />
+      {state === 'loading' ? <Spinner className={`${sz} border-current`} />
         : state === 'done' ? <svg className={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>{ICON.check}</svg>
         : <svg className={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>{icon}</svg>}
     </button>
@@ -157,13 +154,13 @@ function DownloadAllBtn({ photos, eventName, code }) {
   }
   return (
     <button onClick={handle} disabled={state === 'loading'}
-      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-        state === 'done' ? 'bg-green-50 text-green-600 border-green-200' :
-        state === 'error' ? 'bg-red-50 text-red-500 border-red-200' :
-        state === 'loading' ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' :
-        'bg-card text-gray-600 border-gray-200 hover:border-primary hover:text-primary shadow-sm'
+      className={`pola-pf-focus flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+        state === 'done' ? 'bg-pf-sage-soft text-pf-sage border-pf-sage/30' :
+        state === 'error' ? 'bg-pola-error-soft text-pola-error border-pola-error/30' :
+        state === 'loading' ? 'bg-pf-surface text-pf-muted border-pf-line cursor-not-allowed' :
+        'bg-white text-pf-text border-pf-line hover:border-pf-noyer hover:text-pf-noyer shadow-sm'
       }`}>
-      {state === 'loading' ? <><Spinner />{progress}%</>
+      {state === 'loading' ? <><Spinner className="h-4 w-4 border-current" />{progress}%</>
         : state === 'done' ? <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>{ICON.check}</svg>Téléchargé !</>
         : <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>{ICON.download}</svg>Tout télécharger</>}
     </button>
@@ -171,6 +168,7 @@ function DownloadAllBtn({ photos, eventName, code }) {
 }
 
 export default function PhotoGallery() {
+  usePfFonts();
   const { code } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [status,      setStatus]      = useState('loading');
@@ -180,6 +178,7 @@ export default function PhotoGallery() {
   const [eventName,   setEventName]   = useState('');
   const [companyName, setCompanyName] = useState('');
   const [banner,      setBanner]      = useState({ enabled: false, eventType: '' });
+  const [branding,    setBranding]    = useState(null);           // habillage de l'événement (LAB-303)
   const [lightbox,    setLightbox]    = useState(null);
   const [slideDir,    setSlideDir]    = useState(null);          // 'next' | 'prev' | null
   const [zoom,        setZoom]        = useState({ scale: 1, x: 0, y: 0 });
@@ -205,12 +204,13 @@ export default function PhotoGallery() {
     qrLinkRef.current = {};
     fetchPhotosByAccessCode(code, link)
       .then(async (result) => [result, await featuresPromise])
-      .then(([{ event, photos: ph, companyName: cn, bookingBanner: bannerSetting, eventType }, features]) => {
+      .then(([{ event, photos: ph, companyName: cn, bookingBanner: bannerSetting, eventType, branding: brand }, features]) => {
         // Galerie désactivée pour l'organisation (fonctionnalité gallery).
         if (!hasPublicFeature(features, 'gallery')) { setStatus('unavailable'); return; }
         setEventId(event.id);
         setEventName(event.name ?? '');
         setCompanyName(cn);
+        setBranding(brand ?? null);
         // Bandeau de réservation : seulement si la réservation en ligne (booking) est active.
         const bookingBanner = bannerSetting && hasPublicFeature(features, 'booking');
         setBanner({ enabled: bookingBanner, eventType });
@@ -229,6 +229,8 @@ export default function PhotoGallery() {
   }, [code]);
 
   const guestUploadEnabled = galleryConfig?.guest_upload_enabled === true;
+  // Sans réglage : palette noyer du site, aucun style en ligne.
+  const look = useMemo(() => galleryLook(branding), [branding]);
 
   // ── Onglets par source (filtrage 100 % client) ───────────────────────────────
   const isGuest = (p) => p.source === 'guest';
@@ -302,16 +304,17 @@ export default function PhotoGallery() {
     });
   }, [lightbox, filtered]);
 
-  // Clavier
+  // Clavier. Échap ferme par la Lightbox ; sur une photo zoomée, il dézoome seulement : écouté en capture,
+  // avant celui de la Lightbox, qu'il arrête.
   useEffect(() => {
     if (!lightbox) return;
     function onKey(e) {
       if (e.key === 'ArrowLeft')  showPrev();
       if (e.key === 'ArrowRight') showNext();
-      if (e.key === 'Escape')     zoom.scale > 1 ? setZoom({ scale: 1, x: 0, y: 0 }) : closeLightbox();
+      if (e.key === 'Escape' && zoom.scale > 1) { e.stopPropagation(); setZoom({ scale: 1, x: 0, y: 0 }); }
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [lightbox, photos, zoom.scale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Défilement infini
@@ -398,30 +401,31 @@ export default function PhotoGallery() {
   }
 
   if (status === 'loading') return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center">
+      <Spinner className="h-8 w-8 border-pf-noyer" />
     </div>
   );
 
   if (status === 'unavailable') return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-      <p className="text-gray-500 text-sm text-center">{FEATURE_UNAVAILABLE_MESSAGE}</p>
+    <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center px-6">
+      <p className="text-pf-muted text-sm text-center">{FEATURE_UNAVAILABLE_MESSAGE}</p>
     </div>
   );
 
   if (status === 'error') return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
+    <div className="pola-client pola-pf-page min-h-screen flex items-center justify-center px-6" style={look.style}>
       <div className="text-center">
-        <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <svg className="w-12 h-12 text-pf-line mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <p className="text-gray-500 text-sm">{errorMsg}</p>
+        <p className="text-pf-muted text-sm">{errorMsg}</p>
         {guestUploadEnabled && eventId && (
           <button
             onClick={() => setShowUploader(true)}
-            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 transition-all shadow-sm"
+            className={`pola-pf-focus mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold ${look.classes.primaryButton} transition-all shadow-sm`}
           >
-            ＋ Ajouter mes photos
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">{ICON.plus}</svg>
+            Ajouter mes photos
           </button>
         )}
       </div>
@@ -448,14 +452,14 @@ export default function PhotoGallery() {
     return (
       <div key={photo.id} className="break-inside-avoid mb-2">
         <div
-          className={`relative group overflow-hidden rounded-xl cursor-pointer bg-gray-100 transition-all ${
-            isSel ? 'ring-2 ring-primary ring-offset-2' : ''
+          className={`relative group overflow-hidden rounded-xl cursor-pointer bg-pf-surface transition-all ${
+            isSel ? 'ring-2 ring-pf-noyer ring-offset-2 ring-offset-pf-bg' : ''
           }`}
           style={{ aspectRatio: photo.width && photo.height ? `${photo.width} / ${photo.height}` : '3 / 4' }}
           onClick={() => onTileClick(photo)}
         >
           {/* Skeleton pulsé sous l'image */}
-          <div className="absolute inset-0 animate-pulse bg-gray-200" />
+          <div className="absolute inset-0 animate-pulse bg-pf-surface-2" />
           <img
             src={photo.thumbnail_url ?? (isVideoPhoto(photo) ? undefined : photo.photo_url)}
             alt=""
@@ -484,7 +488,7 @@ export default function PhotoGallery() {
           {/* Pastille de sélection */}
           {selectMode && (
             <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSel ? 'bg-primary/100 border-primary' : 'bg-black/20 border-white/80'
+              isSel ? 'bg-pf-noyer border-pf-noyer' : 'bg-black/20 border-white/80'
             }`}>
               {isSel && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>{ICON.check}</svg>}
             </div>
@@ -495,10 +499,10 @@ export default function PhotoGallery() {
             <>
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
               <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                <div className="w-7 h-7 bg-card/90 rounded-lg flex items-center justify-center">
+                <div className="w-7 h-7 bg-white/90 rounded-lg flex items-center justify-center">
                   <ActionBtn action={sharePhoto} icon={ICON.share} title="Partager" photo={photo} index={filtered.indexOf(photo)} code={code} small />
                 </div>
-                <div className="w-7 h-7 bg-card/90 rounded-lg flex items-center justify-center">
+                <div className="w-7 h-7 bg-white/90 rounded-lg flex items-center justify-center">
                   <ActionBtn action={downloadPhoto} icon={ICON.download} title="Télécharger" photo={photo} index={filtered.indexOf(photo)} code={code} small />
                 </div>
               </div>
@@ -510,17 +514,14 @@ export default function PhotoGallery() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="pola-client pola-pf-page min-h-screen pb-16" style={look.style}>
       {/* Header */}
       <div className="flex flex-col items-center pt-10 pb-6 px-4">
-        <div className="mb-4"><BrandLogo variant="square" alt={companyName || BRAND.name} className="h-10 w-auto" /></div>
-        {companyName && <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">{companyName}</p>}
-        {eventName && <h1 className="text-xl font-semibold text-gray-800 text-center">{eventName}</h1>}
-        <p className="text-xs text-gray-400 mt-0.5">{filtered.length} photo{filtered.length !== 1 ? 's' : ''}</p>
+        <GalleryHeading look={look} companyName={companyName} eventName={eventName} count={filtered.length} />
 
         {/* Onglets par source (masqués si une seule source présente) */}
         {showTabs && (
-          <div className="mt-4 inline-flex items-center gap-1 p-1 rounded-full bg-gray-100">
+          <div className="mt-4 inline-flex items-center gap-1 p-1 rounded-full bg-pf-surface">
             {[
               { key: 'all',        label: 'Tout',       count: photos.length },
               { key: 'photobooth', label: 'Photobooth', count: photoboothCount },
@@ -529,11 +530,11 @@ export default function PhotoGallery() {
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  activeTab === t.key ? 'bg-card text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                className={`pola-pf-focus px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  activeTab === t.key ? `bg-white ${look.classes.activeTab} shadow-sm` : 'text-pf-muted hover:text-pf-text'
                 }`}
               >
-                {t.label} <span className={activeTab === t.key ? 'text-primary' : 'text-gray-400'}>{t.count}</span>
+                {t.label} <span className={activeTab === t.key ? look.classes.activeTab : 'text-pf-muted/70'}>{t.count}</span>
               </button>
             ))}
           </div>
@@ -543,9 +544,10 @@ export default function PhotoGallery() {
           {guestUploadEnabled && (
             <button
               onClick={() => setShowUploader(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 transition-all shadow-sm"
+              className={`pola-pf-focus flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${look.classes.primaryButton} transition-all shadow-sm`}
             >
-              ＋ Ajouter mes photos
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">{ICON.plus}</svg>
+              Ajouter mes photos
             </button>
           )}
           {filtered.length > 1 && (
@@ -553,8 +555,8 @@ export default function PhotoGallery() {
               <DownloadAllBtn photos={filtered} eventName={eventName} code={code} />
               <button
                 onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
-                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                  selectMode ? 'bg-primary/10 text-primary border-primary/20' : 'bg-card text-gray-600 border-gray-200 hover:border-primary hover:text-primary shadow-sm'
+                className={`pola-pf-focus px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                  selectMode ? 'bg-pf-noyer/10 text-pf-noyer border-pf-noyer/20' : 'bg-white text-pf-text border-pf-line hover:border-pf-noyer hover:text-pf-noyer shadow-sm'
                 }`}
               >
                 {selectMode ? 'Annuler' : 'Sélectionner'}
@@ -572,7 +574,7 @@ export default function PhotoGallery() {
       {/* Sentinelle défilement infini */}
       {visibleCount < filtered.length && (
         <div ref={sentinelRef} className="flex justify-center py-8">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <Spinner className="border-pf-noyer" />
         </div>
       )}
 
@@ -581,15 +583,15 @@ export default function PhotoGallery() {
 
       {/* Barre de sélection */}
       {selectMode && selected.size > 0 && (
-        <div style={aboveBar} className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-card shadow-lg border border-gray-200 rounded-2xl px-4 py-2.5">
-          <span className="text-sm text-gray-600 font-medium">{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</span>
+        <div style={aboveBar} className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-white shadow-lg border border-pf-line rounded-2xl px-4 py-2.5">
+          <span className="text-sm text-pf-text font-medium">{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</span>
           <button
             onClick={downloadSelected}
             disabled={selProgress !== null}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary disabled:opacity-60 transition-colors"
+            className={`pola-pf-focus flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${look.classes.selectionButton} disabled:opacity-60 transition-colors`}
           >
             {selProgress !== null
-              ? <><Spinner />{selProgress}%</>
+              ? <><Spinner className="h-4 w-4 border-current" />{selProgress}%</>
               : <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>{ICON.download}</svg>Télécharger</>}
           </button>
         </div>
@@ -600,7 +602,7 @@ export default function PhotoGallery() {
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           style={aboveBar}
-          className="fixed right-4 z-40 w-11 h-11 rounded-full bg-card shadow-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-primary transition-colors"
+          className="fixed right-4 z-40 w-11 h-11 rounded-full bg-white shadow-lg border border-pf-line flex items-center justify-center text-pf-muted hover:text-pf-noyer transition-colors pola-pf-focus"
           title="Remonter en haut" aria-label="Remonter en haut"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -611,22 +613,13 @@ export default function PhotoGallery() {
 
       {/* Lightbox */}
       {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center"
-          onClick={closeLightbox}
-          role="dialog" aria-modal="true" aria-label="Photo en plein écran"
-        >
-          {/* Contrôles haut-droite */}
-          <div className="absolute top-4 right-4 flex items-center gap-3 z-10" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card/10 border border-white/20 backdrop-blur-sm">
-              <ActionBtn action={sharePhoto} icon={ICON.share} title="Partager" photo={lightbox} index={lightboxIdx} code={code} idleClass="text-white hover:text-primary" />
-              <ActionBtn action={downloadPhoto} icon={ICON.download} title="Télécharger" photo={lightbox} index={lightboxIdx} code={code} idleClass="text-white hover:text-primary" />
+        <Lightbox open onClose={closeLightbox} label="Photo en plein écran" className="bg-black/95 p-0 cursor-default font-pola">
+          {/* Contrôles haut-droite, à gauche du bouton « Fermer » de la Lightbox */}
+          <div className="absolute top-4 right-16 flex items-center gap-3 z-10" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 border border-white/20 backdrop-blur-sm">
+              <ActionBtn action={sharePhoto} icon={ICON.share} title="Partager" photo={lightbox} index={lightboxIdx} code={code} onDark />
+              <ActionBtn action={downloadPhoto} icon={ICON.download} title="Télécharger" photo={lightbox} index={lightboxIdx} code={code} onDark />
             </div>
-            <button className="text-white/60 hover:text-white" onClick={closeLightbox} aria-label="Fermer">
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
 
           {/* Précédent */}
@@ -707,7 +700,7 @@ export default function PhotoGallery() {
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 pointer-events-none">
             <span className="text-white/50 text-sm">{lightboxIdx + 1} / {filtered.length}</span>
           </div>
-        </div>
+        </Lightbox>
       )}
 
       {/* Feuille d'upload invité */}

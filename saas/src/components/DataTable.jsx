@@ -81,14 +81,14 @@ export default function DataTable({
             value={globalFilter ?? ''}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder}
-            className="pl-9 h-9"
+            className="pl-9"
           />
         </div>
         <div className="flex items-center gap-2 sm:ml-auto shrink-0">
           {toolbarRight}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
+              <Button variant="outline" size="sm" >
                 <SlidersHorizontal className="w-4 h-4" />
                 Colonnes
               </Button>
@@ -112,11 +112,11 @@ export default function DataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border bg-card overflow-x-auto">
+      <div className="rounded-card bg-card p-2 shadow-card overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="bg-muted/40 hover:bg-muted/40">
+              <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
                   <TableHead key={h.id} className={h.column.columnDef.meta?.headClass}>
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
@@ -148,7 +148,7 @@ export default function DataTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-[13px]">
         <p className="text-muted-foreground">
           {total === 0 ? '0 résultat' : `${from}–${to} sur ${total}`}
         </p>
@@ -156,26 +156,27 @@ export default function DataTable({
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Lignes</span>
             <Select value={String(pageSize)} onValueChange={(v) => table.setPageSize(Number(v))}>
-              <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-[var(--control-sm)] w-[76px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[10, 20, 30, 50].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                {/* La taille de départ d'une page (25 pour les prospects) reste proposée, sinon le champ s'affiche vide. */}
+                {[...new Set([10, 20, 30, 50, pageSize])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+            <Button variant="outline" size="icon-sm"  onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
               <ChevronsLeft className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+            <Button variant="outline" size="icon-sm"  onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="px-2 text-muted-foreground">
               {pageIndex + 1} / {table.getPageCount() || 1}
             </span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+            <Button variant="outline" size="icon-sm"  onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
+            <Button variant="outline" size="icon-sm"  onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
               <ChevronsRight className="w-4 h-4" />
             </Button>
           </div>

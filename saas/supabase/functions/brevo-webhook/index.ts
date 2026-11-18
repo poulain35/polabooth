@@ -15,23 +15,24 @@
  */
 
 import { adminClient } from '../_shared/auth.ts';
+import { jsonResponse } from '../_shared/cors.ts';
 import { applyBrevoEvents, authorizeWebhook, groupByMessageId, parseWebhookBody } from '../_shared/email-tracking.ts';
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return json(405, { error: 'Méthode non autorisée' });
+  if (req.method !== 'POST') return jsonResponse(405, { error: 'Méthode non autorisée' });
 
   const auth = authorizeWebhook(new URL(req.url).searchParams.get('token'), Deno.env.get('BREVO_WEBHOOK_SECRET'));
   if (auth === 'misconfigured') {
     console.error('BREVO_WEBHOOK_SECRET non configuré');
-    return json(500, { error: 'Webhook secret non configuré' });
+    return jsonResponse(500, { error: 'Webhook secret non configuré' });
   }
-  if (auth === 'unauthorized') return json(401, { error: 'Non autorisé' });
+  if (auth === 'unauthorized') return jsonResponse(401, { error: 'Non autorisé' });
 
   let body: unknown;
-  try { body = await req.json(); } catch { return json(400, { error: 'Body JSON invalide' }); }
+  try { body = await req.json(); } catch { return jsonResponse(400, { error: 'Body JSON invalide' }); }
 
   const { events, ignored } = parseWebhookBody(body);
-  if (!events.length) return json(200, { received: 0, ignored });
+  if (!events.length) return jsonResponse(200, { received: 0, ignored });
 
   const db = adminClient();
   const nowIso = new Date().toISOString();
@@ -45,15 +46,8 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     console.error('brevo-webhook :', (err as Error).message);
-    return json(500, { error: 'Erreur base' });
+    return jsonResponse(500, { error: 'Erreur base' });
   }
 
-  return json(200, { received: events.length, ignored, matched, updated });
+  return jsonResponse(200, { received: events.length, ignored, matched, updated });
 });
-
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

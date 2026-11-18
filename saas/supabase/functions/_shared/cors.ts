@@ -20,3 +20,14 @@ export function handleCors(req: Request): Response | null {
   }
   return null;
 }
+
+/**
+ * Réponse JSON sans en-têtes CORS : fonctions appelées seulement par le serveur (pg_cron, webhook
+ * Brevo), jamais par un navigateur.
+ */
+export function jsonResponse(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}

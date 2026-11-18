@@ -147,7 +147,7 @@ public class LicenseService : ILicenseService
     private void CacheResult(bool licensed)
     {
         try { _cache.Write(licensed, DateTime.UtcNow); }
-        catch { }
+        catch { /* cache non écrit : l'ancien reste valable, la licence est revérifiée au prochain contrôle */ }
     }
 
     private bool ReadCache()

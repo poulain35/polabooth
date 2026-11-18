@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { fetchPhotosByAccessCode, getGalleryConfig, getPublicFeatures } from '../lib/supabase';
 import { FEATURE_UNAVAILABLE_MESSAGE, hasPublicFeature, isFeatureDisabledError } from '../features/featureGate';
 import { animatedMediaLabel, isVideoPhoto } from '../utils/media';
+import { Spinner } from '../components/ui/spinner';
+import { usePfFonts } from '../components/public/clientEditorStyles';
 
 const SLIDE_MS   = 6000;   // durée d'affichage d'une photo
 const REFRESH_MS = 45000;  // intervalle de récupération des nouvelles photos
@@ -38,6 +40,7 @@ function SlideVideo({ photo, active }) {
 }
 
 export default function Slideshow() {
+  usePfFonts();
   const { code } = useParams();
   const [status,  setStatus]  = useState('loading'); // loading | disabled | unavailable | ready | error
   const [errorMsg, setErrorMsg] = useState('');
@@ -93,40 +96,40 @@ export default function Slideshow() {
   }, [status, photos.length]);
 
   if (status === 'loading') return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-black font-pola flex items-center justify-center">
+      <Spinner className="w-8 h-8 border-white/70" label="Chargement du diaporama" />
     </div>
   );
 
   if (status === 'disabled') return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-6">
-      <p className="text-gray-400 text-sm text-center">Le diaporama n'est pas activé pour cet événement.</p>
+    <div className="min-h-screen bg-black font-pola flex items-center justify-center px-6">
+      <p className="text-white/60 text-sm text-center">Le diaporama n'est pas activé pour cet événement.</p>
     </div>
   );
 
   if (status === 'unavailable') return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-6">
-      <p className="text-gray-400 text-sm text-center">{FEATURE_UNAVAILABLE_MESSAGE}</p>
+    <div className="min-h-screen bg-black font-pola flex items-center justify-center px-6">
+      <p className="text-white/60 text-sm text-center">{FEATURE_UNAVAILABLE_MESSAGE}</p>
     </div>
   );
 
   if (status === 'error') return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-6">
-      <p className="text-gray-400 text-sm text-center">{errorMsg}</p>
+    <div className="min-h-screen bg-black font-pola flex items-center justify-center px-6">
+      <p className="text-white/60 text-sm text-center">{errorMsg}</p>
     </div>
   );
 
   if (photos.length === 0) return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 gap-4">
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-gray-400 text-sm text-center">En attente des premières photos…</p>
+    <div className="min-h-screen bg-black font-pola flex flex-col items-center justify-center px-6 gap-4">
+      <Spinner className="border-white/70" label="En attente des photos" />
+      <p className="text-white/60 text-sm text-center">En attente des premières photos…</p>
     </div>
   );
 
   const activeIndex = Math.min(index, photos.length - 1);
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden">
+    <div className="fixed inset-0 bg-black font-pola overflow-hidden">
       {photos.map((photo, i) => (
         <div
           key={photo.id}

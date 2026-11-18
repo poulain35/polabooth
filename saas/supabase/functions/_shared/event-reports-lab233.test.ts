@@ -151,13 +151,14 @@ test('contenu public : champs autorisés seulement, aucune donnée d\'invite ni 
 });
 
 test('front : appels RPC sans calcul côté navigateur, aucune notion LAB-227 / LAB-232', () => {
-  const lib = src('lib/supabase.js');
+  const lib = src('lib/api/eventReports.js');
+  const allApi = readdirSync(new URL('../../../src/lib/api/', import.meta.url)).map((f) => src(`lib/api/${f}`)).join('\n');
   assert.match(lib, /supabase\.rpc\('build_event_report', \{ p_event_id: eventId \}\)/);
   assert.match(lib, /supabase\.rpc\('get_event_report', \{ p_token: token \}\)/);
   assert.match(lib, /\.update\(\{ selected_photo_ids: photoIds \}\)/);
   assert.match(lib, /\.update\(\{ status: 'revoked' \}\)/);
-  assert.doesNotMatch(lib, /\.from\('event_reports'\)\s*\.insert/);
-  assert.doesNotMatch(lib, /p_freeze/, 'le gel passe par l\'envoi (LAB-238)');
+  assert.doesNotMatch(allApi, /\.from\('event_reports'\)\s*\.insert/);
+  assert.doesNotMatch(allApi, /p_freeze/, 'le gel passe par l\'envoi (LAB-238)');
 });
 
 test('script de vérification dev : transaction annulée, trois critères contrôlés', { skip: PRIVATE_HISTORY }, () => {

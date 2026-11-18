@@ -9,24 +9,6 @@ public class CompositeService : ICompositeService
     // Mitchell = traduction exacte de l'ancien SKFilterQuality.High (rendu identique au pixel près).
     private static readonly SKSamplingOptions HighQuality = new(SKCubicResampler.Mitchell);
 
-    // Dimensions canvas SaaS par format (largeur × hauteur en px canvas)
-    private static readonly Dictionary<string, (int W, int H)> CanvasSizes = new()
-    {
-        ["portrait"]  = (400, 600),
-        ["landscape"] = (600, 400),
-        ["stripV"]    = (200, 600),
-        ["stripH"]    = (600, 200),
-    };
-
-    // Dimensions physiques en mm par format
-    private static readonly Dictionary<string, (float WMm, float HMm)> PhysicalSizes = new()
-    {
-        ["portrait"]  = (100f, 150f),
-        ["landscape"] = (150f, 100f),
-        ["stripV"]    = (50f,  150f),
-        ["stripH"]    = (150f, 50f),
-    };
-
     private readonly IKioskLogService? _log;
     private readonly object _zonesLock = new();
     private (Guid Id, int Length, int Hash, IReadOnlyList<PhotoZone> Zones)? _zonesCache;
@@ -209,28 +191,20 @@ public class CompositeService : ICompositeService
     /// <summary>Taille d'impression en pixels pour un format donné à un DPI donné.</summary>
     internal static (int W, int H) PrintPixelSize(string format, int dpi)
     {
-        if (!PhysicalSizes.TryGetValue(format, out var physical))
-            throw new ArgumentException($"Format inconnu : {format}");
+        var physical = PrintFormats.Get(format);
         const float mmPerInch = 25.4f;
-        return ((int)(physical.WMm / mmPerInch * dpi), (int)(physical.HMm / mmPerInch * dpi));
+        return ((int)(physical.WidthMm / mmPerInch * dpi), (int)(physical.HeightMm / mmPerInch * dpi));
     }
 
     /// <summary>Échelle de conversion coordonnées canvas SaaS → pixels d'impression.</summary>
     internal static float CanvasToPrintScale(string format, int dpi)
     {
-        if (!CanvasSizes.TryGetValue(format, out var canvas))
-            throw new ArgumentException($"Format inconnu : {format}");
         var (printW, _) = PrintPixelSize(format, dpi);
-        return printW / (float)canvas.W;
+        return printW / (float)PrintFormats.Get(format).CanvasWidth;
     }
 
     /// <summary>Zone couvrant tout le canvas du format (modèle sans zone photo).</summary>
-    internal static PhotoZone FullFrameZone(string format)
-    {
-        if (!CanvasSizes.TryGetValue(format, out var canvas))
-            throw new ArgumentException($"Format inconnu : {format}");
-        return new PhotoZone(0, 0, canvas.W, canvas.H);
-    }
+    internal static PhotoZone FullFrameZone(string format) => PrintFormats.Get(format).Canvas;
 
     /// <summary>Vrai si au moins 5 % du décor est transparent (un pixel sur 4 par axe est examiné).</summary>
     internal static bool HasTransparentArea(SKBitmap bitmap)

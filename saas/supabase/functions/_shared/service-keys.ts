@@ -2,9 +2,12 @@
 // Copie conforme de src/features/serviceKeys.js (test de parité dans src/features/serviceKeys.test.js) :
 // toute modification se fait dans les deux fichiers et dans la liste blanche de la migration
 // 20261213000000_service_keys.sql.
+// Les clés d'une fonctionnalité privée sont déclarées par son module (_shared/modules/<id>/catalog.ts,
+// lu par _shared/private-modules.ts, LAB-403) et viennent après celles du code ouvert.
 // Sans import Deno/esm.sh : testé sous `node --test`.
 
 import type { FeatureId } from './features.ts';
+import { PRIVATE_MODULES } from './private-modules.ts';
 
 export interface ServiceKey {
   name: string;
@@ -14,7 +17,16 @@ export interface ServiceKey {
   testable: boolean;
 }
 
-export const SERVICE_KEYS: ServiceKey[] = [
+/**
+ * Test d'une clé par un appel en lecture seule chez le fournisseur (test-service-key).
+ * `skip` : message si le test ne doit pas être fait (simulation active, par exemple), sinon null.
+ */
+export interface KeyTest {
+  request(value: string): { url: string; init: RequestInit };
+  skip?(env: (name: string) => string | undefined): string | null;
+}
+
+const OPEN_SERVICE_KEYS: ServiceKey[] = [
   {
     name: 'BREVO_API_KEY',
     label: 'Clé API Brevo',
@@ -57,13 +69,11 @@ export const SERVICE_KEYS: ServiceKey[] = [
     help: 'Sur replicate.com : Account settings, API tokens.',
     testable: true,
   },
-  {
-    name: 'PENNYLANE_API_KEY',
-    label: 'Jeton API Pennylane',
-    feature: 'invoicing',
-    help: 'Dans Pennylane : Paramètres, Connectivité, Développeurs, jeton API.',
-    testable: true,
-  },
+];
+
+export const SERVICE_KEYS: ServiceKey[] = [
+  ...OPEN_SERVICE_KEYS,
+  ...PRIVATE_MODULES.flatMap((m) => m.serviceKeys ?? []),
 ];
 
 export const SERVICE_KEY_NAMES: string[] = SERVICE_KEYS.map((k) => k.name);

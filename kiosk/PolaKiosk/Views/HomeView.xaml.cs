@@ -87,7 +87,7 @@ public partial class HomeView : UserControl
 
     private void FitTitle(TextBlock title, double maxSize, double minSize, double lineFactor)
     {
-        var size = FitFontSize(title.Text ?? "", Typeface(title), maxSize, minSize, lineFactor,
+        var size = TextFit.FitFontSize(title.Text ?? "", Typeface(title), maxSize, minSize, lineFactor,
             TextColumnWidth, maxLines: 2, VisualTreeHelper.GetDpi(this).PixelsPerDip);
         title.FontSize   = size;
         title.LineHeight = Math.Round(size * lineFactor);
@@ -95,28 +95,4 @@ public partial class HomeView : UserControl
 
     private static Typeface Typeface(TextBlock block)
         => new(block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch);
-
-    /// <summary>
-    /// Plus grande taille (de <paramref name="maxSize"/> à <paramref name="minSize"/>) où le texte tient
-    /// en <paramref name="maxLines"/> lignes dans la largeur, sans couper un mot.
-    /// </summary>
-    internal static double FitFontSize(string text, Typeface typeface, double maxSize, double minSize,
-        double lineFactor, double width, int maxLines, double pixelsPerDip)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return maxSize;
-
-        for (var size = maxSize; size > minSize; size -= 2)
-        {
-            var formatted = new FormattedText(text, CultureInfo.GetCultureInfo("fr-FR"), FlowDirection.LeftToRight,
-                typeface, size, Brushes.Black, pixelsPerDip)
-            {
-                MaxTextWidth = width,
-                LineHeight   = Math.Round(size * lineFactor),
-            };
-            bool wordsFit = formatted.MinWidth <= width;
-            bool linesFit = formatted.Height <= maxLines * formatted.LineHeight + 0.5;
-            if (wordsFit && linesFit) return size;
-        }
-        return minSize;
-    }
 }

@@ -1,13 +1,16 @@
 // Partie pure du script d'installation d'une instance (open core étape 2, lot I2).
-// Aucun appel réseau ni à la CLI ici : lecture de instance.env, listes des fonctions et des tâches
-// planifiées, secrets à poser, contenu des fichiers générés. Testé par install-instance-lib.test.mjs.
+// Aucun appel à la CLI ici : lecture de instance.env, listes des fonctions et des tâches planifiées,
+// secrets à poser, réglages de Supabase Auth, contenu des fichiers générés. Les appels à l'API de gestion
+// Supabase reçoivent fetch en paramètre (testés avec un faux fetch). Testé par install-instance-lib.test.mjs.
 import { createHash } from 'node:crypto';
+import { PASSWORD_MIN_LENGTH } from '../src/lib/passwordRules.js';
 import { isJwt } from './kiosk-config.mjs';
 
 export { isJwt };
 
 export const MIN_NODE_MAJOR = 20;
-export const CLI_MAJOR = 3;
+// Même version que la CI (.github/workflows/deploy-edge-functions.yml) ; lancée par npx, rien à installer.
+export const CLI_VERSION = '3.0.0';
 
 // ── instance.env ────────────────────────────────────────────────────────────────────────────
 
@@ -71,11 +74,27 @@ function httpUrl(value, { allowHttp }) {
   return null;
 }
 
+export const ACCESS_TOKEN_URL = 'https://supabase.com/dashboard/account/tokens';
+
 /**
- * Valide instance.env. `local` : Supabase local (tests), sans projet hébergé ni mot de passe, http accepté.
- * Renvoie `{ config, errors }` ; `errors` en français, une ligne par problème.
+ * Jeton d'accès personnel Supabase (API de gestion et CLI) : null s'il est valable, sinon le message.
+ * Même format que celui exigé par la CLI. Le jeton n'apparaît jamais dans le message.
  */
-export function validateInstanceEnv(values, { local = false } = {}) {
+export function accessTokenError(token) {
+  const value = String(token ?? '').trim();
+  if (!value) return `SUPABASE_ACCESS_TOKEN est vide : créez un jeton sur ${ACCESS_TOKEN_URL} et collez-le dans instance.env.`;
+  if (!/^sbp_(oauth_)?[a-f0-9]{40}$/.test(value)) {
+    return `SUPABASE_ACCESS_TOKEN invalide : un jeton Supabase commence par sbp_ suivi de 40 caractères. Copiez-le en entier, ou créez-en un sur ${ACCESS_TOKEN_URL}.`;
+  }
+  return null;
+}
+
+/**
+ * Valide instance.env. `local` : Supabase local (tests), sans projet hébergé, mot de passe ni jeton,
+ * http accepté. `fallbackToken` : jeton pris ailleurs (variable d'environnement SUPABASE_ACCESS_TOKEN)
+ * si instance.env n'en donne pas. Renvoie `{ config, errors }` ; `errors` en français, une ligne par problème.
+ */
+export function validateInstanceEnv(values, { local = false, fallbackToken = '' } = {}) {
   const v = (name) => (values[name] ?? '').trim();
   const errors = [];
   const required = (name, label) => {
@@ -90,6 +109,10 @@ export function validateInstanceEnv(values, { local = false } = {}) {
       errors.push(`SUPABASE_PROJECT_REF invalide (« ${config.projectRef} ») : 20 lettres minuscules, visibles dans l'adresse du projet (https://<ref>.supabase.co).`);
     }
     config.dbPassword = required('SUPABASE_DB_PASSWORD', 'le mot de passe de la base (choisi à la création du projet)');
+    const token = v('SUPABASE_ACCESS_TOKEN') || String(fallbackToken ?? '').trim();
+    const tokenError = accessTokenError(token);
+    if (tokenError) errors.push(tokenError);
+    else config.accessToken = token;
   }
 
   const appUrlRaw = required('APP_URL', 'l\'adresse publique du SaaS (ex. https://photobooth.mon-entreprise.fr)');
@@ -316,6 +339,239 @@ export function buildVercelJson(base, { supabaseUrl, mediaUrls }) {
     }
   }
   return `${JSON.stringify(copy, null, 2)}\n`;
+}
+
+/** dist/_redirects (Netlify et hébergeurs compatibles) : toute adresse inconnue renvoie index.html. */
+export const REDIRECTS_CONTENT = '/* /index.html 200\n';
+
+// ── Supabase Auth (API de gestion) ──────────────────────────────────────────────────────────
+
+/**
+ * Emails de Supabase Auth envoyés par le SaaS : invitation de l'administrateur (script), mot de passe
+ * oublié (page de connexion), code exigé pour changer un mot de passe sur une session ancienne.
+ * Supabase dit lui-même si un sujet a été personnalisé (`mailer_subjects_custom_contents`, relevé le
+ * 2026-11-18 sur un projet neuf) : non personnalisé = remplacé. Sans cette indication, `defaultSubjects`
+ * (sujets d'origine, en anglais) sert de repli : un sujet autre que ceux-là ou le nôtre est une
+ * personnalisation du loueur, et le modèle est gardé.
+ */
+export const AUTH_EMAIL_TEMPLATES = {
+  invite: {
+    label: 'invitation',
+    defaultSubjects: ["You've been invited",'You have been invited'],
+    subject: 'Votre accès à l\'espace d\'administration',
+    content: '<h2>Bienvenue</h2>'
+      + '<p>Un compte administrateur a été créé pour vous sur {{ .SiteURL }}.</p>'
+      + '<p><a href="{{ .ConfirmationURL }}">Confirmer mon adresse et ouvrir l\'administration</a></p>'
+      + '<p>Connectez-vous ensuite avec le mot de passe qui vous a été communiqué.</p>',
+  },
+  recovery: {
+    label: 'mot de passe oublié',
+    defaultSubjects: ['Reset your password'],
+    subject: 'Réinitialiser votre mot de passe',
+    content: '<h2>Nouveau mot de passe</h2>'
+      + '<p>Vous avez demandé à changer le mot de passe de votre compte.</p>'
+      + '<p><a href="{{ .ConfirmationURL }}">Choisir un nouveau mot de passe</a></p>'
+      + '<p>Vous n\'avez rien demandé ? Ignorez cet email : votre mot de passe ne change pas.</p>',
+  },
+  reauthentication: {
+    label: 'code de confirmation',
+    defaultSubjects: ['{{ .Token }} is your verification code', 'Confirm reauthentication'],
+    subject: 'Votre code de confirmation',
+    content: '<h2>Code de confirmation</h2>'
+      + '<p>Saisissez ce code pour confirmer le changement de votre mot de passe :</p>'
+      + '<p><strong>{{ .Token }}</strong></p>'
+      + '<p>Vous n\'avez rien demandé ? Ignorez cet email.</p>',
+  },
+};
+
+/** uri_allow_list (adresses séparées par des virgules) : entrées existantes gardées, `wanted` ajoutées. */
+export function mergeUriAllowList(current, wanted) {
+  const list = String(current ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  for (const url of wanted) if (!list.includes(url)) list.push(url);
+  return list.join(',');
+}
+
+const sameSubject = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+
+/**
+ * Corps du PATCH /v1/projects/{ref}/config/auth à partir de la configuration de l'instance et des
+ * réglages actuels (`current`, réponse du GET) : adresse du site, adresses de redirection, SMTP,
+ * longueur minimale des mots de passe (jamais baissée), inscriptions fermées (`disable_signup`, LAB-392 :
+ * les comptes sont créés par l'API d'administration ou par invitation, que ce réglage ne bloque pas),
+ * emails en français (sauf modèles personnalisés).
+ * Renvoie `{ body, keptTemplates }` (types d'email gardés parce que personnalisés).
+ */
+export function buildAuthConfigPatch(config, current = {}) {
+  const body = {
+    site_url: config.appUrl,
+    uri_allow_list: mergeUriAllowList(current?.uri_allow_list, [`${config.appUrl}/**`]),
+    smtp_host: config.smtpHost,
+    smtp_port: String(config.smtpPort),
+    smtp_user: config.smtpUser,
+    smtp_pass: config.smtpPassword,
+    smtp_admin_email: config.fromEmail,
+    smtp_sender_name: config.fromName,
+    password_min_length: Math.max(Number(current?.password_min_length) || 0, PASSWORD_MIN_LENGTH),
+    disable_signup: true,
+  };
+  const keptTemplates = [];
+  for (const [kind, template] of Object.entries(AUTH_EMAIL_TEMPLATES)) {
+    const subject = current?.[`mailer_subjects_${kind}`];
+    const customFlag = current?.mailer_subjects_custom_contents?.[`MAILER_SUBJECTS_${kind.toUpperCase()}`];
+    const replaceable = customFlag === false
+      || !String(subject ?? '').trim()
+      || sameSubject(subject, template.subject)
+      || template.defaultSubjects.some((s) => sameSubject(subject, s));
+    if (!replaceable) { keptTemplates.push(kind); continue; }
+    body[`mailer_subjects_${kind}`] = template.subject;
+    body[`mailer_templates_${kind}_content`] = template.content;
+  }
+  return { body, keptTemplates };
+}
+
+/** Champs du corps différents des réglages actuels (comparaison en texte : smtp_port est une chaîne). */
+export function changedAuthFields(current, body) {
+  return Object.keys(body).filter((key) => String(current?.[key] ?? '') !== String(body[key]));
+}
+
+/** Lignes lisibles décrivant le corps du PATCH, sans le mot de passe SMTP. */
+export function describeAuthPatch(body, { keptTemplates = [] } = {}) {
+  const lines = [
+    `Adresse du site : ${body.site_url}`,
+    `Adresses de redirection autorisées : ${body.uri_allow_list.split(',').join(', ')}`,
+    `SMTP : ${body.smtp_host}:${body.smtp_port}, identifiant ${body.smtp_user}, mot de passe ${'•'.repeat(8)}`,
+    `Expéditeur : ${body.smtp_sender_name} <${body.smtp_admin_email}>`,
+    `Mots de passe : ${body.password_min_length} caractères minimum`,
+    `Inscriptions : ${body.disable_signup ? 'fermées (comptes créés par invitation seulement)' : 'ouvertes'}`,
+  ];
+  const french = Object.keys(AUTH_EMAIL_TEMPLATES).filter((kind) => `mailer_subjects_${kind}` in body);
+  if (french.length) lines.push(`Emails en français : ${french.map((k) => AUTH_EMAIL_TEMPLATES[k].label).join(', ')}`);
+  if (keptTemplates.length) {
+    lines.push(`Emails personnalisés gardés tels quels : ${keptTemplates.map((k) => AUTH_EMAIL_TEMPLATES[k].label).join(', ')}`);
+  }
+  return lines;
+}
+
+export const MANAGEMENT_API_URL = 'https://api.supabase.com';
+
+/** Erreur de l'API de gestion, message en français prêt à afficher (jamais le jeton). */
+export class ManagementApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Message d'erreur en français pour une réponse non 2xx de l'API de gestion. */
+export function managementApiMessage({ status, method, path, ref, detail }) {
+  if (status === 401) {
+    return `Jeton Supabase refusé (SUPABASE_ACCESS_TOKEN) : il est faux, expiré ou supprimé. Créez un nouveau jeton sur ${ACCESS_TOKEN_URL}, collez-le dans instance.env, puis relancez.`;
+  }
+  if (status === 403) {
+    return `Ce jeton n'a pas les droits sur le projet ${ref}. Créez le jeton depuis le compte Supabase qui possède le projet (${ACCESS_TOKEN_URL}), puis relancez.`;
+  }
+  if (status === 404) {
+    return `Projet ${ref} introuvable avec ce jeton. Vérifiez SUPABASE_PROJECT_REF, et que le jeton vient du compte qui possède le projet.`;
+  }
+  if (status === 429) return 'Trop de demandes à l\'API de gestion Supabase. Attendez une minute, puis relancez.';
+  const text = String(detail ?? '').trim().slice(0, 300);
+  return `API de gestion Supabase : ${method} ${path.split('?')[0]} a échoué (${status}${text ? ` : ${text}` : ''}).`;
+}
+
+/**
+ * Client de l'API de gestion pour un projet : `request(method, chemin sous /v1/projects/{ref}, corps?)`.
+ * `fetch` injecté (vrai fetch dans le script, faux dans les tests). Erreurs : ManagementApiError.
+ */
+export function createManagementApi({ fetch: fetchImpl, token, ref, baseUrl = MANAGEMENT_API_URL }) {
+  return async function request(method, path, body) {
+    let res;
+    try {
+      res = await fetchImpl(`${baseUrl}/v1/projects/${ref}${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      throw new ManagementApiError(`API de gestion Supabase injoignable (${baseUrl}) : ${e.message}. Vérifiez la connexion Internet, puis relancez.`, 0);
+    }
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) {
+      const detail = data && typeof data === 'object' ? (data.message ?? data.msg ?? data.error) : text;
+      throw new ManagementApiError(managementApiMessage({ status: res.status, method, path, ref, detail }), res.status);
+    }
+    return data;
+  };
+}
+
+/**
+ * Règle Supabase Auth : lit les réglages (vérifie aussi le jeton), envoie le PATCH s'il y a une
+ * différence, jamais en simulation. Renvoie `{ body, changed, keptTemplates, applied }`.
+ */
+export async function configureAuth(api, config, { dryRun = false } = {}) {
+  const current = (await api('GET', '/config/auth')) ?? {};
+  const { body, keptTemplates } = buildAuthConfigPatch(config, current);
+  const changed = changedAuthFields(current, body);
+  const applied = !dryRun && changed.length > 0;
+  if (applied) await api('PATCH', '/config/auth', body);
+  return { body, changed, keptTemplates, applied };
+}
+
+/**
+ * Anciennes clés API (anon / service_role au format JWT, nécessaires à la borne et aux tâches
+ * planifiées) : activées si besoin. Renvoie 'enabled' (déjà actives), 'would-enable' (simulation),
+ * 'enabled-now' ou 'unavailable' (point d'accès retiré par Supabase : 404, l'étape reste manuelle).
+ */
+export async function ensureLegacyKeys(api, { dryRun = false } = {}) {
+  let status;
+  try {
+    status = await api('GET', '/api-keys/legacy');
+  } catch (e) {
+    if (e instanceof ManagementApiError && e.status === 404) return 'unavailable';
+    throw e;
+  }
+  if (status?.enabled === true) return 'enabled';
+  if (dryRun) return 'would-enable';
+  await api('PUT', '/api-keys/legacy?enabled=true');
+  return 'enabled-now';
+}
+
+// ── Déroulé du script ───────────────────────────────────────────────────────────────────────
+
+/** Étapes affichées « Étape n/N : … ». Une nouvelle étape s'ajoute ici, à sa place. */
+export const INSTALL_STEPS = [
+  { id: 'prerequisites', title: 'Prérequis' },
+  { id: 'config', title: 'Configuration' },
+  { id: 'checks', title: 'Vérifications (messagerie et stockage)' },
+  { id: 'auth', title: 'Connexion et emails des comptes (Supabase Auth)' },
+  { id: 'database', title: 'Base de données' },
+  { id: 'keys', title: 'Clés du projet' },
+  { id: 'secrets', title: 'Secrets des fonctions et du Vault' },
+  { id: 'functions', title: 'Fonctions serveur' },
+  { id: 'crons', title: 'Tâches planifiées des fonctionnalités privées' },
+  { id: 'admin', title: 'Compte administrateur et organisation' },
+  { id: 'front', title: 'Fichiers du site' },
+  { id: 'build', title: 'Construction du site (version ouverte)' },
+  { id: 'next', title: 'Il vous reste à faire' },
+];
+
+export function stepLabel(id, steps = INSTALL_STEPS) {
+  const index = steps.findIndex((s) => s.id === id);
+  if (index < 0) throw new Error(`Étape inconnue : ${id}`);
+  return `Étape ${index + 1}/${steps.length} : ${steps[index].title}`;
+}
+
+/**
+ * Commande de la CLI Supabase lancée par npx, à la version épinglée : rien à installer.
+ * Renvoie `{ command, args }` pour spawnSync.
+ */
+export function cliCommand(args) {
+  return { command: 'npx', args: ['--yes', `supabase@${CLI_VERSION}`, ...args] };
 }
 
 // ── SQL ─────────────────────────────────────────────────────────────────────────────────────

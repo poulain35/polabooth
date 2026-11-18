@@ -30,7 +30,7 @@ public class KioskLogRpcTests
     [Fact]
     public void Body_uses_exactly_the_sql_argument_names_and_row_fields()
     {
-        var body = Parse(SupabaseService.BuildRecordLogsBody([Record()], "MACHINE-1", "s3cret"));
+        var body = Parse(SupabaseRpcBodies.BuildRecordLogsBody([Record()], "MACHINE-1", "s3cret"));
 
         body.Properties().Select(p => p.Name).Should().Equal("p_machine_id", "p_secret", "p_logs");
         body["p_machine_id"]!.Value<string>().Should().Be("MACHINE-1");
@@ -40,7 +40,7 @@ public class KioskLogRpcTests
         var row = logs.Should().ContainSingle().Subject.Should().BeOfType<JObject>().Subject;
         // machine_id jamais dans les lignes : le serveur prend p_machine_id.
         row.Properties().Select(p => p.Name).Should().Equal(
-            "id", "level", "context", "message", "stack_trace", "app_version", "occurred_at");
+            "id", "level", "context", "message", "stack_trace", "app_version", "occurred_at", "event_id", "session_id");
         row["id"]!.Value<string>().Should().Be(LogId.ToString());
         row["level"]!.Value<string>().Should().Be("error");
         row["context"]!.Value<string>().Should().Be("camera");
@@ -55,11 +55,26 @@ public class KioskLogRpcTests
     {
         var bare = Record() with { Context = null, StackTrace = null, AppVersion = null };
 
-        var row = (JObject)Parse(SupabaseService.BuildRecordLogsBody([bare], "MACHINE-1", "s3cret"))["p_logs"]![0]!;
+        var row = (JObject)Parse(SupabaseRpcBodies.BuildRecordLogsBody([bare], "MACHINE-1", "s3cret"))["p_logs"]![0]!;
 
         row["context"]!.Type.Should().Be(JTokenType.Null);
         row["stack_trace"]!.Type.Should().Be(JTokenType.Null);
         row["app_version"]!.Type.Should().Be(JTokenType.Null);
+        row["event_id"]!.Type.Should().Be(JTokenType.Null);   // hors événement (LAB-326)
+        row["session_id"]!.Type.Should().Be(JTokenType.Null); // hors séance
+    }
+
+    [Fact]
+    public void Event_and_session_are_sent_as_uuid_strings()
+    {
+        var eventId   = Guid.Parse("11111111-2222-4333-8444-555555555555");
+        var sessionId = Guid.Parse("66666666-7777-4888-8999-aaaaaaaaaaaa");
+        var withContext = Record() with { EventId = eventId, SessionId = sessionId };
+
+        var row = (JObject)Parse(SupabaseRpcBodies.BuildRecordLogsBody([withContext], "MACHINE-1", "s3cret"))["p_logs"]![0]!;
+
+        row["event_id"]!.Value<string>().Should().Be("11111111-2222-4333-8444-555555555555");
+        row["session_id"]!.Value<string>().Should().Be("66666666-7777-4888-8999-aaaaaaaaaaaa");
     }
 
     [Theory]

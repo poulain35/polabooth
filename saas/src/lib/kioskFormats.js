@@ -5,13 +5,17 @@
  *
  *   home.buttons.{photo|gif|boomerang|gallery} = { enabled, label }
  *   home.personalized = bool, home.display_name = texte (vide = nom de l'événement) — LAB-250
+ *   home.client_design = bool : le client crée son écran d'accueil 1920×1080 (sans effet si personalized est faux)
  *   result.buttons.{retake|print|qr|email|home} = { enabled } (textes et couleurs fixes, LAB-250 et LAB-254)
  *   capture.gif       = { shots, interval_ms }
  *   capture.boomerang = { duration_ms, print_frame }
+ *   frame_choice      = { enabled, max_frames } : choix du cadre par l'invité (LAB-314), absent = coupé
  */
 
+import { DEFAULT_MAX_FRAMES, FRAME_CHOICE_MAX_FRAMES } from './designKind.js';
+
 export const KIOSK_FORMATS = [
-  { key: 'photo',     label: 'Photo',     description: 'Une photo au flash, imprimée dans le design' },
+  { key: 'photo',     label: 'Photo',     description: 'Une photo au flash, imprimée dans le cadre photo' },
   { key: 'gif',       label: 'GIF',       description: 'Plusieurs photos à la suite, jouées en boucle' },
   { key: 'boomerang', label: 'Boomerang', description: 'Un clip court joué à l’endroit puis à l’envers' },
 ];
@@ -41,7 +45,7 @@ export function buildDefaultHomeButtons() {
 }
 
 export function buildDefaultHome() {
-  return { background_url: null, personalized: false, display_name: '', buttons: buildDefaultHomeButtons() };
+  return { background_url: null, personalized: false, display_name: '', client_design: false, buttons: buildDefaultHomeButtons() };
 }
 
 export function buildDefaultCapture() {
@@ -108,6 +112,20 @@ export function withCaptureDefaults(raw) {
   };
 }
 
+export function buildDefaultFrameChoice() {
+  return { enabled: false, max_frames: DEFAULT_MAX_FRAMES };
+}
+
+// Même lecture que frameChoiceConfig (designKind.js et le serveur) : enabled booléen strict,
+// max_frames 2, 3 ou 4, sinon 2. Aucune autre clé n'est gardée.
+export function withFrameChoiceDefaults(raw) {
+  const src = obj(raw);
+  return {
+    enabled: src.enabled === true,
+    max_frames: FRAME_CHOICE_MAX_FRAMES.includes(src.max_frames) ? src.max_frames : DEFAULT_MAX_FRAMES,
+  };
+}
+
 const toInt = (v, fallback) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n) : fallback;
@@ -131,9 +149,12 @@ export function cleanKioskFormats(kiosk) {
   return {
     ...src,
     ...(isObject(src.result) ? { result: cleanResultConfig(src.result) } : {}),
+    // Jamais ajouté quand l'événement n'en a pas : sa config reste identique (choix coupé).
+    ...('frame_choice' in src ? { frame_choice: withFrameChoiceDefaults(src.frame_choice) } : {}),
     home: {
       ...home,
       personalized: home.personalized === true,
+      client_design: home.client_design === true,
       display_name: String(home.display_name ?? '').trim(),
       buttons,
     },

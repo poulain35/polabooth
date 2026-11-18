@@ -10,11 +10,11 @@ export type TrackedEvent =
   | 'request' | 'delivered' | 'deferred' | 'opened' | 'proxy_open' | 'click'
   | 'soft_bounce' | 'hard_bounce' | 'blocked' | 'spam' | 'invalid' | 'error' | 'unsubscribed';
 
-export type EmailStatus =
+type EmailStatus =
   | 'sent' | 'delivered' | 'opened' | 'clicked'
   | 'soft_bounce' | 'hard_bounce' | 'blocked' | 'spam' | 'invalid' | 'error' | 'unsubscribed';
 
-export type FailureStatus = Exclude<EmailStatus, 'sent' | 'delivered' | 'opened' | 'clicked'>;
+type FailureStatus = Exclude<EmailStatus, 'sent' | 'delivered' | 'opened' | 'clicked'>;
 
 // Webhook transactionnel (champ `event`) puis API GET /v3/smtp/statistics/events (champ `event`).
 // `unique_opened` et `opened` d'une même ouverture partagent leur horodatage : normalisés en
@@ -41,7 +41,7 @@ export function normalizeBrevoEvent(raw: unknown): TrackedEvent | null {
 }
 
 /** Statut porté par un événement ; null : l'événement est historisé sans changer le statut. */
-export const STATUS_OF_EVENT: Record<TrackedEvent, EmailStatus | null> = {
+const STATUS_OF_EVENT: Record<TrackedEvent, EmailStatus | null> = {
   request: 'sent',
   delivered: 'delivered',
   deferred: null,
@@ -57,11 +57,11 @@ export const STATUS_OF_EVENT: Record<TrackedEvent, EmailStatus | null> = {
   unsubscribed: 'unsubscribed',
 };
 
-export const POSITIVE_RANK = { sent: 0, delivered: 1, opened: 2, clicked: 3 } as const;
+const POSITIVE_RANK = { sent: 0, delivered: 1, opened: 2, clicked: 3 } as const;
 const POSITIVE_BY_RANK: EmailStatus[] = ['sent', 'delivered', 'opened', 'clicked'];
 
 /** Motif affiché quand Brevo n'en fournit pas. */
-export const DEFAULT_FAILURE_REASON: Record<FailureStatus, string> = {
+const DEFAULT_FAILURE_REASON: Record<FailureStatus, string> = {
   soft_bounce: 'Rebond temporaire',
   hard_bounce: 'Rebond définitif',
   blocked: 'Envoi bloqué par Brevo',
@@ -175,7 +175,7 @@ export function messageIdVariants(id: string): string[] {
   return [`<${bare}>`, bare];
 }
 
-export const eventKey = (e: { event: string; occurredAt: string }) => `${e.event}|${Date.parse(e.occurredAt)}`;
+const eventKey = (e: { event: string; occurredAt: string }) => `${e.event}|${Date.parse(e.occurredAt)}`;
 
 /** Dédoublonne sur (event, occurred_at), même clé que la contrainte email_events_dedup_key. */
 export function dedupeEvents<T extends { event: string; occurredAt: string }>(events: T[]): T[] {

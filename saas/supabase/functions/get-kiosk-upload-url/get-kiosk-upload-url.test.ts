@@ -332,9 +332,17 @@ test('kiosk : URL R2 demandée à get-kiosk-upload-url, storage_path passé à k
   const svc = new URL('../../../../kiosk/PolaKiosk/Services/SupabaseService.cs', import.meta.url);
   if (!existsSync(svc)) return; // saas/ isolé du monorepo
   const src = readFileSync(svc, 'utf8');
-  assert.doesNotMatch(src, /storage\/v1/);
-  assert.doesNotMatch(src, /IsStorageDuplicate|x-upsert/);
-  assert.match(src, /functions\/v1\/get-kiosk-upload-url/);
-  assert.match(src, /\bp_storage_path\b/);
-  assert.ok(src.indexOf('get-kiosk-upload-url') < src.indexOf('PostRpcAsync("kiosk_record_photo"'));
+  // Corps des RPC à part depuis LAB-405
+  const bodies = readFileSync(new URL('../../../../kiosk/PolaKiosk/Services/SupabaseRpcBodies.cs', import.meta.url), 'utf8');
+  for (const file of [src, bodies]) {
+    assert.doesNotMatch(file, /storage\/v1/);
+    assert.doesNotMatch(file, /IsStorageDuplicate|x-upsert/);
+  }
+  assert.match(src, /PostFunctionAsync\("get-kiosk-upload-url"|functions\/v1\/get-kiosk-upload-url/);
+  assert.match(src, /(?:Post|Call)RpcAsync\("kiosk_record_photo",\s*BuildRecordPhotoBody\(/);
+  const start = bodies.indexOf('BuildRecordPhotoBody(');
+  assert.ok(start > 0, 'BuildRecordPhotoBody');
+  assert.match(bodies.slice(start, bodies.indexOf('});', start)), /\bp_storage_path\b/);
+  const record = src.search(/(?:Post|Call)RpcAsync\("kiosk_record_photo"/);
+  assert.ok(record > 0 && src.indexOf('get-kiosk-upload-url') < record);
 });

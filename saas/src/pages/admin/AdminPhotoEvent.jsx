@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Link2, ExternalLink, ImageIcon, X, RotateCcw, Trash2, Check, Loader2, Play } from 'lucide-react';
 import {
   supabase, fetchPhotos, getPhotoUploadUrl,
-  savePhoto, deletePhoto, updateEventAlbumName, fetchGalleryStats,
+  savePhoto, deletePhoto, fetchGalleryStats,
   setPhotoStatus, setPhotosStatus,
 } from '../../lib/supabase';
 import { isVideoFile, isHeicFile, heicToJpeg, videoPoster, isVideoPhoto } from '../../utils/media';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
+import { Card } from '../../components/ui/card';
+import { Checkbox } from '../../components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { PageContainer, PageHeader } from '../../components/admin/AdminPage';
+import { cn } from '../../lib/utils';
+import { CopyButton } from '../../components/ui/copy-button';
+import { Spinner } from '../../components/ui/spinner';
+import { Lightbox } from '../../components/ui/lightbox';
 
-const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const APP_URL = (import.meta.env.VITE_APP_URL ?? window.location.origin).replace(/\/$/, "");
+
+// Posés sur une photo : fonds pleins, lisibles quelle que soit l'image dessous.
+const TILE_CHECKBOX_CLASS = 'absolute left-2 top-2 z-10 rounded bg-card shadow-card';
+const TILE_HOVER_CLASS = 'transition-opacity md:opacity-0 md:group-hover:opacity-100';
+const TILE_ACTION_CLASS = 'pointer-events-auto flex h-7 w-7 items-center justify-center rounded-md bg-card text-muted-foreground shadow-card transition-colors';
 
 function generateThumbnail(file, maxWidth = 800) {
   return new Promise((resolve) => {
@@ -60,19 +69,22 @@ async function withRetry(fn, { attempts = 3, delayMs = 1500 } = {}) {
   throw lastErr;
 }
 
-// Origine d'une photo : le photobooth ('kiosk'/'admin') ou un invité ('guest').
+// Origine d'une photo : la borne ('kiosk'/'admin') ou un invité ('guest').
 function SourceBadge({ source }) {
   const isGuest = source === 'guest';
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm ${
-      isGuest ? 'bg-violet-600/90 text-white' : 'bg-card/90 text-gray-600'
-    }`}>
-      {isGuest ? 'Invité' : 'Photobooth'}
+    <span className={cn(
+      'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium shadow-card',
+      isGuest ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground',
+    )}>
+      {isGuest ? 'Invité' : 'Borne'}
     </span>
   );
 }
 
-export default function AdminPhotoEvent() {
+// `embedded` : affichée dans l'onglet « Photos et livraison » de la fiche (LAB-337), sans fil
+// d'Ariane ni titre ni marges.
+export default function AdminPhotoEvent({ embedded = false } = {}) {
   const { id } = useParams();
   const [event,    setEvent]    = useState(null);
   const [photos,   setPhotos]   = useState([]);
@@ -82,9 +94,6 @@ export default function AdminPhotoEvent() {
   const [selected, setSelected] = useState(new Set());
   const [deleting, setDeleting] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [copied,   setCopied]   = useState(false);
-  const [albumName, setAlbumName] = useState('');
-  const [savingAlbum, setSavingAlbum] = useState(false);
   const [lightbox, setLightbox] = useState(null); // photo en plein écran
   const [stats, setStats] = useState(null);
   const [tab, setTab] = useState('all'); // 'all' | 'pending'
@@ -96,11 +105,10 @@ export default function AdminPhotoEvent() {
     async function load() {
       const { data: ev } = await supabase
         .from('events')
-        .select('id, name, client_name, access_code, album_name')
+        .select('id, name, client_name, access_code')
         .eq('id', id)
         .single();
       setEvent(ev);
-      setAlbumName(ev?.album_name ?? '');
       const ph = await fetchPhotos(id).catch(() => []);
       setPhotos(ph);
       setLoading(false);
@@ -261,181 +269,110 @@ export default function AdminPhotoEvent() {
     setModerating(false);
   }
 
-  // ── Album name ──────────────────────────────────────────────────────────────
-
-  async function saveAlbumName() {
-    setSavingAlbum(true);
-    await updateEventAlbumName(id, albumName.trim()).catch(() => {});
-    setEvent((prev) => ({ ...prev, album_name: albumName.trim() }));
-    setSavingAlbum(false);
-  }
-
   // ── Render ──────────────────────────────────────────────────────────────────
-
-  const webhookUrl = `${FUNCTIONS_URL}/photo-webhook`;
 
   if (loading) return (
     <div className="flex justify-center py-24">
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <Spinner />
     </div>
   );
 
-  return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
-        <Link to="/admin/photos" className="hover:text-gray-600 transition-colors">Galerie photos</Link>
-        <span>›</span>
-        <span className="text-gray-700 font-medium">{event?.name ?? id}</span>
-      </div>
+  const galleryUrl = event ? `${APP_URL}/photos/${event.access_code}` : '';
 
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">{event?.name}</h1>
-        {event && (
-          <p className="text-sm text-gray-400 mt-0.5">
-            {event.client_name} · Code : <span className="font-mono font-medium text-gray-600">{event.access_code}</span>
-          </p>
-        )}
-
-        {/* Lien client */}
-        {event && (
-          <div className="mt-3 flex items-center gap-2 bg-muted/50 border border-gray-200 rounded-xl px-3 py-2">
-            <Link2 className="w-4 h-4 text-gray-400 shrink-0" />
-            <span className="flex-1 text-xs text-gray-500 font-mono truncate">
-              {APP_URL}/photos/{event.access_code}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 shrink-0"
-              onClick={() => { navigator.clipboard.writeText(`${APP_URL}/photos/${event.access_code}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-            >
-              {copied ? '✓ Copié' : 'Copier'}
-            </Button>
-            <a href={`${APP_URL}/photos/${event.access_code}`} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 text-gray-400 hover:text-primary transition-colors">
-              <ExternalLink className="w-4 h-4" />
+  const content = (
+    <>
+      {/* Lien client */}
+      {event && (
+        <Card className="flex items-center gap-2 px-4 py-3">
+          <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{galleryUrl}</span>
+          <CopyButton value={galleryUrl} className="shrink-0" />
+          <Button variant="ghost" size="icon-sm" asChild className="shrink-0 text-muted-foreground">
+            <a href={galleryUrl} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir la galerie" title="Ouvrir la galerie">
+              <ExternalLink />
             </a>
-          </div>
-        )}
+          </Button>
+        </Card>
+      )}
 
-        {/* Statistiques du lien partagé */}
-        {stats && (
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {/* Statistiques du lien partagé */}
+      {stats && (
+        <div>
+          <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Ouvertures', value: stats.views, hint: 'du lien' },
               { label: 'Téléchargements', value: stats.downloads, hint: 'de photos' },
               { label: 'Partages', value: stats.shares, hint: 'de photos' },
             ].map((s) => (
-              <div key={s.label} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-center">
-                <p className="text-2xl font-semibold text-gray-900 leading-tight">{s.value}</p>
-                <p className="text-xs font-medium text-gray-600">{s.label}</p>
-                <p className="text-[11px] text-gray-400">{s.hint}</p>
-              </div>
+              <Card key={s.label} className="min-w-0 px-3 py-4 text-center">
+                <p className="text-figure text-foreground">{s.value}</p>
+                <p className="mt-1 truncate text-[13px] font-medium text-foreground">{s.label}</p>
+                <p className="truncate text-xs text-muted-foreground">{s.hint}</p>
+              </Card>
             ))}
           </div>
-        )}
-        {stats?.lastActivity && (
-          <p className="text-[11px] text-gray-400 mt-1.5">
-            Dernière activité : {new Date(stats.lastActivity).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
-      </div>
-
-      {/* Configuration webhook */}
-      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-6">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Configuration webhook photobooth</p>
-        <div className="flex flex-col gap-3">
-          {/* Album name */}
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-gray-500 w-24 shrink-0">Nom d'album</Label>
-            <Input
-              value={albumName}
-              onChange={(e) => setAlbumName(e.target.value)}
-              onBlur={saveAlbumName}
-              onKeyDown={(e) => e.key === 'Enter' && saveAlbumName()}
-              placeholder={event?.name ?? 'Nom de l\'album dans le logiciel'}
-              className="flex-1 h-8 text-xs"
-            />
-            {savingAlbum && <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />}
-          </div>
-          {/* Webhook URL */}
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-gray-500 w-24 shrink-0">URL webhook</Label>
-            <code className="flex-1 text-[11px] bg-card border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-700 truncate">{webhookUrl}</code>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 whitespace-nowrap"
-              onClick={() => navigator.clipboard.writeText(webhookUrl)}
-            >
-              Copier
-            </Button>
-          </div>
-          {/* Params */}
-          <div className="text-[11px] text-gray-400 leading-relaxed pl-26">
-            <span className="text-gray-500 font-medium">Paramètres : </span>
-            param1 = chemin fichier · param2 = URL photo · param3 = type · param4 = nom album
-          </div>
+          {stats.lastActivity && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Dernière activité : {new Date(stats.lastActivity).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Zone d'upload */}
       <div
-        className={`border-2 border-dashed rounded-2xl p-4 sm:p-8 text-center cursor-pointer transition-all mb-6 ${
-          dragging ? 'border-primary bg-primary/10' : 'border-gray-200 bg-gray-50 hover:border-primary hover:bg-primary/10'
-        }`}
+        className={cn(
+          'cursor-pointer rounded-card border-2 border-dashed p-4 text-center transition-colors sm:p-8',
+          dragging ? 'border-primary bg-primary-soft' : 'border-input bg-card hover:border-primary hover:bg-primary-soft',
+        )}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
       >
         <input ref={fileInputRef} type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple className="hidden" onChange={handleFileInput} />
-        <div className="flex flex-col items-center gap-2 text-gray-400">
-          <ImageIcon className="w-8 h-8" />
-          <p className="text-sm font-medium text-gray-600">Glissez vos photos et vidéos ici</p>
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <ImageIcon className="h-8 w-8" />
+          <p className="text-sm font-medium text-foreground">Glissez vos photos et vidéos ici</p>
           <p className="text-xs">ou cliquez pour choisir · JPG, PNG, HEIC, MP4, MOV…</p>
         </div>
       </div>
 
       {/* Progression d'import (barre unique pour tous les fichiers) */}
       {upload && (
-        <div className="bg-card rounded-xl border border-gray-200 px-4 py-3 mb-4">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="font-medium text-gray-600">
+        <Card className="px-4 py-3">
+          <div className="mb-1.5 flex items-center justify-between text-xs">
+            <span className="font-medium text-foreground">
               {upload.done + upload.failed < upload.total
                 ? `Import de ${upload.total} photo${upload.total > 1 ? 's' : ''}…`
                 : 'Import terminé'}
             </span>
-            <span className="text-gray-400 shrink-0">
+            <span className="shrink-0 text-muted-foreground">
               {upload.done}/{upload.total}
-              {upload.failed > 0 && <span className="text-destructive"> · {upload.failed} échec{upload.failed > 1 ? 's' : ''}</span>}
+              {upload.failed > 0 && <span className="text-state-red-fg"> · {upload.failed} échec{upload.failed > 1 ? 's' : ''}</span>}
             </span>
           </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${upload.percent}%` }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${upload.percent}%` }} />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Récap de fin d'import */}
       {summary && (
-        <div className={`mb-4 rounded-xl border px-4 py-3 ${
-          summary.failed.length === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
-        }`}>
+        <div className={cn('rounded-xl px-4 py-3', summary.failed.length === 0 ? 'bg-state-green' : 'bg-state-amber')}>
           <div className="flex items-start justify-between gap-3">
-            <div className="text-sm">
-              <p className="font-semibold text-gray-800">
+            <div className="min-w-0 text-sm">
+              <p className={cn('font-medium', summary.failed.length === 0 ? 'text-state-green-fg' : 'text-state-amber-fg')}>
                 {summary.uploaded}/{summary.total} fichier{summary.total > 1 ? 's' : ''} importé{summary.uploaded > 1 ? 's' : ''}
                 {summary.failed.length === 0 && ' ✓'}
               </p>
               {summary.failed.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-destructive font-medium">
+                  <p className="font-medium text-state-red-fg">
                     {summary.failed.length} échec{summary.failed.length > 1 ? 's' : ''} :
                   </p>
-                  <ul className="mt-1 space-y-0.5 text-xs text-destructive">
+                  <ul className="mt-1 space-y-0.5 text-xs text-state-red-fg">
                     {summary.failed.map((f, i) => (
                       <li key={i} className="truncate">• {f.name} — {f.error}</li>
                     ))}
@@ -445,81 +382,52 @@ export default function AdminPhotoEvent() {
             </div>
             <button
               onClick={() => setSummary(null)}
-              className="shrink-0 text-gray-400 hover:text-gray-600"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               title="Fermer"
+              aria-label="Fermer"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
           {summary.failed.length > 0 && (
-            <button
-              onClick={retryFailed}
-              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-                bg-card border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
+            <Button variant="outline" size="sm" className="mt-2" onClick={retryFailed}>
+              <RotateCcw />
               Réessayer les échecs
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {/* Onglets galerie / modération */}
-      <Tabs value={tab} onValueChange={setTab} className="mb-4">
-        <TabsList className="flex gap-1 border-b border-gray-100 justify-start h-auto p-0 bg-transparent rounded-none">
-          {[
-            { id: 'all',     label: `Toutes (${photos.length})` },
-            { id: 'pending', label: `À valider (${pendingPhotos.length})` },
-          ].map((t) => (
-            <TabsTrigger
-              key={t.id}
-              value={t.id}
-              className="relative px-4 py-2 text-sm font-medium border-b-2 border-transparent -mb-px rounded-none shadow-none text-gray-500 hover:text-gray-800 data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent"
-            >
-              {t.label}
-              {t.id === 'pending' && pendingPhotos.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold align-middle">
-                  {pendingPhotos.length}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="all">Toutes <span className="opacity-70">{photos.length}</span></TabsTrigger>
+          <TabsTrigger value="pending">À valider <span className="opacity-70">{pendingPhotos.length}</span></TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* ════ MODÉRATION (à valider) ════ */}
       {tab === 'pending' && (
-        <>
-          <div className="flex items-center gap-3 mb-3">
+        <section>
+          <div className="mb-3 flex min-h-[34px] flex-wrap items-center gap-3">
             {pendingPhotos.length > 0 && (
-              <input
-                type="checkbox"
-                checked={modSelected.size === pendingPhotos.length && pendingPhotos.length > 0}
-                onChange={toggleModSelectAll}
-                className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+              <Checkbox
+                checked={modSelected.size === pendingPhotos.length}
+                onCheckedChange={toggleModSelectAll}
+                aria-label="Tout sélectionner"
               />
             )}
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex-1">
+            <h2 className="flex-1 text-sm font-medium text-foreground">
               À valider ({pendingPhotos.length})
             </h2>
             {modSelected.size > 0 && (
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => reviewSelected('approved')}
-                  disabled={moderating}
-                >
-                  <Check className="w-3.5 h-3.5" />
+                <Button size="sm" onClick={() => reviewSelected('approved')} disabled={moderating}>
+                  <Check />
                   Approuver ({modSelected.size})
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => reviewSelected('rejected')}
-                  disabled={moderating}
-                >
-                  <X className="w-3.5 h-3.5" />
+                <Button variant="destructive" size="sm" onClick={() => reviewSelected('rejected')} disabled={moderating}>
+                  <X />
                   Rejeter ({modSelected.size})
                 </Button>
               </div>
@@ -527,187 +435,174 @@ export default function AdminPhotoEvent() {
           </div>
 
           {pendingPhotos.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">Aucune photo en attente de validation.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Aucune photo en attente de validation.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {pendingPhotos.map((photo) => (
-                <div key={photo.id} className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-                  modSelected.has(photo.id) ? 'border-primary' : 'border-transparent'
-                }`}>
-                  <input
-                    type="checkbox"
-                    checked={modSelected.has(photo.id)}
-                    onChange={() => toggleModSelect(photo.id)}
-                    className="absolute top-2 left-2 z-10 w-4 h-4 rounded border-white shadow cursor-pointer"
-                  />
-                  <div className="absolute top-2 right-2 z-10"><SourceBadge source={photo.source} /></div>
-                  <img
-                    src={photo.thumbnail_url ?? photo.photo_url}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full aspect-square object-cover cursor-pointer"
-                    onClick={() => setLightbox(photo)}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <div className="absolute inset-x-0 bottom-0 flex gap-1 p-1.5 bg-gradient-to-t from-black/50 to-transparent">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); reviewOne(photo.id, 'approved'); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-emerald-500/90 text-white text-xs font-medium hover:bg-emerald-600 transition-colors"
-                      title="Approuver"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); reviewOne(photo.id, 'rejected'); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-red-500/90 text-white text-xs font-medium hover:bg-red-600 transition-colors"
-                      title="Rejeter"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                <div
+                  key={photo.id}
+                  className={cn(
+                    'overflow-hidden rounded-xl border-2 bg-card shadow-card transition-colors',
+                    modSelected.has(photo.id) ? 'border-primary' : 'border-transparent',
+                  )}
+                >
+                  <div className="relative bg-muted">
+                    <Checkbox
+                      className={TILE_CHECKBOX_CLASS}
+                      checked={modSelected.has(photo.id)}
+                      onCheckedChange={() => toggleModSelect(photo.id)}
+                      aria-label="Sélectionner la photo"
+                    />
+                    <div className="absolute right-2 top-2 z-10"><SourceBadge source={photo.source} /></div>
+                    <img
+                      src={photo.thumbnail_url ?? photo.photo_url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-square w-full cursor-pointer object-cover"
+                      onClick={() => setLightbox(photo)}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                  <div className="flex gap-1.5 p-1.5">
+                    <Button size="xs" className="flex-1" onClick={() => reviewOne(photo.id, 'approved')} title="Approuver" aria-label="Approuver">
+                      <Check />
+                    </Button>
+                    <Button variant="destructive" size="xs" className="flex-1" onClick={() => reviewOne(photo.id, 'rejected')} title="Rejeter" aria-label="Rejeter">
+                      <X />
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </>
+        </section>
       )}
 
       {tab === 'all' && (
-      <>
-      {/* En-tête liste photos */}
-      <div className="flex items-center gap-3 mb-3">
-        {photos.length > 0 && (
-          <input
-            type="checkbox"
-            checked={selected.size === photos.length && photos.length > 0}
-            onChange={toggleSelectAll}
-            className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
-          />
-        )}
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex-1">
-          Photos ({photos.length})
-        </h2>
-        {selected.size > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDeleteSelected}
-            disabled={deleting}
-          >
-            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Supprimer ({selected.size})
-          </Button>
-        )}
-      </div>
-
-      {photos.length === 0 && !upload && (
-        <p className="text-sm text-gray-400 text-center py-8">Aucune photo pour cet événement.</p>
-      )}
-
-      {/* Grille photos */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {photos.map((photo) => (
-          <div key={photo.id} className={`relative group rounded-xl overflow-hidden border-2 transition-all ${
-            selected.has(photo.id) ? 'border-destructive' : 'border-transparent'
-          }`}>
-            {/* Checkbox */}
-            <input
-              type="checkbox"
-              checked={selected.has(photo.id)}
-              onChange={() => toggleSelect(photo.id)}
-              className="absolute top-2 left-2 z-10 w-4 h-4 rounded border-white shadow cursor-pointer
-                opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity checked:opacity-100"
-            />
-            {/* Badge source */}
-            <div className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              <SourceBadge source={photo.source} />
-            </div>
-            {/* Média (poster + badge play pour les vidéos) */}
-            {isVideoPhoto(photo) && !photo.thumbnail_url ? (
-              <div
-                className="w-full aspect-square bg-gray-800 flex items-center justify-center cursor-pointer"
-                onClick={() => setLightbox(photo)}
-              >
-                <Play className="w-8 h-8 text-white/70" fill="currentColor" />
-              </div>
-            ) : (
-              <img
-                src={photo.thumbnail_url ?? photo.photo_url}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="w-full aspect-square object-cover cursor-pointer"
-                onClick={() => setLightbox(photo)}
-                onError={(e) => { e.target.style.display = 'none'; }}
+        <section>
+          {/* En-tête liste photos */}
+          <div className="mb-3 flex min-h-[34px] flex-wrap items-center gap-3">
+            {photos.length > 0 && (
+              <Checkbox
+                checked={selected.size === photos.length}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Tout sélectionner"
               />
             )}
-            {isVideoPhoto(photo) && photo.thumbnail_url && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-10 h-10 rounded-full bg-black/45 flex items-center justify-center">
-                  <Play className="w-5 h-5 text-white" fill="currentColor" />
+            <h2 className="flex-1 text-sm font-medium text-foreground">
+              Photos ({photos.length})
+            </h2>
+            {selected.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={handleDeleteSelected} disabled={deleting}>
+                {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                Supprimer ({selected.size})
+              </Button>
+            )}
+          </div>
+
+          {photos.length === 0 && !upload && (
+            <p className="py-8 text-center text-sm text-muted-foreground">Aucune photo pour cet événement.</p>
+          )}
+
+          {/* Grille photos */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {photos.map((photo) => (
+              <div
+                key={photo.id}
+                className={cn(
+                  'group relative overflow-hidden rounded-xl border-2 bg-muted transition-colors',
+                  selected.has(photo.id) ? 'border-destructive' : 'border-transparent',
+                )}
+              >
+                <Checkbox
+                  className={cn(TILE_CHECKBOX_CLASS, TILE_HOVER_CLASS, 'md:focus-visible:opacity-100 md:data-[state=checked]:opacity-100')}
+                  checked={selected.has(photo.id)}
+                  onCheckedChange={() => toggleSelect(photo.id)}
+                  aria-label="Sélectionner la photo"
+                />
+                <div className={cn('absolute right-2 top-2 z-10', TILE_HOVER_CLASS)}>
+                  <SourceBadge source={photo.source} />
+                </div>
+                {/* Média (poster + badge play pour les vidéos) */}
+                {isVideoPhoto(photo) && !photo.thumbnail_url ? (
+                  <div
+                    className="flex aspect-square w-full cursor-pointer items-center justify-center text-muted-foreground"
+                    onClick={() => setLightbox(photo)}
+                  >
+                    <Play className="h-8 w-8" fill="currentColor" />
+                  </div>
+                ) : (
+                  <img
+                    src={photo.thumbnail_url ?? photo.photo_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-square w-full cursor-pointer object-cover"
+                    onClick={() => setLightbox(photo)}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                {isVideoPhoto(photo) && photo.thumbnail_url && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-card">
+                      <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
+                    </div>
+                  </div>
+                )}
+                {/* Actions au survol (bandeau non cliquable → laisse passer le tap vers la visionneuse) */}
+                <div className={cn('pointer-events-none absolute inset-x-0 bottom-0 flex justify-end gap-1 p-2', TILE_HOVER_CLASS)}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
+                    className={cn(TILE_ACTION_CLASS, 'hover:text-state-red-fg')}
+                    title="Supprimer"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
-            )}
-            {/* Actions au survol (fond non cliquable → laisse passer le tap vers la lightbox) */}
-            <div className="absolute inset-0 bg-black/0 md:group-hover:bg-black/30 transition-all flex items-end justify-end p-2 gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 pointer-events-none">
-              {photo.share_url && (
-                <a
-                  href={photo.share_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="pointer-events-auto w-7 h-7 bg-card/90 rounded-lg flex items-center justify-center text-gray-600 hover:text-primary"
-                  title="Voir sur fotoshare"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
-                className="pointer-events-auto w-7 h-7 bg-card/90 rounded-lg flex items-center justify-center text-gray-600 hover:text-destructive"
-                title="Supprimer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-      </>
+        </section>
       )}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setLightbox(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white/70 hover:text-white"
-            onClick={() => setLightbox(null)}
-          >
-            <X className="w-8 h-8" />
-          </button>
-          {isVideoPhoto(lightbox) ? (
-            <video
-              src={lightbox.photo_url}
-              controls
-              autoPlay
-              playsInline
-              className="max-h-[90vh] max-w-full rounded-xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img
-              src={lightbox.photo_url}
-              alt=""
-              className="max-h-[90vh] max-w-full rounded-xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          )}
-        </div>
-      )}
-    </div>
+      {/* Visionneuse : fond noir dans les deux thèmes, pour voir la photo sans que le thème la teinte. */}
+      <Lightbox open={Boolean(lightbox)} onClose={() => setLightbox(null)} className="bg-black/90">
+        {lightbox && (isVideoPhoto(lightbox) ? (
+          <video
+            src={lightbox.photo_url}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-[90vh] max-w-full rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <img
+            src={lightbox.photo_url}
+            alt=""
+            className="max-h-[90vh] max-w-full rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ))}
+      </Lightbox>
+    </>
+  );
+
+  if (embedded) return <div className="flex flex-col gap-5">{content}</div>;
+
+  return (
+    <PageContainer>
+      <PageHeader
+        back={`/admin/events/${id}`}
+        backLabel="Fiche de l’événement"
+        title={event?.name ?? 'Photos'}
+        description={event && (
+          <>{event.client_name} · Code : <span className="font-mono font-medium">{event.access_code}</span></>
+        )}
+      />
+      {content}
+    </PageContainer>
   );
 }

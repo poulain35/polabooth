@@ -40,14 +40,14 @@
                            Style="{StaticResource KioskTitleText}" FontSize="44"
                            Margin="0,0,0,16"/>
                 <TextBlock Text="Scannez avec votre téléphone, ou allez sur"
-                           FontSize="22" TextWrapping="Wrap"
+                           FontSize="{StaticResource KioskLargeTextSize}" TextWrapping="Wrap"
                            Foreground="{StaticResource KioskBrownBrush}"/>
                 <TextBlock Text="{Binding PairingAddress}"
                            FontSize="26" FontWeight="SemiBold" TextWrapping="Wrap"
                            Foreground="{StaticResource KioskForestBrush}"
                            Margin="0,4,0,4"/>
                 <TextBlock Text="et tapez le code :"
-                           FontSize="22"
+                           FontSize="{StaticResource KioskLargeTextSize}"
                            Foreground="{StaticResource KioskBrownBrush}"
                            Margin="0,0,0,24"/>
 
@@ -106,7 +106,7 @@
         <!-- Messages ponctuels et borne retirée, en bas de l'écran -->
         <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,56" MaxWidth="1000">
             <TextBlock Text="{Binding Notice}"
-                       FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                       FontSize="{StaticResource KioskLargeTextSize}" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
                        Foreground="{StaticResource KioskWarningBrush}" Margin="0,0,0,10"
                        Visibility="{Binding HasNotice, Converter={StaticResource BoolToVisibility}}"/>
             <TextBlock Text="{Binding RetiredMessage}"

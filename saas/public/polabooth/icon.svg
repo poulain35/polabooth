@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="h-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD452"/><stop offset="1" stop-color="#FFB224"/></linearGradient>
+    <clipPath id="h-win"><rect x="74" y="76" width="88" height="88" rx="7"/></clipPath>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="60" fill="url(#h-bg)"/>
+  <g transform="rotate(13 150 124)">
+    <rect x="102" y="62" width="104" height="124" rx="12" fill="#1F1A3D" fill-opacity=".22"/>
+    <rect x="96" y="56" width="104" height="124" rx="12" fill="#1F1A3D"/>
+  </g>
+  <g transform="rotate(-9 118 136)">
+    <rect x="68" y="70" width="112" height="136" rx="13" fill="#1F1A3D" fill-opacity=".25"/>
+    <rect x="62" y="64" width="112" height="136" rx="13" fill="#FFF4D6"/>
+    <rect x="74" y="76" width="88" height="88" rx="7" fill="#2E2860"/>
+    <path fill="#FFF4D6" d="M96 104c1.6 8.6 4.8 11.8 13.4 13.4-8.6 1.6-11.8 4.8-13.4 13.4-1.6-8.6-4.8-11.8-13.4-13.4 8.6-1.6 11.8-4.8 13.4-13.4z"/>
+    <g clip-path="url(#h-win)">
+      <path fill="#E63946" d="M122 76h42v88h-30c-3-15-5-30-6-46 5-5 3-8-6-42z"/>
+      <path fill="#B82533" d="M136 76h5c-2 28 0 58 3 88h-5c-3-30-5-60-3-88zM151 76h5c-1 28 1 58 3 88h-5c-2-30-4-60-3-88z"/>
+    </g>
+    <rect x="84" y="178" width="40" height="6" rx="3" fill="#1F1A3D" fill-opacity=".45"/>
+  </g>
+</svg>

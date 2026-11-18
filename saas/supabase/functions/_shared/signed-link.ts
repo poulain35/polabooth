@@ -5,7 +5,7 @@
 
 export type DecisionAction = 'accept' | 'refuse' | 'extend' | 'expire';
 
-export const DECISION_ACTIONS: readonly DecisionAction[] = ['accept', 'refuse', 'extend', 'expire'];
+const DECISION_ACTIONS: readonly DecisionAction[] = ['accept', 'refuse', 'extend', 'expire'];
 export const DECISION_LINK_TTL_SECONDS = 14 * 24 * 3600;
 /** Taille minimale de la clé HMAC (256 bits) : en dessous, le tunnel refuse de servir (503). */
 export const MIN_LINK_SECRET_BYTES = 32;
@@ -39,11 +39,11 @@ export function generateNonce(): string {
   return randomBase64url(16);
 }
 
-export function decisionPayload(leadId: string, action: DecisionAction, exp: number | string, nonce: string): string {
+function decisionPayload(leadId: string, action: DecisionAction, exp: number | string, nonce: string): string {
   return `${leadId}.${action}.${exp}.${nonce}`;
 }
 
-export async function hmacSha256Base64url(secret: string, message: string): Promise<string> {
+async function hmacSha256Base64url(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   );

@@ -33,7 +33,7 @@ for (const p of walk(SRC).filter(isCode)) {
   for (const c of calls(readFileSync(p, 'utf8'))) target.add(c);
 }
 const markers = [...privateCalls].filter((c) => !openCalls.has(c)).sort();
-// Dépôt public (export open core) : src/modules/ ne contient que index.js et brand.js, aucun module.
+// Dépôt public (export open core) : src/modules/ ne contient que index.js, brand.js et catalog.js, aucun module.
 const hasModules = existsSync(modulesDir)
   && readdirSync(modulesDir).some((n) => statSync(join(modulesDir, n)).isDirectory());
 

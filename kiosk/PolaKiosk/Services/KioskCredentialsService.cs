@@ -24,7 +24,7 @@ public class KioskCredentialsService : IKioskCredentials
     {
         MachineId       = machineId ?? GetMachineId();
         _fallbackSecret = (devFallbackSecret ?? "").Trim();
-        _path           = Path.Combine(dataDir, "activation.bin");
+        _path           = new KioskPaths(dataDir).ActivationFile;
 
         var stored = Dpapi.TryReadFile(_path, Purpose);
         if (stored != null)
@@ -50,7 +50,7 @@ public class KioskCredentialsService : IKioskCredentials
             var guid = key?.GetValue("MachineGuid")?.ToString();
             if (!string.IsNullOrEmpty(guid)) return guid;
         }
-        catch { }
+        catch { /* registre illisible : repli sur le nom du PC, ci-dessous */ }
 
         return Environment.MachineName;
     }

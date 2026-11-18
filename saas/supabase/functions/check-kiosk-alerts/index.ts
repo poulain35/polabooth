@@ -4,35 +4,26 @@
  * Pour chaque organisation ayant activé les alertes (organizations.alert_config.enabled),
  * scanne ses bornes (kiosk_licenses.org_id, hors bornes retirées) et les événements EN COURS
  * auxquels elles sont assignées, et notifie (email + webhook) le compte de la borne en cas de :
- * machine hors ligne, problème imprimante, appareil photo débranché, quota d'impressions, papier bas.
+ * machine hors ligne, problème imprimante, appareil photo débranché, quota d'impressions, papier bas,
+ * et erreurs graves de la borne pendant un événement (LAB-329, lues dans kiosk_logs).
  *
  * Modèle ouvert/résolu : 1 alerte ouverte à la fois par (event × machine × type) ; email
  * d'ouverture puis email « rentré dans l'ordre » quand le problème disparaît.
  */
 
 import { adminClient } from '../_shared/auth.ts';
+import { jsonResponse } from '../_shared/cors.ts';
 import { cronOnly } from '../_shared/admin-guard.ts';
 import { sendKioskAlertEmail } from '../_shared/email.ts';
 import { orgSender } from '../_shared/org-identity.ts';
 import { isFeatureEnabled } from '../_shared/features.ts';
 import { evaluateAlerts, heldAlertTypes, RESOLVE, type AlertType } from './evaluate.ts';
+import { isEventInProgress } from './kiosk-errors.ts';
+import { postWebhook } from './notify.ts';
+import { EVENT_COLUMNS, reconcileKioskErrors } from './reconcile-errors.ts';
 import { appUrl } from '../_shared/app-url.ts';
 
 const APP_URL = appUrl();
-
-/** POST best-effort vers le webhook de l'org (organizations.webhook_url). Ne lève jamais. */
-async function postWebhook(url: string | null | undefined, payload: Record<string, unknown>) {
-  if (!url) return;
-  try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch (e) {
-    console.error('Échec webhook alerte', e);
-  }
-}
 
 Deno.serve(async (req) => {
   const denied = cronOnly(req, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
@@ -40,7 +31,7 @@ Deno.serve(async (req) => {
 
   const db = adminClient();
   const now = Date.now();
-  const adminUrl = `${APP_URL}/admin/licenses`;
+  const adminUrl = `${APP_URL}/admin/bornes`;
 
   // 1. Organisations avec alertes activées
   const { data: orgs, error: orgErr } = await db
@@ -48,8 +39,11 @@ Deno.serve(async (req) => {
     .select('id, features, notify_email, webhook_url, alert_config')
     .eq('alert_config->>enabled', 'true');
 
-  if (orgErr) return json(500, { error: orgErr.message });
-  if (!orgs?.length) return json(200, { checked: 0, sent: 0, resolved: 0 });
+  if (orgErr) {
+    console.error('check-kiosk-alerts : lecture des organisations', orgErr);
+    return jsonResponse(500, { error: 'Lecture des organisations impossible' });
+  }
+  if (!orgs?.length) return jsonResponse(200, { checked: 0, sent: 0, resolved: 0 });
 
   let sent = 0;
   let resolved = 0;
@@ -74,17 +68,12 @@ Deno.serve(async (req) => {
 
     const { data: events } = await db
       .from('events')
-      .select('id, name, photobooth_id, status, start_date, end_date, form_config')
+      .select(EVENT_COLUMNS)
       .in('photobooth_id', [...licenseById.keys()]);
 
-    const active = (events ?? []).filter((e) => {
-      if (e.status === 'archived') return false;
-      const start = e.start_date ? new Date(e.start_date).getTime() : null;
-      const end   = e.end_date   ? new Date(e.end_date).getTime()   : null;
-      if (start && start > now) return false;
-      if (end   && end   < now) return false;
-      return true;
-    });
+    // En cours au jour près (Paris), jusqu'à 6 h le lendemain de la fin (LAB-333) : comparer les heures
+    // laissait une fenêtre vide quand début = fin, et aucune alerte ne partait.
+    const active = (events ?? []).filter((e) => isEventInProgress(e, now));
 
     for (const ev of active) {
       const lic = licenseById.get(ev.photobooth_id);
@@ -123,6 +112,7 @@ Deno.serve(async (req) => {
         .select('id, alert_type')
         .eq('event_id', ev.id)
         .eq('machine_id', lic.machine_id)
+        .neq('alert_type', 'kiosk_errors') // réconciliées à part, sur les journaux (étape 4)
         .is('resolved_at', null);
       const openTypes = new Set((openRows ?? []).map((r) => r.alert_type as AlertType));
 
@@ -176,14 +166,14 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // 4. Erreurs graves de la borne (LAB-329), sur les journaux de ses bornes.
+    const errors = await reconcileKioskErrors({
+      db, org, cfg, recipient, webhookUrl, sender, appUrl: APP_URL, now, licenses, events: events ?? [],
+    });
+    sent += errors.sent;
+    resolved += errors.resolved;
   }
 
-  return json(200, { checked: orgs.length, sent, resolved });
+  return jsonResponse(200, { checked: orgs.length, sent, resolved });
 });
-
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

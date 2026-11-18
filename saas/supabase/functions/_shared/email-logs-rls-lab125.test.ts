@@ -177,6 +177,9 @@ test('edge functions : email_logs écrit uniquement via adminClient (service_rol
   }
   assert.match(readFileSync(join(FUNCTIONS, '_shared', 'auth.ts'), 'utf8'),
     /export function adminClient\(\) \{\s*return createClient\(supabaseUrl, serviceKey,/);
+  // Client au JWT utilisateur partagé (LAB-392) : clé anon, jamais service_role.
+  assert.match(readFileSync(join(FUNCTIONS, '_shared', 'auth.ts'), 'utf8'),
+    /export function userClient\(authHeader: string\) \{\s*return createClient\(supabaseUrl, anonKey, \{\s*global: \{ headers: \{ Authorization: authHeader \} \}/);
 });
 
 // ── Revue test LAB-125 : cas limites et chemins d'écriture non couverts ci-dessus ──────────────
@@ -225,7 +228,8 @@ test('edge functions : tout client au JWT utilisateur ne sert qu\'à auth.getUse
   for (const file of files(FUNCTIONS, /\.ts$/)) {
     const rel = file.slice(FUNCTIONS.length).replace(/\\/g, '/');
     const src = readFileSync(file, 'utf8');
-    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*createClient\([^;]*?(?:ANON_KEY|anonKey)/g)) {
+    // createClient(…anonKey…) en direct, ou userClient() de _shared/auth.ts (LAB-392).
+    for (const m of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:createClient\([^;]*?(?:ANON_KEY|anonKey)|userClient\()/g)) {
       userClients++;
       for (const use of src.matchAll(new RegExp(`\\b${m[1]}\\b\\s*\\.\\s*([\\w.]+)`, 'g'))) {
         if (use[1] === 'auth.getUser') continue;
@@ -265,7 +269,8 @@ test('edge functions : logEmail et les fonctions publiques écrivent email_logs 
 });
 
 test('front : lectures email_logs sans filtre d\'organisation, embeds limités aux tables sous RLS propriétaire', () => {
-  const src = readFileSync(join(SRC, 'lib', 'supabase.js'), 'utf8');
+  const src = readFileSync(join(SRC, 'lib', 'api', 'emails.js'), 'utf8');
+  const allApi = files(join(SRC, 'lib', 'api'), /\.js$/).map((f) => readFileSync(f, 'utf8')).join('\n');
   // Sélection construite selon les modules privés présents (LAB-274).
   assert.match(src, /const EMAIL_LOG_SELECT = emailLogSelect\(INSTALLED_MODULES\);/);
   const embedsOf = (select: string) => [...select.matchAll(/(\w+):(\w+)\(/g)].map((m) => `${m[1]}:${m[2]}`);
@@ -281,7 +286,7 @@ test('front : lectures email_logs sans filtre d\'organisation, embeds limités a
   }
   assert.deepEqual(embeds, []);
   // La policy filtre : aucune requête email_logs ne filtre org_id côté client (colonne inexistante).
-  for (const m of src.matchAll(/from\(\s*['"]email_logs['"]\s*\)([\s\S]*?);/g)) {
+  for (const m of allApi.matchAll(/from\(\s*['"]email_logs['"]\s*\)([\s\S]*?);/g)) {
     assert.doesNotMatch(m[1], /org_id/);
   }
 });

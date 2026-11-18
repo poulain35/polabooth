@@ -109,22 +109,31 @@ test('scripts de vérification : transaction annulée, résultat final OK, aucun
   }
 });
 
-test('front : menu « Création » et routes des catalogues réservés à l\'administrateur de l\'application', () => {
+test('front : menu « Bibliothèque » et routes des catalogues réservés à l\'administrateur de l\'application', () => {
+  // LAB-335 : l'ancien groupe « Création » devient l'entrée « Bibliothèque » (modèles, décorations, polices).
   const layout = src('pages/admin/AdminLayout.jsx');
-  assert.match(layout, /const CREATION_MODULE_ID = 'creation';/);
+  assert.match(layout, /const LIBRARY_ITEM = 'templates';/);
   assert.match(layout, /const \{ isAdmin: isAppAdmin \} = useAppAdmin\(\);/);
-  assert.match(layout, /filterNav\(MODULES, isAvailable\)\.filter\(\(m\) => m\.id !== CREATION_MODULE_ID \|\| isAppAdmin\);/);
+  assert.match(layout, /item\.to !== LIBRARY_ITEM \|\| isAppAdmin/);
 
   const app = src('App.jsx');
-  for (const [path, page] of [['templates', 'AdminTemplates'], ['templates/new', 'AdminTemplateEditor'], ['templates/:id/edit', 'AdminTemplateEditor'], ['decorations', 'AdminDecorations'], ['fonts', 'AdminFonts']]) {
+  for (const [path, page] of [['templates/new', 'AdminTemplateEditor'], ['templates/:id/edit', 'AdminTemplateEditor']]) {
     assert.match(app, new RegExp(`\\{ path: '${path}',\\s+element: A\\(<${page} />\\) \\}`), path);
+  }
+  // Listes des catalogues : enfants de la mise en page Bibliothèque, gardée par A().
+  const at = app.indexOf('element: A(<AdminLibrary />)');
+  assert.ok(at >= 0, 'mise en page Bibliothèque gardée');
+  const library = app.slice(at);
+  const children = library.slice(0, library.indexOf(']'));
+  for (const [path, page] of [['templates', 'AdminTemplates'], ['decorations', 'AdminDecorations'], ['fonts', 'AdminFonts']]) {
+    assert.match(children, new RegExp(`\\{ path: '${path}',\\s+element: L\\(<${page} />\\) \\}`), path);
   }
   const guard = app.slice(app.indexOf('function RequireAppAdmin'), app.indexOf('function A('));
   assert.match(guard, /if \(loading\) return <PageSpinner \/>;/);
   assert.match(guard, /if \(isAdmin\) return children;/);
   assert.match(guard, /<Navigate to="\/admin" replace \/>/);
 
-  const detail = src('pages/admin/AdminEventDetail.jsx');
+  const detail = src('pages/admin/event/CreationTab.jsx');
   assert.match(detail, /const \{ isAdmin: canPromote \} = useAppAdmin\(\);/);
   assert.match(detail, /\{canPromote && design\.canvas_json && !showPromote && \(/);
   assert.match(detail, /\{canPromote && showPromote && <PromoteToTemplateForm/);
@@ -135,7 +144,7 @@ test('front : menu « Création » et routes des catalogues réservés à l\'adm
 test('front : statut admin lu par la RPC is_app_admin, refus par défaut', () => {
   const hook = src('hooks/useAppAdmin.js');
   assert.match(hook, /createAppAdminStore\(\{ getUserId: getCurrentUserId, checkAdmin: isAppAdmin \}\)/);
-  const lib = src('lib/supabase.js');
+  const lib = src('lib/api/auth.js');
   assert.match(lib, /export async function isAppAdmin\(\) \{\s+const \{ data, error \} = await supabase\.rpc\('is_app_admin'\);/);
   assert.match(lib, /export async function getCurrentUserId\(\)/);
 });

@@ -66,6 +66,23 @@ public static class ImageLoader
     }
 
     /// <summary>
+    /// Image en mémoire (QR code, aperçu de l'appareil, aperçu d'un effet), décodée à
+    /// <paramref name="decodeWidth"/> px de large si donné, figée. Lève si les octets sont illisibles.
+    /// </summary>
+    public static BitmapImage FromBytes(byte[] bytes, int? decodeWidth = null)
+    {
+        using var stream = new MemoryStream(bytes);
+        var bmp = new BitmapImage();
+        bmp.BeginInit();
+        bmp.CacheOption  = BitmapCacheOption.OnLoad;
+        bmp.StreamSource = stream;
+        if (decodeWidth is { } dw) bmp.DecodePixelWidth = dw;
+        bmp.EndInit();
+        bmp.Freeze();
+        return bmp;
+    }
+
+    /// <summary>
     /// Largeur de décodage pour afficher une image <paramref name="srcW"/>×<paramref name="srcH"/>
     /// dans un cadre donné (Uniform ou UniformToFill). Null = taille d'origine (jamais d'agrandissement).
     /// </summary>

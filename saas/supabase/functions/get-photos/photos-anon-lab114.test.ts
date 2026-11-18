@@ -141,9 +141,14 @@ test('kiosk : plus d\'écriture REST directe de photos, passage par kiosk_record
   const svc = new URL('../../../../kiosk/PolaKiosk/Services/SupabaseService.cs', import.meta.url);
   if (!existsSync(svc)) return; // saas/ isolé du monorepo
   const src = readFileSync(svc, 'utf8');
-  assert.doesNotMatch(src, /rest\/v1\/photos/);
-  assert.match(src, /PostRpcAsync\("kiosk_record_photo"/);
+  // Corps des RPC à part depuis LAB-405
+  const bodies = readFileSync(new URL('../../../../kiosk/PolaKiosk/Services/SupabaseRpcBodies.cs', import.meta.url), 'utf8');
+  for (const file of [src, bodies]) assert.doesNotMatch(file, /rest\/v1\/photos/);
+  assert.match(src, /(?:Post|Call)RpcAsync\("kiosk_record_photo",\s*BuildRecordPhotoBody\(/);
+  const start = bodies.indexOf('BuildRecordPhotoBody(');
+  assert.ok(start > 0, 'BuildRecordPhotoBody');
+  const photoBody = bodies.slice(start, bodies.indexOf('});', start));
   for (const arg of ['p_code', 'p_event_id', 'p_photo_url', 'p_machine_id', 'p_secret']) {
-    assert.match(src, new RegExp(`\\b${arg}\\b`), `argument ${arg}`);
+    assert.match(photoBody, new RegExp(`\\b${arg}\\b`), `argument ${arg}`);
   }
 });

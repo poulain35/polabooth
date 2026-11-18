@@ -1,30 +1,23 @@
+using System.ComponentModel;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PolaKiosk.Controls;
 using PolaKiosk.Services;
-using QRCoder;
 
 namespace PolaKiosk.ViewModels;
-
-/// <summary>Écrans de l'écran résultat (LAB-252) : partage (3), QR code (3a), e-mail (3b), e-mail envoyé.</summary>
-public enum ResultScreen { Share, Qr, Email, EmailSent }
 
 /// <summary>
 /// Écran résultat : aperçu du tirage, impression (nombre d'exemplaires dans la limite des quotas),
 /// QR code vers la galerie, envoi par e-mail. Sert aussi à la photo rouverte depuis la galerie de
 /// l'accueil (<see cref="ResultParameters.FromGallery"/> : pas de « Refaire les photos »).
+/// Si l'admin a composé l'écran de partage de l'organisation (LAB-297), il remplace l'écran de
+/// partage standard ; QR code, e-mail et e-mail envoyé restent les écrans standard.
 /// </summary>
 public partial class ResultViewModel : ObservableObject, IParameterReceiver, IReleasable
 {
-    // Lot d'impression quand aucun plafond n'est fixé, et plafond d'un lot sinon.
-    internal const int UnlimitedMaxCopies = 10;
-    internal const int LimitedMaxCopies = 20;
-
-    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.CultureInvariant);
-
     private readonly IPrintService _print;
     private readonly ISupabaseService _supabase;
     private readonly INavigationService _navigation;
@@ -34,6 +27,7 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
     private readonly ISessionService _sessions;
     private readonly IGuestJourneyService _journey;
     private readonly Func<IIdleTimer> _timerFactory;
+    private readonly ISyncService? _sync;
 
     private ResultParameters? _params;
     private string? _photoPublicUrl;
@@ -46,7 +40,8 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
     private IIdleTimer? _timer;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsShareScreen), nameof(IsQrScreen), nameof(IsEmailScreen), nameof(IsEmailSentScreen))]
+    [NotifyPropertyChangedFor(nameof(IsShareScreen), nameof(IsQrScreen), nameof(IsEmailScreen), nameof(IsEmailSentScreen),
+        nameof(ShowDesignedShare), nameof(ShowStandardShare), nameof(HasSharePrintBanner))]
     private ResultScreen _screen = ResultScreen.Share;
 
     public bool IsShareScreen => Screen == ResultScreen.Share;
@@ -100,105 +95,6 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
 
     partial void OnShareStatusChanged(string value) => OnPropertyChanged(nameof(ShowShareStatus));
 
-    // ── Impression ────────────────────────────────────────────────────────
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowPrintBlock), nameof(PrintButtonText), nameof(PrintSubtitle), nameof(Subtitle))]
-    [NotifyCanExecuteChangedFor(nameof(PrintCommand), nameof(IncrementCopiesCommand), nameof(DecrementCopiesCommand))]
-    private bool _canPrint;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrintButtonText))]
-    [NotifyCanExecuteChangedFor(nameof(PrintCommand), nameof(IncrementCopiesCommand), nameof(DecrementCopiesCommand))]
-    private bool _isPrinting;
-
-    /// <summary>Tirages encore autorisés pour cette photo ; null = aucun plafond.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrintSubtitle))]
-    private int? _remainingPrints;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrintButtonText))]
-    [NotifyCanExecuteChangedFor(nameof(IncrementCopiesCommand), nameof(DecrementCopiesCommand))]
-    private int _printCopies = 1;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(IncrementCopiesCommand))]
-    private int _maxCopies = UnlimitedMaxCopies;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrintSubtitle), nameof(HasPrintError))]
-    private string _printError = "";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PrintSubtitle))]
-    private string _printNotice = "";
-
-    public bool HasPrintError => PrintError.Length > 0;
-
-    /// <summary>
-    /// Bloc d'impression : activé dans le SaaS et tirage autorisé à l'arrivée. Une fois la limite
-    /// atteinte ici, il reste affiché (bouton grisé) pour ne pas déplacer les autres boutons.
-    /// </summary>
-    public bool ShowPrintBlock => _printEnabled && (CanPrint || _hasPrinted);
-
-    /// <summary>« 10×15 » ou « 5×15 » (bandelette).</summary>
-    public string PaperLabel => PaperFormat == "2x6" ? "bandelette 5×15" : "10×15";
-
-    public string PrintButtonText =>
-        IsPrinting ? "Impression…"
-        : !CanPrint ? "Plus de tirage disponible"
-        : PrintCopies > 1 ? $"Imprimer {PrintCopies} exemplaires" : "Imprimer 1 exemplaire";
-
-    public string PrintSubtitle
-    {
-        get
-        {
-            if (PrintError.Length > 0) return PrintError;
-            if (PrintNotice.Length > 0) return PrintNotice;
-            var tirage = $"Tirage {PaperLabel}";
-            if (!CanPrint) return $"{tirage} : limite atteinte pour cette photo";
-            if (_showRemainingPrints && RemainingPrints is { } left)
-                return left > 1 ? $"{tirage}, encore {left} tirages possibles" : $"{tirage}, encore 1 tirage possible";
-            return $"{tirage}, prêt en quelques secondes";
-        }
-    }
-
-    partial void OnPaperFormatChanged(string value)
-    {
-        OnPropertyChanged(nameof(PaperLabel));
-        OnPropertyChanged(nameof(PrintSubtitle));
-    }
-
-    /// <summary>Sous-titre selon ce que la borne propose (impression, partage numérique, les deux).</summary>
-    public string Subtitle => (ShowPrintBlock, ShowShareTiles) switch
-    {
-        (true, true)  => "Imprimez, envoyez ou récupérez vos photos.",
-        (true, false) => "Imprimez votre photo en quelques secondes.",
-        (false, true) => "Envoyez ou récupérez vos photos.",
-        _             => "Votre photo est bien enregistrée.",
-    };
-
-    // ── E-mail ────────────────────────────────────────────────────────────
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendEmailCommand))]
-    private string _emailInputText = "";
-
-    /// <summary>Accord de l'invité : toujours décoché à l'ouverture, même avec une adresse pré-remplie.</summary>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendEmailCommand))]
-    private bool _emailConsent;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SendButtonText))]
-    [NotifyCanExecuteChangedFor(nameof(SendEmailCommand))]
-    private bool _isEmailSending;
-
-    [ObservableProperty] private string _emailError = "";
-    [ObservableProperty] private string _sentToAddress = "";
-    [ObservableProperty] private IReadOnlyList<string> _domainSuggestions = [];
-
-    public string SendButtonText => IsEmailSending ? "Envoi…" : "Envoyer";
-
     public ResultViewModel(
         IPrintService print,
         ISupabaseService supabase,
@@ -207,8 +103,9 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         AppSettings settings,
         IKioskLogService kioskLog,
         ISessionService sessions,
-        IGuestJourneyService journey)
-        : this(print, supabase, navigation, network, settings, kioskLog, sessions, journey, () => new DispatcherIdleTimer()) { }
+        IGuestJourneyService journey,
+        ISyncService sync)
+        : this(print, supabase, navigation, network, settings, kioskLog, sessions, journey, () => new DispatcherIdleTimer(), sync) { }
 
     internal ResultViewModel(
         IPrintService print,
@@ -219,7 +116,8 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         IKioskLogService kioskLog,
         ISessionService sessions,
         IGuestJourneyService journey,
-        Func<IIdleTimer> timerFactory)
+        Func<IIdleTimer> timerFactory,
+        ISyncService? sync = null)
     {
         _print        = print;
         _supabase     = supabase;
@@ -230,10 +128,9 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         _sessions     = sessions;
         _journey      = journey;
         _timerFactory = timerFactory;
+        _sync         = sync;
         DomainSuggestions = EmailDomainSuggestions.Suggest("", DomainSuggestionCount);
     }
-
-    internal const int DomainSuggestionCount = 4;
 
     public void ReceiveParameter(object parameter)
     {
@@ -248,9 +145,10 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         PaperFormat = p.PaperFormat;
         Screen      = ResultScreen.Share;
         ApplyConfig(p);
-        GalleryLink = BuildGalleryLink(_settings.Kiosk.SaasUrl, p.AccessCode);
+        GalleryLink = ShareLinks.BuildGalleryLink(_settings.Kiosk.SaasUrl, p.AccessCode);
 
         CompositeImage = await Task.Run(() => ImageLoader.LoadForScreen(p.CompositePath, fill: false));
+        DesignedShare  = await DesignedShareLoader.LoadAsync(_sync, _kioskLog);
 
         try { await RefreshPrintStatusAsync(); }
         catch (Exception ex) { await _kioskLog.LogErrorAsync("print", ex.Message, ex.StackTrace); }
@@ -344,96 +242,6 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         if (_autoHomeSeconds > 0) AutoHomeSecondsLeft = _autoHomeSeconds;
     }
 
-    // ── Impression ────────────────────────────────────────────────────────
-
-    private async Task RefreshPrintStatusAsync()
-    {
-        if (_params == null) return;
-
-        var remaining = await _print.GetRemainingPrintsAsync(
-            _params.EventId, _params.MaxPrintsPerEvent,
-            _params.SessionId, _params.MaxPrintsPerPhoto);
-
-        RemainingPrints = remaining;
-        CanPrint        = remaining is null or > 0;
-        MaxCopies       = remaining is { } left ? Math.Clamp(left, 1, LimitedMaxCopies) : UnlimitedMaxCopies;
-        PrintCopies     = Math.Clamp(PrintCopies, 1, MaxCopies);
-        NotifyPrintBlockChanged();
-    }
-
-    private bool CanChangeCopies() => CanPrint && !IsPrinting;
-
-    [RelayCommand(CanExecute = nameof(CanIncrementCopies))]
-    private void IncrementCopies()
-    {
-        RegisterActivity();
-        if (PrintCopies < MaxCopies) PrintCopies++;
-    }
-
-    private bool CanIncrementCopies() => CanChangeCopies() && PrintCopies < MaxCopies;
-
-    [RelayCommand(CanExecute = nameof(CanDecrementCopies))]
-    private void DecrementCopies()
-    {
-        RegisterActivity();
-        if (PrintCopies > 1) PrintCopies--;
-    }
-
-    private bool CanDecrementCopies() => CanChangeCopies() && PrintCopies > 1;
-
-    [RelayCommand(CanExecute = nameof(CanChangeCopies))]
-    private async Task PrintAsync()
-    {
-        if (_params == null || IsPrinting || !CanPrint) return;
-        RegisterActivity();
-
-        var copies = Math.Clamp(PrintCopies, 1, MaxCopies);
-        IsPrinting  = true;
-        PrintError  = "";
-        PrintNotice = "";
-        try
-        {
-            await _print.PrintAsync(
-                _params.CompositePath,
-                _params.PrinterName,
-                _params.PaperFormat,
-                _params.SessionId,
-                _params.EventId,
-                copies,
-                _photoPublicUrl);
-            PrintNotice = copies > 1 ? "C'est parti ! Vos tirages arrivent." : "C'est parti ! Votre tirage arrive.";
-            _ = ClearPrintMessagesAsync();
-        }
-        catch (Exception ex)
-        {
-            await _kioskLog.LogErrorAsync("print", ex.Message, ex.StackTrace);
-            // Message dans le bloc d'impression : l'invité peut réessayer ou choisir le QR code.
-            PrintError = ex switch
-            {
-                PrintBusyException => "Une impression est encore en cours. Patientez quelques instants.",
-                TimeoutException   => "L'imprimante ne répond pas. Vérifiez le papier avant de réessayer.",
-                _                  => "Impression indisponible. Réessayez ou utilisez le QR code.",
-            };
-            _ = ClearPrintMessagesAsync();
-        }
-        finally
-        {
-            _hasPrinted = true;
-            // Aussi après un délai dépassé : l'impression envoyée est déjà comptée.
-            try { await RefreshPrintStatusAsync(); }
-            catch (Exception ex) { await _kioskLog.LogErrorAsync("print", ex.Message, ex.StackTrace); }
-            IsPrinting = false;
-            RegisterActivity();
-        }
-    }
-
-    private async Task ClearPrintMessagesAsync()
-    {
-        await Task.Delay(6000);
-        PrintError  = "";
-        PrintNotice = "";
-    }
-
     // ── Sous-écrans ───────────────────────────────────────────────────────
 
     [RelayCommand(CanExecute = nameof(IsShareReady))]
@@ -467,68 +275,6 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         Screen = ResultScreen.Share;
     }
 
-    // ── E-mail ────────────────────────────────────────────────────────────
-
-    // Saisie de l'adresse (clavier tactile ou physique) : l'invité est actif.
-    partial void OnEmailInputTextChanged(string value)
-    {
-        RegisterActivity();
-        EmailError = "";
-        DomainSuggestions = EmailDomainSuggestions.Suggest(value ?? "", DomainSuggestionCount);
-    }
-
-    partial void OnEmailConsentChanged(bool value) => RegisterActivity();
-
-    /// <summary>Raccourci de domaine : remplace tout ce qui suit « @ » (ou l'ajoute).</summary>
-    [RelayCommand]
-    private void ApplyEmailDomain(string? domain)
-    {
-        if (string.IsNullOrWhiteSpace(domain)) return;
-        RegisterActivity();
-        var text = EmailInputText ?? "";
-        var at = text.IndexOf('@');
-        var local = at < 0 ? text : text[..at];
-        var updated = local + "@" + domain.TrimStart('@');
-        if (updated.Length <= EmailMaxLength) EmailInputText = updated;
-    }
-
-    internal const int EmailMaxLength = 254;
-
-    internal static bool IsPlausibleEmail(string? email) =>
-        !string.IsNullOrWhiteSpace(email) && EmailPattern.IsMatch(email.Trim());
-
-    private bool CanSendEmail() =>
-        EmailConsent && IsShareReady && !IsEmailSending && IsPlausibleEmail(EmailInputText);
-
-    [RelayCommand(CanExecute = nameof(CanSendEmail))]
-    private async Task SendEmailAsync()
-    {
-        if (_params == null || _photoPublicUrl == null || !CanSendEmail()) return;
-
-        RegisterActivity();
-        var address = EmailInputText.Trim();
-        IsEmailSending = true;
-        EmailError = "";
-        try
-        {
-            await _supabase.SendKioskPhotoEmailAsync(_params.EventId, address, _photoPublicUrl);
-            SentToAddress  = address;
-            EmailInputText = "";
-            EmailConsent   = false;
-            Screen         = ResultScreen.EmailSent;
-        }
-        catch (Exception ex)
-        {
-            await _kioskLog.LogErrorAsync("email", ex.Message, ex.StackTrace);
-            EmailError = "L'envoi n'a pas abouti. Vérifiez l'adresse et réessayez.";
-        }
-        finally
-        {
-            IsEmailSending = false;
-            RegisterActivity();
-        }
-    }
-
     // ── Navigation ────────────────────────────────────────────────────────
 
     // Navigation explicite : l'écran précédent peut être le choix d'effet ou la galerie.
@@ -551,6 +297,7 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         StopCountdown();
         CompositeImage = null;
         QrCodeImage    = null;
+        DesignedShare  = null;
     }
 
     // ── Envoi de la photo et QR code ──────────────────────────────────────
@@ -575,49 +322,9 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
     private void ShowShareReady(string publicUrl, Guid photoId)
     {
         _photoPublicUrl = publicUrl;
-        QrCodeImage     = RenderQr(BuildQrUrl(_settings.Kiosk.SaasUrl, _params?.AccessCode, photoId, publicUrl));
+        var qrUrl       = ShareLinks.BuildQrUrl(_settings.Kiosk.SaasUrl, _params?.AccessCode, photoId, publicUrl);
+        QrCodeImage     = QrCodeRenderer.Render(qrUrl, QrCodeRenderer.SharePixelsPerModule);
         ShareStatus     = "";
         IsShareReady    = true;
-    }
-
-    private static BitmapImage RenderQr(string url)
-    {
-        using var generator = new QRCodeGenerator();
-        using var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        using var code = new PngByteQRCode(data);
-        var png = code.GetGraphic(10);
-
-        var bmp = new BitmapImage();
-        bmp.BeginInit();
-        bmp.StreamSource = new MemoryStream(png);
-        bmp.CacheOption  = BitmapCacheOption.OnLoad;
-        bmp.EndInit();
-        bmp.Freeze();
-        return bmp;
-    }
-
-    /// <summary>
-    /// Lien du QR code : la photo dans la galerie (code d'accès + id de la photo), à défaut la galerie
-    /// de l'événement, à défaut l'URL publique du fichier. <c>via=qr</c> fait compter l'ouverture par
-    /// QR code côté serveur (get-photos, LAB-209) ; l'URL publique R2 n'est pas une page, rien à compter.
-    /// </summary>
-    internal static string BuildQrUrl(string saasUrl, string? accessCode, Guid photoId, string publicUrl)
-    {
-        if (string.IsNullOrEmpty(accessCode) || string.IsNullOrWhiteSpace(saasUrl)) return publicUrl;
-        var gallery = $"{saasUrl.TrimEnd('/')}/photos/{accessCode}";
-        return photoId != Guid.Empty ? $"{gallery}?photo={photoId}&via=qr" : $"{gallery}?via=qr";
-    }
-
-    /// <summary>
-    /// Lien de la galerie à taper à la main (sans lecteur QR) : sans « https:// » ni paramètres.
-    /// Vide sans code d'accès ni adresse du SaaS (le QR mène alors au fichier seul, trop long à recopier).
-    /// </summary>
-    internal static string BuildGalleryLink(string saasUrl, string? accessCode)
-    {
-        if (string.IsNullOrEmpty(accessCode) || string.IsNullOrWhiteSpace(saasUrl)) return "";
-        var host = saasUrl.TrimEnd('/');
-        var scheme = host.IndexOf("://", StringComparison.Ordinal);
-        if (scheme >= 0) host = host[(scheme + 3)..];
-        return $"{host}/photos/{accessCode}";
     }
 }

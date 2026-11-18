@@ -31,6 +31,12 @@ public interface IMachineSettingsService
 
     /// <summary>« Changer de SaaS » : efface l'adresse saisie (les autres réglages restent).</summary>
     void ClearSaasAddress();
+
+    /// <summary>
+    /// Enregistre un réglage du pilote (LAB-334) : remplace celui de même imprimante et de même sorte,
+    /// garde les autres.
+    /// </summary>
+    void SetPrinterDriverSetting(PrinterDriverSetting setting);
 }
 
 public record MachineSettings
@@ -63,6 +69,9 @@ public record MachineSettings
     public string? SupabaseUrl { get; init; }
 
     public string? SupabaseAnonKey { get; init; }
+
+    /// <summary>Réglages du pilote enregistrés depuis l'Admin, par imprimante et par sorte (LAB-334).</summary>
+    public IReadOnlyList<PrinterDriverSetting>? PrinterDriverSettings { get; init; }
 
     [JsonIgnore] public int WebcamWidthOrDefault  => WebcamWidth  is > 0 ? WebcamWidth.Value  : WebcamCameraService.DefaultWidth;
     [JsonIgnore] public int WebcamHeightOrDefault => WebcamHeight is > 0 ? WebcamHeight.Value : WebcamCameraService.DefaultHeight;

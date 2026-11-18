@@ -32,6 +32,7 @@ internal sealed class ResultViewModelHarness
     public Mock<INetworkMonitorService> Network { get; } = new();
     public Mock<ISessionService> Sessions { get; } = new();
     public Mock<IKioskLogService> Log { get; } = new();
+    public Mock<ISyncService> Sync { get; } = new();
     public GuestJourneyService Journey { get; }
     public FakeTimer Timer { get; } = new();
     public Type? Current { get; private set; } = typeof(ResultView);
@@ -58,7 +59,7 @@ internal sealed class ResultViewModelHarness
 
     public ResultViewModel Create() => new(
         Print.Object, Supabase.Object, Navigation.Object, Network.Object, new AppSettings { Kiosk = { SaasUrl = "https://photobooth.exemple.fr" } }, Log.Object,
-        Sessions.Object, Journey, () => Timer);
+        Sessions.Object, Journey, () => Timer, Sync.Object);
 
     public static ResultParameters Parameters(
         ResultButtonsConfig? buttons = null, bool emailEnabled = true, int autoReturnSeconds = 30,

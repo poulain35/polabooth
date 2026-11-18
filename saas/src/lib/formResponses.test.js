@@ -1,7 +1,7 @@
 // LAB-217 : les consentements photo de la borne ne sont ni des réponses client ni des statistiques.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import {
   KIOSK_CONSENT_TYPE, NOT_KIOSK_CONSENT_FILTER, isKioskConsentRow, withoutKioskConsents, latestResponsePerEvent,
   FORM_DISABLED_MESSAGE, FORM_GENERIC_MESSAGE, FORM_INVALID_MESSAGE, FORM_RATE_LIMITED_MESSAGE,
@@ -63,8 +63,8 @@ test('filtre PostgREST : garde les lignes sans type, exclut rgpd_consent', () =>
   assert.equal(NOT_KIOSK_CONSENT_FILTER, 'answers->>type.is.null,answers->>type.neq.rgpd_consent');
 });
 
-test('supabase.js : les lectures admin filtrent côté requête et côté client', () => {
-  const src = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
+test('api/forms.js : les lectures admin filtrent côté requête et côté client', () => {
+  const src = readFileSync(new URL('./api/forms.js', import.meta.url), 'utf8');
   for (const fn of ['getFormResponses', 'getAllFormResponses']) {
     const body = src.slice(src.indexOf(`export async function ${fn}(`)).split(/\nexport /)[0];
     assert.match(body, /\.or\(NOT_KIOSK_CONSENT_FILTER\)/, fn);
@@ -104,14 +104,18 @@ test('formSubmitErrorMessage : formulaire ou fonctionnalité désactivés, répo
 });
 
 test('submitFormResponse : RPC submit_form_response avec le code, plus aucun INSERT direct', () => {
-  const src = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('export async function submitFormResponse'), src.indexOf('export async function reviewDesign'));
+  const src = readFileSync(new URL('./api/forms.js', import.meta.url), 'utf8');
+  const apiDir = new URL('./api/', import.meta.url);
+  const allApi = readdirSync(apiDir).map((f) => readFileSync(new URL(f, apiDir), 'utf8')).join('\n');
+  const start = src.indexOf('export async function submitFormResponse');
+  assert.ok(start >= 0);
+  const fn = src.slice(start, src.indexOf('\n}\n', start));
   assert.match(fn, /export async function submitFormResponse\(\{ code, answers \}\)/);
   assert.match(fn, /supabase\.rpc\('submit_form_response', \{ p_code: code, p_answers: answers \}\)/);
   assert.match(fn, /throw new Error\(formSubmitErrorMessage\(error\)\)/);
   // false : code inconnu ou événement inactif (la RPC ne lève pas, pour compter l'échec).
   assert.match(fn, /if \(data !== true\) throw new Error\(FORM_UNKNOWN_EVENT_MESSAGE\)/);
-  assert.doesNotMatch(src, /from\(\s*'event_form_responses'\s*\)\s*\.insert\(/);
+  assert.doesNotMatch(allApi, /from\(\s*'event_form_responses'\s*\)\s*\.insert\(/);
 
   const form = readFileSync(new URL('../components/ClientForm.jsx', import.meta.url), 'utf8');
   assert.match(form, /export default function ClientForm\(\{ code, event,/);

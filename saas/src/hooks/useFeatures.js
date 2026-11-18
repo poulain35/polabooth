@@ -63,5 +63,8 @@ export function useFeatures() {
     setState({ features: next });
   }, []);
 
-  return { features: snapshot.features, isEnabled, isAvailable, isInstalled, loading: snapshot.loading, error: snapshot.error, save };
+  return {
+    orgId: snapshot.orgId, features: snapshot.features, isEnabled, isAvailable, isInstalled,
+    loading: snapshot.loading, error: snapshot.error, save,
+  };
 }

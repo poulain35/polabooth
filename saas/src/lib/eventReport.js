@@ -8,11 +8,12 @@ import { bookingBannerLinks } from './galleryBanner.js';
 import { isVideoUrl } from '../utils/media.js';
 import { ORG } from '../components/public/polaStyles.js';
 import { BRAND } from './instanceBrand.js';
+import { plural } from './format.js';
 
 export const REPORT_UTM = { utm_source: 'rapport', utm_medium: 'email' };
 export const UNAVAILABLE_MESSAGE = 'Ce bilan n’est plus disponible';
 export const MAX_PHOTOS = 6;
-export const MAX_HOUR_DAYS = 3;
+const MAX_HOUR_DAYS = 3;
 // Une séance entre minuit et 6 h appartient à la soirée de la veille (si la veille a des séances).
 const NIGHT_END_HOUR = 6;
 
@@ -32,9 +33,6 @@ export function count(value) {
 
 /** 1234 → « 1 234 » (espace fine insécable du format fr-FR). */
 export const formatCount = (n) => NUMBER.format(n);
-
-/** Singulier pour 0 et 1, comme en français. */
-export const plural = (n, one, many) => (n > 1 ? many : one);
 
 const capitalize = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
 

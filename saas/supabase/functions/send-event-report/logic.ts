@@ -22,7 +22,7 @@ const BLOCKER_MESSAGES: Record<BlockerCode, string> = {
 };
 
 export const NOTHING_TO_REPORT = 'Rien à présenter pour cet événement.';
-export const EVENT_NOT_FOUND = 'Événement introuvable';
+const EVENT_NOT_FOUND = 'Événement introuvable';
 export const INVALID_PHOTOS = 'Choisissez 6 photos au plus.';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,7 +33,7 @@ export function parseBlockers(message: string | null | undefined): BlockerCode[]
   return BLOCKER_CODES.filter((code) => new RegExp(`\\b${code}\\b`).test(text));
 }
 
-export function blockerMessage(code: BlockerCode): string {
+function blockerMessage(code: BlockerCode): string {
   return BLOCKER_MESSAGES[code];
 }
 
@@ -94,7 +94,7 @@ export function rollbackPatch(previous: PreviousReport | null): PreviousReport |
   };
 }
 
-export interface FrozenReport {
+interface FrozenReport {
   id: string;
   token: string;
   status: string;

@@ -12,12 +12,15 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card } from '../ui/card';
+import { CardHeading, Notice } from './CardParts';
 import { Skeleton } from '../ui/skeleton';
+import { StatusPill } from '../ui/status-pill';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/table';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
 import { toast } from 'sonner';
+import { downloadBlob } from '../../lib/download';
 
 const APP_URL = (import.meta.env.VITE_APP_URL ?? window.location.origin).replace(/\/$/, '');
 const PAGE_SIZE = 20;
@@ -27,20 +30,11 @@ const FORMATS = [
   { value: 'csv', label: 'CSV' },
 ];
 
-function downloadBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-xl font-semibold text-gray-900 mt-0.5">{value}</p>
+    <div className="rounded-xl bg-muted px-4 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-xl font-medium text-foreground">{value}</p>
     </div>
   );
 }
@@ -177,24 +171,20 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
   }
 
   return (
-    <Card className="p-5 rounded-2xl shadow-sm">
+    <Card className="p-card">
       {/* En-tête */}
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
-        <div>
-          <h2 className="font-semibold text-gray-800">
-            Réponses des invités
-            {responseCount > 0 && <span className="ml-2 px-2 py-0.5 bg-primary/15 text-primary text-xs font-semibold rounded-full">{responseCount}</span>}
-          </h2>
-          {summary?.purge_at && (
-            <p className="text-sm text-gray-500 mt-1">
-              Suppression automatique à partir du {formatParisDate(summary.purge_at)}
-            </p>
-          )}
-        </div>
-        {exportedAt && (
-          <p className="text-xs text-gray-400">Dernier export le {formatParisDateTime(exportedAt)}</p>
+      <CardHeading
+        className="mb-4 gap-2"
+        titleClassName="flex flex-wrap items-center gap-2"
+        title={<>
+          Réponses des invités
+          {responseCount > 0 && <StatusPill tone="gray" dot={false}>{responseCount}</StatusPill>}
+        </>}
+        description={summary?.purge_at && <>Suppression automatique à partir du {formatParisDate(summary.purge_at)}</>}
+        actions={exportedAt && (
+          <p className="text-xs text-muted-foreground">Dernier export le {formatParisDateTime(exportedAt)}</p>
         )}
-      </div>
+      />
 
       {/* Compteurs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
@@ -204,30 +194,32 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
       </div>
 
       {/* Export */}
-      <div id="guest-export" className="rounded-xl border border-gray-100 p-4 mb-5 space-y-3 scroll-mt-6">
+      <div id="guest-export" className="mb-5 scroll-mt-6 space-y-3 rounded-xl border border-border p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">Format</span>
-          <div className="inline-flex rounded-lg border border-gray-200 p-0.5" role="radiogroup" aria-label="Format du fichier">
+          <span className="text-sm font-medium text-foreground">Format</span>
+          <div className="inline-flex rounded-full bg-muted p-0.5" role="radiogroup" aria-label="Format du fichier">
             {FORMATS.map((f) => (
               <button key={f.value} type="button" role="radio" aria-checked={format === f.value}
                 onClick={() => setFormat(f.value)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${format === f.value ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'}`}>
+                className={`rounded-full px-3 py-1 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${format === f.value ? 'bg-strong font-medium text-strong-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                 {f.label}
               </button>
             ))}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => handleExport(EXPORT_KINDS.consent)} disabled={!!exporting || consentCount === 0} className="rounded-xl">
+          <Button onClick={() => handleExport(EXPORT_KINDS.consent)} disabled={!!exporting || consentCount === 0} >
             {exporting === EXPORT_KINDS.consent ? <Loader2 className="animate-spin" /> : <Download />}
-            Contacts ayant accepté la prospection
+            {/* Sur téléphone, le libellé complet dépasse de la carte : il se raccourcit. */}
+            <span className="sm:hidden">Contacts prospection</span>
+            <span className="hidden sm:inline">Contacts ayant accepté la prospection</span>
           </Button>
-          <Button variant="outline" onClick={() => handleExport(EXPORT_KINDS.all)} disabled={!!exporting || responseCount === 0} className="rounded-xl">
+          <Button variant="outline" onClick={() => handleExport(EXPORT_KINDS.all)} disabled={!!exporting || responseCount === 0} >
             {exporting === EXPORT_KINDS.all ? <Loader2 className="animate-spin" /> : <Download />}
             Toutes les réponses
           </Button>
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Le fichier « contacts » ne contient que les invités qui ont coché la case de prospection (une ligne par envoi).
           Téléchargez-le puis envoyez-le vous-même au client.
         </p>
@@ -235,20 +227,20 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
 
       {/* Recherche */}
       <div className="relative mb-3">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Rechercher un e-mail ou un téléphone" className="pl-9" aria-label="Rechercher un e-mail ou un téléphone" />
       </div>
 
-      {error && <p className="text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 mb-3">{error}</p>}
+      {error && <Notice tone="red" className="mb-3">{error}</Notice>}
 
       {/* Liste */}
       {loading && rows.length === 0 ? (
         <div className="space-y-2">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 rounded-lg w-full" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-8 w-full rounded-control" />)}
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-6">
+        <p className="text-sm text-muted-foreground text-center py-6">
           {search ? 'Aucune réponse ne correspond à cette recherche.' : 'Aucune réponse pour le moment.'}
         </p>
       ) : (
@@ -267,17 +259,15 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="whitespace-nowrap text-gray-500">{formatParisDateTime(r.answered_at)}</TableCell>
-                  <TableCell className="text-gray-900">{r.email || <span className="text-gray-300">—</span>}</TableCell>
-                  <TableCell className="whitespace-nowrap text-gray-900">{r.phone ? formatPhone(r.phone) : <span className="text-gray-300">—</span>}</TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">{formatParisDateTime(r.answered_at)}</TableCell>
+                  <TableCell className="text-foreground">{r.email || <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="whitespace-nowrap text-foreground">{r.phone ? formatPhone(r.phone) : <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.marketing_consent ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {r.marketing_consent ? 'Oui' : 'Non'}
-                    </span>
+                    <StatusPill tone={r.marketing_consent ? 'green' : 'gray'}>{r.marketing_consent ? 'Oui' : 'Non'}</StatusPill>
                   </TableCell>
-                  <TableCell className="text-right text-gray-500">{responsePhotos(r, sessions).length}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{responsePhotos(r, sessions).length}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600"
+                    <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-destructive"
                       onClick={() => setToDelete(r)} aria-label="Supprimer la réponse">
                       <Trash2 />
                     </Button>
@@ -286,14 +276,14 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
               ))}
             </TableBody>
           </Table>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-            <span className="text-xs text-gray-400">
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <span className="text-xs text-muted-foreground">
               {total} réponse{total > 1 ? 's' : ''}{totalPages > 1 && ` · page ${page} / ${totalPages}`}
             </span>
             {totalPages > 1 && (
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => p - 1)} disabled={page === 1 || loading}>← Précédent</Button>
-                <Button variant="outline" size="sm" className="h-8" onClick={() => setPage((p) => p + 1)} disabled={page === totalPages || loading}>Suivant →</Button>
+                <Button variant="outline" size="sm"  onClick={() => setPage((p) => p - 1)} disabled={page === 1 || loading}>← Précédent</Button>
+                <Button variant="outline" size="sm"  onClick={() => setPage((p) => p + 1)} disabled={page === totalPages || loading}>Suivant →</Button>
               </div>
             )}
           </div>
@@ -304,7 +294,7 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
       {responseCount > 0 && (
         <div className="mt-5 flex justify-end">
           <Button variant="outline" size="sm" onClick={() => { setWipeCode(''); setShowWipe(true); }}
-            className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+            className="text-destructive hover:bg-state-red hover:text-destructive">
             <Trash2 /> Tout supprimer
           </Button>
         </div>
@@ -319,7 +309,7 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
               {toDelete && [toDelete.email, toDelete.phone && formatPhone(toDelete.phone), formatParisDateTime(toDelete.answered_at)].filter(Boolean).join(' · ')}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             La réponse disparaît de la liste et des exports. Les photos de l'invité ne sont pas supprimées.
           </p>
           <DialogFooter>
@@ -344,7 +334,7 @@ export default function GuestResponsesPanel({ event, onExported, onSummary }) {
           </DialogHeader>
           <div className="space-y-1.5">
             <Label htmlFor="guest-wipe-code">
-              Pour confirmer, tapez le code de l'événement : <span className="font-mono font-semibold">{event.access_code}</span>
+              Pour confirmer, tapez le code de l'événement : <span className="font-mono font-medium">{event.access_code}</span>
             </Label>
             <Input id="guest-wipe-code" value={wipeCode} onChange={(e) => setWipeCode(e.target.value)}
               autoComplete="off" className="font-mono uppercase"

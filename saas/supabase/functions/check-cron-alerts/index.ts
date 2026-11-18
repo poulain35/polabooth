@@ -19,9 +19,10 @@ import { corsResponse } from '../_shared/cors.ts';
 import { isServiceRoleJwt } from '../_shared/admin-guard.ts';
 import { sendHtmlEmail } from '../_shared/email.ts';
 import {
-  HTTP_FAILURE_STREAK, HTTP_HISTORY_LIMIT, planCronAlerts, retryOnceIfTransient,
+  HTTP_FAILURE_STREAK, HTTP_HISTORY_LIMIT, planCronAlerts,
   type CronAlertState, type CronHttpCall, type CronJobSnapshot,
 } from './evaluate.ts';
+import { retryOnceIfTransient } from './retry.ts';
 import { renderCronAlertEmail } from './email.ts';
 
 type Db = ReturnType<typeof adminClient>;
@@ -33,7 +34,7 @@ async function adminRecipient(db: Db): Promise<string | null> {
   return (data?.notify_email || data?.contact_email || '').trim() || null;
 }
 
-/** Relevé, retenté une seule fois (après 2 s) sur erreur transitoire : logique testée dans evaluate.test.ts. */
+/** Relevé, retenté une seule fois (après 2 s) sur erreur transitoire : logique testée dans retry.test.ts. */
 function healthSnapshot(db: Db) {
   return retryOnceIfTransient(
     () => db.rpc('cron_health_snapshot'),
@@ -72,12 +73,12 @@ Deno.serve(async (req) => {
   const { data: jobs, error: snapErr } = await healthSnapshot(db);
   if (snapErr) {
     console.error('check-cron-alerts snapshot :', snapErr.message);
-    return corsResponse(500, { error: snapErr.message });
+    return corsResponse(500, { error: 'Lecture de l’état des tâches impossible' });
   }
   const { data: previous, error: stateErr } = await db.from('cron_job_alerts').select('*');
   if (stateErr) {
     console.error('check-cron-alerts état :', stateErr.message);
-    return corsResponse(500, { error: stateErr.message });
+    return corsResponse(500, { error: 'Lecture des alertes impossible' });
   }
 
   const plan = planCronAlerts((jobs ?? []) as CronJobSnapshot[], (previous ?? []) as CronAlertState[], now, await httpHistory(db));
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
       .upsert(plan.states.map((s) => ({ ...s, updated_at: updatedAt })), { onConflict: 'job_name' });
     if (error) {
       console.error('check-cron-alerts enregistrement :', error.message);
-      return corsResponse(500, { error: error.message });
+      return corsResponse(500, { error: 'Enregistrement des alertes impossible' });
     }
   }
 

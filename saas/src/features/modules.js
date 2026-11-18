@@ -12,7 +12,6 @@
  */
 import registry from '../modules/index.js';
 
-export const MODULES = registry;
 export const INSTALLED_MODULES = new Set(registry.map((module) => module.id));
 
 /** Routes déclarées par les modules pour un emplacement de App.jsx, avec leur fonctionnalité. */

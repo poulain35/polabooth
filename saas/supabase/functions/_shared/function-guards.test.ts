@@ -23,11 +23,12 @@ function verifyJwtDisabled(fn: string): boolean {
   return !!block && /^\s*verify_jwt\s*=\s*false/m.test(block);
 }
 
-// Jobs pg_cron (cron.job en dev) qui appellent une edge function.
+// Jobs pg_cron (cron.job en dev) qui appellent une edge function. Les jobs propres à un module privé
+// (facturation) sont vérifiés par les tests de ce module.
 const CRON = [
-  'booking-reminders', 'booking-slot-reminders', 'check-kiosk-alerts', 'payment-reconcile', 'pennylane-sync',
+  'booking-reminders', 'booking-slot-reminders', 'check-kiosk-alerts',
   'send-access-emails', 'send-balance-invoices', 'send-delivery', 'send-design-reminders',
-  'check-cron-alerts', 'media-expiry',
+  'check-cron-alerts', 'media-expiry', 'design-images-cleanup', 'billing-documents-cleanup',
 ];
 // Pas d'égalité stricte avec SUPABASE_SERVICE_ROLE_KEY : le cron envoie le JWT du Vault (LAB-119).
 const SERVICE_ROLE_GUARD = /cronOnly\(|isServiceRoleJwt\(|isServiceRoleRequest\(|requireServiceOrOrgAdmin\(/;
@@ -63,17 +64,26 @@ test('fonctions admin LAB-113 : garde partagé appliqué', () => {
     'get-audio-upload-url': /requireOrgAccess\(adminClient\(\), auth\.user\.id, \{ kind: 'event'/,
     'generate-background': /requireAnyOrgOwner\(/,
     'remove-background': /requireAnyOrgOwner\(/,
+    // LAB-348 : images des modèles de la bibliothèque, administrateur de l'application.
+    'upload-design-image': /requireAppAdmin\(db, auth\.user\.id\)/,
+    // LAB-331 : fichier TTF d'une police Google pour la publication des écrans de la borne.
+    'google-font-file': /requireAnyOrgOwner\(adminClient\(\), auth\.user\.id\)/,
     'convert-lead': /forbiddenOrg\(\)/,
-    'resend-access-email': /forbiddenOrg\(\)/,
-    'review-design': /forbiddenOrg\(\)/,
-    'send-delivery': /forbiddenOrg\(\)/,
-    'send-event-report': /forbiddenOrg\(\)/,
-    'pennylane-sync': /requireServiceOrOrgAdmin\(/,
+    // LAB-392 : garde partagé requireOrgAccess (404 puis 403) au lieu du contrôle owner_id à la main.
+    'resend-access-email': /requireOrgAccess\(db, user\.id, \{ kind: 'event', id: event_id \}\)/,
+    'review-design': /requireOrgAccess\(db, user\.id, \{ kind: 'design', id: design_id \}\)/,
+    'send-delivery': /requireOrgAccess\(db, user\.id, \{ kind: 'event', id: eventId \}\)/,
+    'send-event-report': /requireOrgAccess\(db, user\.id, \{ kind: 'event', id: eventId \}\)/,
     'gcal-sync': /requireServiceOrOrgAdmin\(/,
     // Open core L3b : module privé de réservation, appels internes (service_role) seulement.
     'booking-gcal-sync': /if \(!isServiceRoleRequest\(req\.headers\.get\('Authorization'\), Deno\.env\.get\('SUPABASE_SERVICE_ROLE_KEY'\)\)\)/,
     // LAB-242 : super-admin (app_admins) ou propriétaire du compte de la borne.
-    'kiosk-admin-pin': /\.from\('app_admins'\)[\s\S]*\.eq\('user_id', userId\)[\s\S]*\.eq\('owner_id', userId\)[\s\S]*if \(!org\) return corsResponse\(403/,
+    // LAB-300 : aperçu et email de test, propriétaire de l'organisation de l'événement.
+    'kiosk-email-preview': /requireOrgAccess\(db, auth\.user\.id, \{ kind: 'event', id: request\.eventId \}\)/,
+    // LAB-345 : email de test des réglages d'envoi, administrateur de l'application.
+    'send-test-email': /requireAppAdmin\(db, auth\.user\.id\)/,
+    // LAB-392 : propriétaire de l'organisation de la borne, ou administrateur de l'application.
+    'kiosk-admin-pin': /requireOrgAccess\(db, userId, \{ kind: 'kiosk_license', id: license_id \}, \{ allowAppAdmin: true \}\)/,
   };
   for (const [fn, re] of Object.entries(expected)) if (installed(fn)) assert.match(source(fn), re, fn);
 });
@@ -82,6 +92,23 @@ test('limites de débit : generate-background par utilisateur, assistant-chat pl
   assert.match(source('generate-background'), /LIMITS\.generateBgUser, auth\.user\.id\]/);
   assert.match(source('generate-background'), /LIMITS\.generateBgUserDay, auth\.user\.id\]/);
   assert.match(source('assistant-chat'), /LIMITS\.assistantGlobalDay, GLOBAL_KEY\]/);
+  assert.match(source('kiosk-email-preview'), /LIMITS\.kioskEmailTestUser, auth\.user\.id\]/);
+  if (installed('send-test-email')) assert.match(source('send-test-email'), /LIMITS\.testEmailUser, auth\.user\.id\]/);
+});
+
+test('kiosk-email-preview : JWT exigé, droits vérifiés avant toute lecture, test à l’adresse du compte (LAB-300)', () => {
+  const src = source('kiosk-email-preview');
+  assert.equal(verifyJwtDisabled('kiosk-email-preview'), false);
+  const access = src.indexOf('requireOrgAccess(db, auth.user.id');
+  assert.ok(access > src.indexOf("authenticate(req.headers.get('Authorization'), sessionUser)"));
+  assert.ok(access < src.indexOf(".from('events')"), 'droits avant la lecture de l’événement');
+  assert.ok(src.indexOf('LIMITS.kioskEmailTestUser') < src.indexOf('sendHtmlEmail('), 'limite avant l’envoi');
+  assert.match(src, /const to = auth\.user\.email \?\? '';/);
+  assert.match(src, /sendHtmlEmail\(\{ to, subject: testSubject\(subject\), html, sender \}\)/);
+  // Non compté : ni event_activity ni sendKioskEmailAndCount ; même module que l'envoi réel.
+  assert.doesNotMatch(src, /event_activity'\)|sendKioskEmailAndCount\(|recordEventActivity\(/);
+  assert.match(src, /buildKioskEmail\(\{/);
+  assert.match(source('send-kiosk-photo'), /buildKioskEmail\(\{/);
 });
 
 test('send-kiosk-photo : événement actif et photo rattachée vérifiés', () => {

@@ -6,8 +6,6 @@ import { KIOSK_QUESTION_TYPES, isChoiceType } from '../utils/formQuestions.js';
 
 export const QUESTIONNAIRE_LIMITS = { questions: 8, options: 12, label: 120 };
 
-export const DEFAULT_HOME_NOTICE = 'Pour recevoir votre photo, quelques questions vous seront posées.';
-
 export const DEFAULT_NOTICE =
   "Vos réponses sont collectées pour {controller_name}. Elles sont conservées 1 mois après l'événement, puis supprimées. Pour les consulter ou les supprimer : {controller_contact}.";
 
@@ -17,7 +15,6 @@ export function buildDefaultQuestionnaire() {
   return {
     enabled: false,
     required_for_photo: true,
-    home_notice: DEFAULT_HOME_NOTICE,
     title: 'Restons en contact',
     intro: 'Quelques questions rapides pendant que votre photo se prépare.',
     cancel_label: 'Annuler',
@@ -36,14 +33,16 @@ export function buildDefaultQuestionnaire() {
   };
 }
 
-// Config enregistrée + défauts. Les clés abandonnées par la spec (allow_skip, retention_days)
-// et tout réglage « obligatoire » / « coché » de la case de prospection sont retirés.
+// Config enregistrée + défauts. Les clés abandonnées (allow_skip, retention_days, home_notice :
+// mention d'accueil retirée le 2026-11-15) et tout réglage « obligatoire » / « coché » de la case
+// de prospection sont retirés.
 export function withQuestionnaireDefaults(raw) {
   const def = buildDefaultQuestionnaire();
   const src = raw && typeof raw === 'object' ? raw : {};
   const rest = { ...src };
   delete rest.allow_skip;
   delete rest.retention_days;
+  delete rest.home_notice;
   return {
     ...def,
     ...rest,
@@ -61,7 +60,6 @@ export function cleanQuestionnaire(q) {
   const base = withQuestionnaireDefaults(q);
   return {
     ...base,
-    home_notice: String(base.home_notice ?? '').trim(),
     controller: {
       name: String(base.controller.name ?? '').trim(),
       contact_email: String(base.controller.contact_email ?? '').trim(),
@@ -129,11 +127,6 @@ export function validateKioskQuestionnaire(raw) {
   }
   if (q.questions.length > 0 && !q.questions.some((question) => question.required && question.type !== 'checkbox')) {
     add('no_required_question', 'Rendez au moins une question obligatoire');
-  }
-
-  if (q.required_for_photo) {
-    if (!q.home_notice) add('home_notice_empty', "Indiquez la mention affichée à l'accueil");
-    else if (q.home_notice.length > maxLen) add('home_notice_length', `La mention d'accueil : ${maxLen} caractères maximum`);
   }
 
   return errors;

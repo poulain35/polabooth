@@ -4,10 +4,10 @@
 
 import { type FeatureFlags, isFeatureEnabled } from '../_shared/features.ts';
 
-export const PURGE_GRACE_DAYS = 30;
-export const REMINDER_DAYS_BEFORE = 7;
+const PURGE_GRACE_DAYS = 30;
+const REMINDER_DAYS_BEFORE = 7;
 /** Plafond de l'API S3 DeleteObjects : 1 000 clés par requête. */
-export const DELETE_BATCH = 1000;
+const DELETE_BATCH = 1000;
 
 const DAY_MS = 86_400_000;
 const ms = (iso: string | null | undefined) => (iso ? Date.parse(iso) : NaN);
@@ -90,7 +90,7 @@ export function photoKeys(row: PhotoRow, publicBase: string): string[] {
   return keys;
 }
 
-export function audioKeys(row: AudioRow): string[] {
+function audioKeys(row: AudioRow): string[] {
   return isSafeObjectKey(row.storage_path) ? [row.storage_path] : [];
 }
 
@@ -196,4 +196,9 @@ export async function remindEvent(
   if (error) return 'failed';
   await store.markReminded(ev.id, now.toISOString(), ev.expires_at!);
   return 'sent';
+}
+
+/** Message d'une erreur levée (Error ou autre valeur), pour le résumé de la réponse. */
+export function message(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }

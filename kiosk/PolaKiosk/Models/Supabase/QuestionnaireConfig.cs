@@ -14,7 +14,6 @@ public class QuestionnaireConfig
     public const int MaxOptions     = 12;
     public const int MaxLabelLength = 120;
 
-    public const string DefaultHomeNotice = "Pour recevoir votre photo, quelques questions vous seront posées.";
     public const string DefaultNotice =
         "Vos réponses sont collectées pour {controller_name}. Elles sont conservées 1 mois après l'événement, puis supprimées. Pour les consulter ou les supprimer : {controller_contact}.";
     public const string DefaultMarketingLabel = "J'accepte d'être recontacté(e) par {controller_name}.";
@@ -31,9 +30,6 @@ public class QuestionnaireConfig
     /// <summary>Mode obligatoire (défaut) : sans réponse, pas de photo. Sinon « Passer » donne la photo.</summary>
     [JsonProperty("required_for_photo")]
     public bool RequiredForPhoto { get; set; } = true;
-
-    [JsonProperty("home_notice")]
-    public string HomeNotice { get; set; } = DefaultHomeNotice;
 
     [JsonProperty("title")]
     public string Title { get; set; } = "Restons en contact";
@@ -108,10 +104,6 @@ public class QuestionnaireConfig
     /// <summary>Questionnaire à poser : activé et au moins une question utilisable.</summary>
     [JsonIgnore]
     public bool IsActive => Enabled && UsableQuestions().Count > 0;
-
-    /// <summary>Mention d'accueil (mode obligatoire seulement), jamais vide.</summary>
-    public string ResolvedHomeNotice()
-        => string.IsNullOrWhiteSpace(HomeNotice) ? DefaultHomeNotice : HomeNotice.Trim();
 
     /// <summary>
     /// Remplace <c>{controller_name}</c>, <c>{controller_contact}</c> et le nom du loueur de la borne
@@ -228,7 +220,6 @@ public sealed class QuestionnaireConfigConverter : JsonConverter<QuestionnaireCo
 
             var config = withoutQuestions.ToObject<QuestionnaireConfig>() ?? new QuestionnaireConfig();
             // Valeurs null explicites dans le JSON : on retombe sur un texte vide (ou le défaut à l'affichage).
-            config.HomeNotice   ??= "";
             config.Title        ??= "";
             config.Intro        ??= "";
             config.CancelLabel  ??= "";

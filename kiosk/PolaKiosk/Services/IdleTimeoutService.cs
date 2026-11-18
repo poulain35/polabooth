@@ -36,6 +36,7 @@ public class IdleTimeoutService : IIdleTimeoutService
     // Les écrans staff (saisie code, admin, licence) ne sont pas concernés.
     internal static readonly IReadOnlySet<Type> SessionScreens = new HashSet<Type>
     {
+        typeof(Views.FrameSelectView),
         typeof(Views.ResultView),
         typeof(Views.EffectSelectView),
         typeof(Views.GalleryView),

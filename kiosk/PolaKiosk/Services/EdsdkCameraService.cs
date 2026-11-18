@@ -35,6 +35,10 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
 
     public bool IsConnected => _camera != IntPtr.Zero;
 
+    /// <summary>Modèle de l'appareil branché (« Canon EOS R100 »), lu à la détection ; null si inconnu ou débranché.</summary>
+    public string? ModelName => _modelName;
+    private volatile string? _modelName;
+
     public EdsdkCameraService(IKioskLogService? log = null, IMachineSettingsService? machine = null)
     {
         _log = log;
@@ -82,12 +86,15 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
 
                 ThrowIfError(EdsApi.EdsGetChildAtIndex(list, 0, out var camera), "EdsGetChildAtIndex");
                 _camera = camera;
+                _modelName ??= ReadModelName(_camera);
 
+                UnlockExposureSimulation();
                 ThrowIfError(EdsApi.EdsOpenSession(_camera), "EdsOpenSession");
 
                 RegisterCallbacks();
                 ConfigureSaveToHost();
                 ConfigureImageQuality();
+                DisableExposureSimulation();
                 tcs.SetResult();
             }
             catch (Exception ex)
@@ -144,6 +151,9 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
                 if (count == 0 && _camera != IntPtr.Zero)
                     ReleaseCamera();
 
+                if (count == 0) _modelName = null; // un autre appareil peut être branché ensuite
+                else if (_modelName == null) _modelName = ReadFirstModelName(list);
+
                 tcs.SetResult(count);
             }
             catch (Exception ex) { tcs.TrySetException(ex); }
@@ -153,6 +163,27 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
             }
         });
         return tcs.Task;
+    }
+
+    /// <summary>Modèle de l'appareil ouvert, sinon du premier de la liste (référence libérée). Sur le fil STA.</summary>
+    private string? ReadFirstModelName(IntPtr list)
+    {
+        if (_camera != IntPtr.Zero) return ReadModelName(_camera);
+        if (EdsApi.EdsGetChildAtIndex(list, 0, out var camera) != EdsError.OK || camera == IntPtr.Zero) return null;
+        try { return ReadModelName(camera); }
+        finally { EdsApi.EdsRelease(camera); }
+    }
+
+    private static string? ReadModelName(IntPtr camera)
+    {
+        try
+        {
+            return EdsApi.EdsGetDeviceInfo(camera, out var info) == EdsError.OK
+                   && !string.IsNullOrWhiteSpace(info.DeviceDescription)
+                ? info.DeviceDescription.Trim()
+                : null;
+        }
+        catch { return null; } // nom facultatif : jamais d'échec de la détection pour lui
     }
 
     public Task StartLiveViewAsync(Action<byte[]> frameCallback)
@@ -395,6 +426,37 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
             _ = _log?.LogWarningAsync("camera", $"Taille des photos 0x{quality:X8} refusée par l'appareil (0x{err:X}).");
     }
 
+    /// <summary>
+    /// Débloque la propriété cachée Evf_ViewType (simulation d'exposition), avant l'ouverture de
+    /// session comme l'exige Canon (EDSDK 13.20 § 6.22.3). Sans effet sur les boîtiers qui ne la
+    /// connaissent pas : le refus est seulement journalisé.
+    /// </summary>
+    private void UnlockExposureSimulation()
+    {
+        var ptr = Marshal.AllocHGlobal(sizeof(uint));
+        try
+        {
+            Marshal.WriteInt32(ptr, unchecked((int)EdsPropID.Evf_ViewType));
+            var err = EdsApi.EdsSetPropertyData(_camera, EdsEvfViewType.UnlockTarget, EdsEvfViewType.UnlockKey, sizeof(uint), ptr);
+            if (err != EdsError.OK)
+                _ = _log?.LogWarningAsync("camera-evf", $"Déblocage de la simulation d'exposition refusé (0x{err:X}).");
+        }
+        finally { Marshal.FreeHGlobal(ptr); }
+    }
+
+    /// <summary>
+    /// Désactive la simulation d'exposition du live view (LAB-388) : les réglages de prise de vue sont
+    /// faits pour le flash, et le live view, qui montre l'image sans le flash, serait trop sombre.
+    /// Désactivée, l'appareil éclaire seul le live view ; la photo prise ne change pas. Un refus
+    /// (boîtier non EOS R, mode vidéo) est journalisé et l'éclaircissement logiciel prend le relais.
+    /// </summary>
+    private void DisableExposureSimulation()
+    {
+        var err = RetryWhileBusy(() => SetUInt32Property(EdsPropID.Evf_ViewType, EdsEvfViewType.Disable));
+        if (err != EdsError.OK)
+            _ = _log?.LogWarningAsync("camera-evf", $"Désactivation de la simulation d'exposition refusée (0x{err:X}).");
+    }
+
     /// <summary>L'appareil répond « occupé » juste après l'ouverture de session : on réessaie brièvement.</summary>
     private static uint RetryWhileBusy(Func<uint> call)
     {
@@ -450,14 +512,15 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
     private static void CloseAndRelease(IntPtr camera)
     {
         if (camera == IntPtr.Zero) return;
-        try { EdsApi.EdsCloseSession(camera); } catch { }
-        try { EdsApi.EdsRelease(camera); } catch { }
+        // Appareil débranché ou session déjà fermée : rien à libérer de plus, étapes indépendantes.
+        try { EdsApi.EdsCloseSession(camera); } catch { /* voir ci-dessus */ }
+        try { EdsApi.EdsRelease(camera); } catch { /* voir ci-dessus */ }
     }
 
     private void TerminateSdk()
     {
         if (!_sdkInitialized) return;
-        try { EdsApi.EdsTerminateSDK(); } catch { }
+        try { EdsApi.EdsTerminateSDK(); } catch { /* fermeture : le SDK est abandonné de toute façon */ }
         _sdkInitialized = false;
     }
 
@@ -469,7 +532,7 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
             {
                 // Diagnostic : tracer chaque événement objet reçu (utile pour identifier ce que
                 // le boîtier émet réellement — DirItemRequestTransfer vs DirItemCreated selon SaveTo).
-                _ = _log?.LogInfoAsync("camera-evt", $"ObjectEvent 0x{inEvent:X}");
+                _ = _log?.LogInfoAsync("camera-evt", $"Événement de l'appareil 0x{inEvent:X}.");
 
                 // On télécharge sur les DEUX événements : DirItemRequestTransfer (SaveTo=Host) et
                 // DirItemCreated (photo écrite sur la carte — certains boîtiers R n'honorent pas Host).
@@ -575,7 +638,7 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
         {
             if (!transferClosed)
             {
-                try { EdsApi.EdsDownloadCancel(dirItem); } catch { }
+                try { EdsApi.EdsDownloadCancel(dirItem); } catch { /* l'échec du téléchargement est journalisé juste après */ }
             }
             _ = _log?.LogErrorAsync("camera-evt", $"Échec du téléchargement de l'image : {ex.Message}", ex.StackTrace);
             capture.Fail(ex);

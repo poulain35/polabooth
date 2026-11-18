@@ -30,7 +30,7 @@
                 <StackPanel>
 
                     <TextBlock Text="Entrez votre code événement"
-                               FontSize="22" FontWeight="SemiBold"
+                               FontSize="{StaticResource KioskLargeTextSize}" FontWeight="SemiBold"
                                Foreground="{StaticResource KioskForestBrush}"
                                HorizontalAlignment="Center" Margin="0,0,0,6"/>
                     <TextBlock Text="Ce code vous a été envoyé par email"
@@ -132,7 +132,7 @@
             <Viewbox Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Canvas Width="24" Height="24">
                     <Path Fill="{StaticResource KioskForestBrush}"
-                          Data="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3z"/>
+                          Data="{StaticResource KioskLockIcon}"/>
                 </Canvas>
             </Viewbox>
         </Button>
@@ -197,13 +197,13 @@
                     </Button>
                     <!-- Ligne basse : annuler / 0 / effacer -->
                     <Button Command="{Binding CloseAdminPinCommand}">
-                        <TextBlock Text="✕" FontSize="22" Foreground="{StaticResource KioskBrownBrush}"/>
+                        <TextBlock Text="✕" FontSize="{StaticResource KioskLargeTextSize}" Foreground="{StaticResource KioskBrownBrush}"/>
                     </Button>
                     <Button Command="{Binding AppendDigitCommand}" CommandParameter="0">
                         <TextBlock Text="0"/>
                     </Button>
                     <Button Command="{Binding DeleteDigitCommand}">
-                        <TextBlock Text="⌫" FontSize="22"/>
+                        <TextBlock Text="⌫" FontSize="{StaticResource KioskLargeTextSize}"/>
                     </Button>
                 </UniformGrid>
 

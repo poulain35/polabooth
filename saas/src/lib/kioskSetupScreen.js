@@ -1,5 +1,5 @@
 // LAB-253 : fond de l'écran de saisie du code de la borne (default/setup_config.json).
-// Couleurs de la borne fixes depuis LAB-249 : seul reste le choix entre le fond Pola (crème)
+// Couleurs de la borne fixes depuis LAB-249 : seul reste le choix entre le fond crème
 // et une image. La borne affiche l'image si bg_type vaut « image », le fond crème sinon.
 
 export const SETUP_BG_CREAM = 'cream';
@@ -8,7 +8,7 @@ export const SETUP_BG_IMAGE = 'image';
 /** Fond crème de la borne (même valeur que KioskCreamColor dans kiosk/PolaKiosk/App.xaml). */
 export const KIOSK_CREAM = '#F7F1E7';
 
-/** Réglage lu → choix affiché. Les anciens « gradient » et « solid » deviennent le fond Pola. */
+/** Réglage lu → choix affiché. Les anciens « gradient » et « solid » deviennent le fond crème. */
 export function normalizeSetupConfig(cfg) {
   const url = typeof cfg?.bg_image_url === 'string' && cfg.bg_image_url ? cfg.bg_image_url : null;
   return {

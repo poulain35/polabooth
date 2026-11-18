@@ -63,7 +63,7 @@ export default function AdminResetPassword() {
   if (state.status === 'invalid') {
     return shell(
       <div className="space-y-4">
-        <p className="text-sm text-destructive flex items-start gap-1.5 bg-destructive/10 rounded-md px-3 py-2">
+        <p className="text-[13px] text-state-red-fg flex items-start gap-1.5 bg-state-red rounded-xl px-3 py-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           {recoveryLinkMessage(state.reason)}
         </p>
@@ -71,7 +71,7 @@ export default function AdminResetPassword() {
           <Link to={FORGOT_PASSWORD_PATH}>Recevoir un nouveau lien</Link>
         </Button>
         <p className="text-center text-xs text-muted-foreground">
-          <Link to="/admin/login" className="text-primary hover:underline font-medium">← Retour à la connexion</Link>
+          <Link to="/admin/login" className="text-primary-ink hover:underline font-medium">← Retour à la connexion</Link>
         </p>
       </div>
     );
@@ -94,7 +94,7 @@ export default function AdminResetPassword() {
       />
 
       {error && (
-        <p className="text-sm text-destructive flex items-start gap-1.5 bg-destructive/10 rounded-md px-3 py-2">
+        <p className="text-[13px] text-state-red-fg flex items-start gap-1.5 bg-state-red rounded-xl px-3 py-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           {error}
         </p>

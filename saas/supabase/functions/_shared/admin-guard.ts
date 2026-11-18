@@ -16,8 +16,12 @@ export type GetUser = (authHeader: string) => Promise<AuthUser | null>;
 // deno-lint-ignore no-explicit-any
 export interface GuardDb { from(table: string): any }
 
-export type OrgResourceKind = 'event' | 'photo' | 'audio_track' | 'design' | 'lead' | 'slot' | 'prospect';
+export type OrgResourceKind =
+  | 'event' | 'photo' | 'audio_track' | 'design' | 'lead' | 'slot' | 'prospect' | 'kiosk_license';
 export interface OrgResource { kind: OrgResourceKind; id: string }
+
+/** `allowAppAdmin` : un administrateur de l'application (app_admins) passe aussi (ressource existante). */
+export interface OrgAccessOptions { allowAppAdmin?: boolean }
 
 const NOT_FOUND: Record<OrgResourceKind, string> = {
   event: 'Événement introuvable',
@@ -27,6 +31,7 @@ const NOT_FOUND: Record<OrgResourceKind, string> = {
   lead: 'Lead introuvable',
   slot: 'Créneau introuvable',
   prospect: 'Prospect introuvable',
+  kiosk_license: 'Borne introuvable',
 };
 
 const DIRECT_ORG_TABLE: Partial<Record<OrgResourceKind, string>> = {
@@ -34,6 +39,7 @@ const DIRECT_ORG_TABLE: Partial<Record<OrgResourceKind, string>> = {
   lead: 'leads',
   slot: 'booking_slots',
   prospect: 'prospects',
+  kiosk_license: 'kiosk_licenses',
 };
 
 const VIA_EVENT_TABLE: Partial<Record<OrgResourceKind, string>> = {
@@ -100,7 +106,7 @@ export async function resolveOrgId(db: GuardDb, resource: OrgResource): Promise<
   return { found: true, orgId: event.orgId };
 }
 
-export async function ownsOrg(db: GuardDb, userId: string, orgId: string | null | undefined): Promise<boolean> {
+async function ownsOrg(db: GuardDb, userId: string, orgId: string | null | undefined): Promise<boolean> {
   if (!orgId || !userId) return false;
   const { data, error } = await db.from('organizations').select('id').eq('id', orgId).eq('owner_id', userId).maybeSingle();
   return !error && !!data;
@@ -110,15 +116,25 @@ export function forbiddenOrg(): Response {
   return corsResponse(403, { error: FORBIDDEN_ORG_MESSAGE });
 }
 
-/** L'utilisateur doit être propriétaire de l'organisation de la ressource. */
-export async function requireOrgAccess(db: GuardDb, userId: string, resource: OrgResource): Promise<Guarded<{ orgId: string }>> {
+/**
+ * L'utilisateur doit être propriétaire de l'organisation de la ressource (ou administrateur de
+ * l'application avec `allowAppAdmin`). Ordre : lecture en échec 500, ressource inconnue 404, refus 403.
+ */
+export async function requireOrgAccess(
+  db: GuardDb, userId: string, resource: OrgResource, opts: OrgAccessOptions = {},
+): Promise<Guarded<{ orgId: string }>> {
   let resolved: { found: boolean; orgId: string | null };
   try { resolved = await resolveOrgId(db, resource); } catch {
     return { response: corsResponse(500, { error: 'Vérification des droits impossible' }) };
   }
   if (!resolved.found) return { response: corsResponse(404, { error: NOT_FOUND[resource.kind] }) };
-  if (!(await ownsOrg(db, userId, resolved.orgId))) return { response: forbiddenOrg() };
-  return { orgId: resolved.orgId! };
+  if (await ownsOrg(db, userId, resolved.orgId)) return { orgId: resolved.orgId! };
+  if (opts.allowAppAdmin) {
+    const { data, error } = await db.from('app_admins').select('user_id').eq('user_id', userId).maybeSingle();
+    if (error) return { response: corsResponse(500, { error: 'Vérification des droits impossible' }) };
+    if (data) return { orgId: resolved.orgId ?? '' };
+  }
+  return { response: forbiddenOrg() };
 }
 
 /** Pour les actions sans ressource (génération IA) : l'utilisateur doit posséder au moins une organisation. */

@@ -15,21 +15,18 @@ public interface ISaasSwitchService
 
 public sealed class SaasSwitchService : ISaasSwitchService
 {
-    /// <summary>Fichiers propres à l'association avec un SaaS, dans le DataDirectory.</summary>
-    internal static readonly string[] PairingFiles = ["activation.bin", "admin-pin.bin", "license.json", "license.key"];
-
     private readonly IMachineSettingsService _machine;
     private readonly IKioskStateService _state;
-    private readonly string _dataDir;
+    private readonly KioskPaths _paths;
 
     public SaasSwitchService(IMachineSettingsService machine, IKioskStateService state, AppSettings settings)
-        : this(machine, state, Environment.ExpandEnvironmentVariables(settings.Kiosk.DataDirectory)) { }
+        : this(machine, state, KioskPaths.From(settings).Root) { }
 
     internal SaasSwitchService(IMachineSettingsService machine, IKioskStateService state, string dataDir)
     {
         _machine = machine;
         _state   = state;
-        _dataDir = dataDir;
+        _paths   = new KioskPaths(dataDir);
     }
 
     public async Task ClearAsync()
@@ -39,10 +36,7 @@ public sealed class SaasSwitchService : ISaasSwitchService
         await _state.ClearActiveEventAsync();
         await _state.SetPairedAccountAsync(null, null);
 
-        foreach (var name in PairingFiles)
-        {
-            var path = Path.Combine(_dataDir, name);
+        foreach (var path in _paths.PairingFiles)
             if (File.Exists(path)) File.Delete(path);
-        }
     }
 }

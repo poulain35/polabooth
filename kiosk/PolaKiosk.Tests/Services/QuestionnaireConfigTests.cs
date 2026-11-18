@@ -112,18 +112,4 @@ public class QuestionnaireConfigTests
             .ResolvePlaceholders("{Provider_name} traite. {provider_name}", new QuestionnaireProvider(name, null))
             .Should().Be(expected);
     }
-
-    [Fact]
-    public void Home_notice_shows_only_in_required_mode()
-    {
-        var question = new QuestionConfig { Id = "e", Label = "E-mail", Type = "email" };
-        var required = new QuestionnaireConfig { Enabled = true, Questions = [question], HomeNotice = "  " };
-        var optional = new QuestionnaireConfig { Enabled = true, Questions = [question], RequiredForPhoto = false };
-        var disabled = new QuestionnaireConfig { Enabled = false, Questions = [question] };
-
-        HomeViewModel.ResolveHomeNotice(required).Should().Be((true, QuestionnaireConfig.DefaultHomeNotice));
-        HomeViewModel.ResolveHomeNotice(optional).Show.Should().BeFalse();
-        HomeViewModel.ResolveHomeNotice(disabled).Show.Should().BeFalse();
-        HomeViewModel.ResolveHomeNotice(null).Show.Should().BeFalse();
-    }
 }

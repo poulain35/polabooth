@@ -24,7 +24,7 @@ public class EventSetupViewModelTests : IDisposable
         state.SetupGet(s => s.ContactCompany).Returns("Studio Lumière");
         var nav = Mock.Of<INavigationService>();
         return new EventSetupViewModel(_sync.Object, state.Object, nav, settings, Mock.Of<IKioskLogService>(),
-            new AdminPinPadViewModel(Mock.Of<IAdminPinService>(), nav));
+            new AdminPinPadViewModel(Mock.Of<IAdminPinService>(), nav, new PinAttemptLimiter()));
     }
 
     [Fact]

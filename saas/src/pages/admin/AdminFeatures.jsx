@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
+import { Card, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { IconCircle } from '../../components/ui/icon-circle';
+import { StatusPill } from '../../components/ui/status-pill';
 import { Switch } from '../../components/ui/switch';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -14,6 +14,9 @@ import {
 } from '../../features/catalog';
 import { useFeatures } from '../../hooks/useFeatures';
 import { INSTALLED_MODULES } from '../../features/modules';
+import { keptFeatureChoices } from '../../lib/setupSteps';
+import { Spinner } from '../../components/ui/spinner';
+import { Notice } from '../../components/admin/CardParts';
 
 const GROUPS = [
   {
@@ -42,39 +45,58 @@ const listOf = (ids) => ids.map(labelOf).join(', ');
 const doneMessage = (feature, enable) => `Fonctionnalité ${enable ? 'activée' : 'désactivée'} : ${feature.label}`;
 
 function alsoMessage(changed, enable) {
-  const plural = changed.length > 1;
-  const subject = plural ? 'Ces fonctionnalités seront' : 'Cette fonctionnalité sera';
-  const verb = `${enable ? 'activée' : 'désactivée'}${plural ? 's' : ''}`;
+  const several = changed.length > 1;
+  const subject = several ? 'Ces fonctionnalités seront' : 'Cette fonctionnalité sera';
+  const verb = `${enable ? 'activée' : 'désactivée'}${several ? 's' : ''}`;
   return `${subject} ${verb} aussi : ${listOf(changed)}.`;
 }
 
-function FeatureCard({ feature, enabled, disabled, onToggle }) {
+function KeepChoices({ saving, onKeep }) {
   return (
-    <Card className="p-4 sm:p-5 flex items-start gap-4">
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-900">{feature.label}</p>
-        <p className="text-sm text-gray-500 mt-0.5">{feature.description}</p>
+    <Card tone="sky" className="flex flex-col gap-3 p-card sm:flex-row sm:items-center">
+      <IconCircle tone="white" className="hidden sm:inline-flex"><CheckCircle2 /></IconCircle>
+      <div className="min-w-0 flex-1">
+        <CardTitle as="p">Ces choix vous conviennent ?</CardTitle>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          Les fonctionnalités ci-dessous sont celles proposées par défaut. Gardez-les telles quelles ou changez-les une à une.
+        </p>
+      </div>
+      <Button className="shrink-0 self-start sm:self-auto" onClick={onKeep} disabled={saving}>
+        {saving && <Loader2 className="animate-spin" />}
+        Garder ces choix
+      </Button>
+    </Card>
+  );
+}
+
+/** Une fonctionnalité : tuile dans la carte de son groupe. */
+function FeatureRow({ feature, enabled, disabled, onToggle }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl bg-muted p-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground">{feature.label}</p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">{feature.description}</p>
         {feature.dependsOn.length > 0 && (
-          <p className="text-xs text-gray-400 mt-2">Nécessite : {listOf(feature.dependsOn)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Nécessite : {listOf(feature.dependsOn)}</p>
         )}
       </div>
       {feature.core ? (
-        <Badge variant="secondary" className="shrink-0 font-medium">Toujours actif</Badge>
+        <StatusPill tone="green">Toujours actif</StatusPill>
       ) : (
         <Switch
-          className="shrink-0 mt-0.5"
+          className="mt-0.5 shrink-0"
           checked={enabled}
           disabled={disabled}
           onCheckedChange={(checked) => onToggle(feature, checked)}
           aria-label={`${enabled ? 'Désactiver' : 'Activer'} ${feature.label}`}
         />
       )}
-    </Card>
+    </div>
   );
 }
 
 export default function AdminFeatures() {
-  const { features, isEnabled, loading, error, save } = useFeatures();
+  const { orgId, features, isEnabled, loading, error, save } = useFeatures();
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null); // { feature, enable, next, changed }
 
@@ -103,43 +125,42 @@ export default function AdminFeatures() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
-      <Link to="/admin/settings" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-4">
-        <ArrowLeft className="w-4 h-4" /> Paramètres
-      </Link>
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Fonctionnalités</h1>
-        <p className="text-gray-500 text-sm mt-1">Choisissez les fonctionnalités utilisées par votre entreprise.</p>
-      </div>
+    // Section Fonctionnalités de la page Réglages (/admin/reglages#fonctionnalites, LAB-335).
+    <div>
+      <p className="mb-4 text-[13px] text-muted-foreground">Choisissez les fonctionnalités utilisées par votre entreprise.</p>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        <div className="flex justify-center py-12">
+          <Spinner />
         </div>
       ) : error ? (
-        <p className="rounded-xl bg-red-50 text-red-700 text-sm px-4 py-3">{error}</p>
+        <Notice tone="red" role="alert">{error}</Notice>
       ) : (
-        <div className="space-y-8">
+        <div className="flex flex-col gap-5">
+          {orgId && Object.keys(features ?? {}).length === 0 && (
+            <KeepChoices saving={saving} onKeep={() => apply(keptFeatureChoices(features), 'Choix des fonctionnalités enregistrés')} />
+          )}
           {GROUPS.map((group) => {
             const items = FEATURES.filter(group.filter);
             if (!items.length) return null;
             return (
-              <section key={group.id}>
-                <h2 className="font-semibold text-gray-800">{group.title}</h2>
-                <p className="text-sm text-gray-500 mt-0.5 mb-3">{group.help}</p>
-                <div className="space-y-2">
-                  {items.map((feature) => (
-                    <FeatureCard
-                      key={feature.id}
-                      feature={feature}
-                      enabled={isEnabled(feature.id)}
-                      disabled={saving}
-                      onToggle={handleToggle}
-                    />
-                  ))}
-                </div>
-              </section>
+              <Card key={group.id} className="p-card">
+                <section aria-labelledby={`features-${group.id}`}>
+                  <CardTitle as="h2" id={`features-${group.id}`}>{group.title}</CardTitle>
+                  <p className="mb-4 mt-0.5 text-[13px] text-muted-foreground">{group.help}</p>
+                  <div className="flex flex-col gap-2">
+                    {items.map((feature) => (
+                      <FeatureRow
+                        key={feature.id}
+                        feature={feature}
+                        enabled={isEnabled(feature.id)}
+                        disabled={saving}
+                        onToggle={handleToggle}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </Card>
             );
           })}
         </div>
@@ -162,7 +183,7 @@ export default function AdminFeatures() {
                 onClick={() => apply(confirm.next, doneMessage(confirm.feature, confirm.enable))}
                 disabled={saving}
               >
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving && <Loader2 className="animate-spin" />}
                 {confirm.enable ? 'Activer' : 'Désactiver'}
               </Button>
             </DialogFooter>

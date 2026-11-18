@@ -12,12 +12,21 @@ export function adminClient() {
   });
 }
 
-/** Utilisateur de la session portée par le header Authorization, ou null. */
-export async function sessionUser(authHeader: string): Promise<AuthUser | null> {
-  const client = createClient(supabaseUrl, anonKey, {
+/**
+ * Client sous le JWT de l'utilisateur (clé anon + header Authorization) : soumis à la RLS et aux
+ * REVOKE. Ne sert qu'à auth.getUser() et aux deux appels de send-event-report/admin-jwt.ts
+ * (test LAB-125 « tout client au JWT utilisateur ») ; tout le reste passe par adminClient().
+ */
+export function userClient(authHeader: string) {
+  return createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
   });
+}
+
+/** Utilisateur de la session portée par le header Authorization, ou null. */
+export async function sessionUser(authHeader: string): Promise<AuthUser | null> {
+  const client = userClient(authHeader);
   const { data, error } = await client.auth.getUser();
   if (error || !data?.user) return null;
   return { id: data.user.id, email: data.user.email ?? null };

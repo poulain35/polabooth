@@ -27,4 +27,18 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Cas de test communs SaaS / borne (plan des écrans composés, états des écrans, montage du
+       tirage) : lus à leur place, jamais copiés -->
+  <ItemGroup>
+    <None Include="..\..\docs\specs\fixtures\kiosk-screen-layout-cases.json"
+          Link="Fixtures\kiosk-screen-layout-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\specs\fixtures\kiosk-screen-state-cases.json"
+          Link="Fixtures\kiosk-screen-state-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\docs\specs\fixtures\kiosk-composite-cases.json"
+          Link="Fixtures\kiosk-composite-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Une vraie police TrueType pour les textes vivants (LAB-331) : celle de l'application -->
+    <None Include="..\PolaKiosk\Assets\Fonts\Fraunces72ptSuperSoft-SemiBold.ttf"
+          Link="Fixtures\fonts\Fraunces72ptSuperSoft-SemiBold.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

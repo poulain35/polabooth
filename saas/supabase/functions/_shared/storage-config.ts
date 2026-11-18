@@ -129,7 +129,7 @@ export function storageVarNames(env: EnvGet = denoEnv) {
 // anti-injection de photo_url rejetterait des envois légitimes.
 
 /** Slug ASCII sûr pour une clé d'objet (retire accents, espaces et caractères spéciaux). */
-export function slugify(s: string): string {
+function slugify(s: string): string {
   return s
     .normalize('NFD').replace(/[^\x00-\x7f]/g, '') // décompose puis retire les diacritiques/non-ASCII
     .toLowerCase()

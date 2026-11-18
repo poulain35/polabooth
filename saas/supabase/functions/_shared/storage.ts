@@ -5,8 +5,7 @@ import { S3Client } from 'npm:@aws-sdk/client-s3';
 import { storageClientConfig } from './storage-config.ts';
 
 export {
-  audioBucket, audioPublicBaseUrl, eventFolder, photosBucket, photosPublicBaseUrl, slugify,
-  StorageConfigError, storageClientConfig, storageVarNames, usesGenericS3,
+  audioBucket, audioPublicBaseUrl, eventFolder, photosBucket, photosPublicBaseUrl, storageVarNames,
 } from './storage-config.ts';
 
 /** Client S3 du fournisseur configuré. Lève StorageConfigError si la configuration est incomplète. */

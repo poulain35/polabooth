@@ -5,7 +5,7 @@
 // Un champ vide fait disparaître ce qui en dépend (logo → nom en texte, site → pas de lien…).
 import installed from '../modules/brand.js';
 
-export const NEUTRAL_BRAND = Object.freeze({
+const NEUTRAL_BRAND = Object.freeze({
   name: 'Photobooth',
   tagline: '',
   city: '',
@@ -19,7 +19,7 @@ export const NEUTRAL_BRAND = Object.freeze({
 });
 
 /** Marque installée par-dessus les valeurs neutres (seules les chaînes non vides sont reprises). */
-export function resolveBrand(brand) {
+function resolveBrand(brand) {
   const out = { ...NEUTRAL_BRAND };
   if (brand && typeof brand === 'object') {
     for (const key of Object.keys(NEUTRAL_BRAND)) {

@@ -4,7 +4,7 @@
 // - L'admin connecté propriétaire de l'événement n'est pas compté (track_gallery_event).
 // Pur, sans import Supabase : testé par galleryTracking.test.js.
 
-export const QR_VIA = 'qr';
+const QR_VIA = 'qr';
 
 /** { via, photo } d'un lien de QR code, sinon {} (galerie ouverte autrement). */
 export function qrLinkParams(searchParams) {

@@ -9,10 +9,12 @@ public interface ISessionService
     /// identifiant dans le .share.json du montage. <paramref name="capturedAtUtc"/> : début de la
     /// séance, envoyé tel quel à kiosk_record_photo, même des heures plus tard (LAB-231).
     /// <paramref name="stageInSameTransaction"/> ajoute au contexte ce qui s'écrit avec la séance
-    /// (consentement photo, LAB-223). Retourne l'identifiant de séance.
+    /// (consentement photo, LAB-223). <paramref name="templateId"/> : cadre appliqué au montage
+    /// (LAB-315), null pour une photo seule. Retourne l'identifiant de séance.
     /// </summary>
     Task<Guid> RecordSessionAsync(Guid sessionId, Guid eventId, DateTime capturedAtUtc,
-        string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null);
+        string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
+        Guid? templateId = null);
 
     /// <summary>
     /// Valide une photo en attente (questionnaire obligatoire) : une transaction écrit la séance
@@ -23,7 +25,8 @@ public interface ISessionService
     /// Ne lève pas : un échec d'écriture est journalisé et l'écran résultat rattache la séance.
     /// </summary>
     Task<string> CommitPendingSessionAsync(Guid sessionId, Guid eventId, string eventName,
-        DateTime capturedAtUtc, string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null);
+        DateTime capturedAtUtc, string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
+        Guid? templateId = null);
 
     /// <summary>
     /// Supprime le dossier d'attente d'une séance abandonnée (poses et montage). Ne lève pas :
@@ -51,6 +54,9 @@ public interface ISessionService
 
     /// <summary>Identifiant de séance d'un montage rouvert depuis la galerie (stable d'une ouverture à l'autre).</summary>
     Task<Guid> ResolveSessionIdAsync(string compositePath);
+
+    /// <summary>Cadre appliqué au montage de la séance (LAB-315) ; null si inconnu (photo seule, séance d'avant le choix).</summary>
+    Task<Guid?> GetSessionTemplateIdAsync(Guid sessionId);
 
     /// <summary>Renvoie toutes les séances en attente. Ne lève jamais. Retourne le nombre envoyées.</summary>
     Task<int> UploadPendingSessionsAsync();

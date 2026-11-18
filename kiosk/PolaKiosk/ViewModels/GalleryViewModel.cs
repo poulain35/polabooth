@@ -4,7 +4,6 @@ using System.Linq;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Newtonsoft.Json.Linq;
 using PolaKiosk.Models.Supabase;
 using PolaKiosk.Services;
 
@@ -74,6 +73,7 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
     private readonly AppSettings _settings;
     private readonly SessionPathService _sessionPaths;
     private readonly ISessionService _sessions;
+    private readonly IKioskLogService? _kioskLog;
 
     public const int DisplayWidth = 240;
     private const int DefaultColumns = 6;
@@ -89,7 +89,8 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
     private KioskConfig? _kioskCfg;
 
     public GalleryViewModel(INavigationService navigation, IKioskStateService kioskState,
-        ISyncService sync, AppSettings settings, SessionPathService sessionPaths, ISessionService sessions)
+        ISyncService sync, AppSettings settings, SessionPathService sessionPaths, ISessionService sessions,
+        IKioskLogService? kioskLog = null)
     {
         _navigation   = navigation;
         _kioskState   = kioskState;
@@ -97,6 +98,7 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
         _settings     = settings;
         _sessionPaths = sessionPaths;
         _sessions     = sessions;
+        _kioskLog     = kioskLog;
     }
 
     public async Task InitializeAsync()
@@ -105,11 +107,7 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
 
         var ev = await _sync.GetCurrentEventAsync(eventId);
         _eventName = ev?.Name ?? "Événement";
-        if (ev != null)
-        {
-            try { _kioskCfg = JObject.Parse(ev.FormConfigJson)["kiosk"]?.ToObject<KioskConfig>(); }
-            catch { }
-        }
+        _kioskCfg = KioskConfig.FromFormConfig(ev?.FormConfigJson);
 
         // Liste des fichiers seulement : les vignettes se chargent à l'affichage de chaque carte.
         var eventName = _eventName;
@@ -154,19 +152,27 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
         var emailCfg   = _kioskCfg?.Email;
         var accessCode = _kioskState.LastAccessCode ?? "";
 
-        // Format papier depuis le template actif (défaut 4x6)
-        string paperFormat = "4x6";
-        try
-        {
-            var tpl = (await _sync.GetTemplatesAsync(_eventId)).FirstOrDefault();
-            if (tpl != null) paperFormat = PrintService.PaperFormatFromTemplateFormat(tpl.Format);
-        }
-        catch { }
-
         // Même séance qu'au premier affichage : le plafond par photo ne se contourne pas en rouvrant.
         Guid sessionId;
         try { sessionId = await _sessions.ResolveSessionIdAsync(photo.Path); }
-        catch { sessionId = SessionService.LegacySessionId(photo.Path); }
+        catch (Exception ex)
+        {
+            sessionId = Guid.NewGuid();
+            _ = _kioskLog?.LogWarningAsync("gallery", $"Séance de la photo introuvable ({ex.Message}) : nouvelle séance.");
+        }
+
+        // Papier du cadre de la photo (LAB-315) ; cadre inconnu : premier cadre de l'événement (défaut 4x6).
+        string paperFormat = "4x6";
+        try
+        {
+            var templateId = await _sessions.GetSessionTemplateIdAsync(sessionId);
+            var tpl = FrameChoice.Pick(await _sync.GetTemplatesAsync(_eventId), templateId);
+            if (tpl != null) paperFormat = PrintService.PaperFormatFromTemplateFormat(tpl.Format);
+        }
+        catch (Exception ex)
+        {
+            _ = _kioskLog?.LogWarningAsync("gallery", $"Cadre de la photo illisible ({ex.Message}) : papier 4x6.");
+        }
 
         _navigation.NavigateTo<Views.ResultView>(new ResultParameters(
             SessionId:         sessionId,

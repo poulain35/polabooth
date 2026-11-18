@@ -245,7 +245,9 @@ test('les 11 fonctions de stockage passent par _shared/storage.ts', () => {
   const privateInstalled = existsSync(join(FUNCTIONS_DIR, '_shared', 'modules'));
   for (const fn of STORAGE_FUNCTIONS) {
     if (!privateInstalled && !existsSync(join(FUNCTIONS_DIR, fn))) continue;
-    const src = readFileSync(join(FUNCTIONS_DIR, fn, 'index.ts'), 'utf8');
+    // Fichiers de la fonction hors tests : index.ts peut confier le stockage à un module voisin (media-expiry/purge.ts, LAB-403).
+    const src = readdirSync(join(FUNCTIONS_DIR, fn)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+      .map((f) => readFileSync(join(FUNCTIONS_DIR, fn, f), 'utf8')).join('\n');
     assert.match(src, /from '\.\.\/_shared\/storage\.ts'/, fn);
     assert.match(src, /storageClient\(\)/, fn);
   }

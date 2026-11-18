@@ -15,14 +15,21 @@ import {
   fetchGoogleEvents, createGoogleEvent, updateGoogleEvent, deleteGoogleEvent,
 } from '../../lib/googleCalendar';
 import DateTimePicker from '../../components/DateTimePicker';
-import { X, ChevronLeft, ChevronRight, Plus, Pencil, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Calendar } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Card } from '../../components/ui/card';
+import { Card, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '../../components/ui/dialog';
+import { SegmentedControl } from '../../components/ui/segmented-control';
+import { StatusPill } from '../../components/ui/status-pill';
 import { moduleSlot } from '../../features/modules';
 import { useFeatures } from '../../hooks/useFeatures';
 import { addDays, mondayOf, parisDay, weekTitle } from '../../lib/logisticsAdmin';
+import { CreateButton } from '../../components/admin/AdminPage';
+import { formatDateWith, formatTime } from '../../lib/dates';
+import { Spinner } from '../../components/ui/spinner';
+import { Notice } from '../../components/admin/CardParts';
 
 const todayParis = () => parisDay(new Date().toISOString());
 
@@ -32,8 +39,25 @@ const VIEWS = [
   { key: 'timeGridDay',   label: 'Jour' },
 ];
 
+const MODULE_VIEW = 'module';
+
+// Valeur d'un <input type="color"> : forcément un code #rrggbb, enregistré tel quel avec l'entrée.
 const DEFAULT_ENTRY_COLOR = '#6b7280';
-const GOOGLE_BLUE = '#4285F4';
+// Une couleur choisie par l'utilisateur (borne, entrée) ne suit pas le thème : le texte posé dessus non plus.
+const ON_CUSTOM_COLOR = '#fff';
+const customColors = (color) => ({ backgroundColor: color, borderColor: color, textColor: ON_CUSTOM_COLOR });
+// Blocs sans couleur choisie : couleurs du thème, en clair comme en sombre.
+const UNASSIGNED_COLORS = {
+  backgroundColor: 'hsl(var(--muted-foreground))',
+  borderColor:     'hsl(var(--muted-foreground))',
+  textColor:       'hsl(var(--card))',
+};
+const GOOGLE_COLORS = {
+  backgroundColor: 'hsl(var(--primary))',
+  borderColor:     'hsl(var(--primary))',
+  textColor:       'hsl(var(--primary-foreground))',
+};
+
 
 function toIsoLocal(date) {
   if (!date) return '';
@@ -42,17 +66,8 @@ function toIsoLocal(date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function fmtTime(iso) {
-  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtDateTime(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('fr-FR', {
-    weekday: 'short', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
+// « lun. 16 novembre 14:05 »
+const DAY_TIME = { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' };
 
 // ── Rendu custom d'un événement dans le calendrier ────────────────────────────
 function EventContent({ info }) {
@@ -63,10 +78,10 @@ function EventContent({ info }) {
   if (type === 'event') {
     return (
       <div className="px-1 py-0.5 overflow-hidden w-full">
-        <div className="font-semibold text-[11px] leading-tight truncate">{displayName}</div>
+        <div className="font-medium text-[11px] leading-tight truncate">{displayName}</div>
         {!isMonth && startDate && endDate && (
           <div className="text-[10px] opacity-80 mt-0.5">
-            ↓ {fmtTime(startDate)} &nbsp;·&nbsp; ↑ {fmtTime(endDate)}
+            ↓ {formatTime(startDate)} &nbsp;·&nbsp; ↑ {formatTime(endDate)}
           </div>
         )}
       </div>
@@ -76,15 +91,15 @@ function EventContent({ info }) {
   if (type === 'google') {
     return (
       <div className="px-1 py-0.5 overflow-hidden w-full flex items-center gap-0.5">
-        <span className="text-[8px] font-bold shrink-0 opacity-75">G</span>
-        <span className="font-semibold text-[11px] leading-tight truncate">{event.title}</span>
+        <span className="text-[9px] font-medium shrink-0 opacity-75">G</span>
+        <span className="font-medium text-[11px] leading-tight truncate">{event.title}</span>
       </div>
     );
   }
 
   return (
     <div className="px-1 py-0.5 overflow-hidden w-full">
-      <div className="font-semibold text-[11px] leading-tight truncate">{event.title}</div>
+      <div className="font-medium text-[11px] leading-tight truncate">{event.title}</div>
     </div>
   );
 }
@@ -106,52 +121,36 @@ function GoogleEventModal({ event, onImport, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-              style={{ color: GOOGLE_BLUE, backgroundColor: '#EBF2FF' }}
-            >
-              Google
-            </span>
-            <h2 className="font-semibold text-gray-900 truncate">{event.title}</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors shrink-0 ml-2">
-            <X className="w-5 h-5" />
-          </button>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
+        <div className="flex min-w-0 items-center gap-2 pr-6">
+          <StatusPill tone="blue" dot={false}>Google</StatusPill>
+          <DialogTitle className="truncate">{event.title}</DialogTitle>
         </div>
 
         <div className="space-y-1.5">
           {event.startAt && (
-            <p className="text-sm text-gray-600">
-              <span className="text-gray-400 text-xs mr-1">↓</span>{fmtDateTime(event.startAt)}
+            <p className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-xs mr-1">↓</span>{formatDateWith(event.startAt, DAY_TIME)}
             </p>
           )}
           {event.endAt && (
-            <p className="text-sm text-gray-600">
-              <span className="text-gray-400 text-xs mr-1">↑</span>{fmtDateTime(event.endAt)}
+            <p className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-xs mr-1">↑</span>{formatDateWith(event.endAt, DAY_TIME)}
             </p>
           )}
           {event.description && (
-            <p className="text-sm text-gray-500 mt-2 whitespace-pre-line">{event.description}</p>
+            <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{event.description}</p>
           )}
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <Notice tone="red">{error}</Notice>}
 
         <div className="flex gap-2 pt-1 flex-wrap">
           {event.htmlLink && (
-            <a
-              href={event.htmlLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-2 text-sm hover:bg-blue-50 rounded-lg transition-colors"
-              style={{ color: GOOGLE_BLUE }}
-            >
-              Ouvrir dans Google Agenda
-            </a>
+            <Button variant="ghost" asChild className="text-primary-ink">
+              <a href={event.htmlLink} target="_blank" rel="noopener noreferrer">Ouvrir dans Google Agenda</a>
+            </Button>
           )}
           <div className="flex-1" />
           <Button variant="ghost" onClick={onClose}>
@@ -161,8 +160,8 @@ function GoogleEventModal({ event, onImport, onClose }) {
             {importing ? 'Import…' : 'Ajouter au planning'}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -209,14 +208,9 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
   const showGoogleCheckbox = gcConnected && !isSynced;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">{isNew ? 'Nouvelle entrée' : 'Modifier l\'entrée'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
+        <DialogTitle className="pr-6">{isNew ? 'Nouvelle entrée' : 'Modifier l\'entrée'}</DialogTitle>
 
         <div className="space-y-1.5">
           <Label>Titre</Label>
@@ -226,7 +220,7 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
             value={form.title}
             onChange={e => set('title', e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()}
-            placeholder="Ex : Maintenance Pola 1"
+            placeholder="Ex : Maintenance de la borne"
           />
         </div>
 
@@ -247,13 +241,13 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
         </div>
 
         <div className="flex items-end gap-3">
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label>Couleur</Label>
             <input
               type="color"
               value={form.color}
               onChange={e => set('color', e.target.value)}
-              className="w-10 h-10 rounded-md border border-input cursor-pointer p-0.5"
+              className="h-10 w-10 cursor-pointer rounded-control border border-input bg-card p-0.5"
             />
           </div>
           <div className="flex-1 space-y-1.5">
@@ -268,13 +262,9 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
         </div>
 
         {isSynced && (
-          <div
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
-            style={{ color: GOOGLE_BLUE, backgroundColor: '#EBF2FF' }}
-          >
-            <span className="text-[10px] font-bold">G</span>
+          <Notice tone="blue">
             Synchronisé avec Google Agenda
-          </div>
+          </Notice>
         )}
 
         {showGoogleCheckbox && (
@@ -283,13 +273,13 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
               type="checkbox"
               checked={form.syncToGoogle}
               onChange={e => set('syncToGoogle', e.target.checked)}
-              className="rounded border-gray-300 accent-primary"
+              className="rounded border-input accent-primary"
             />
-            <span className="text-sm text-gray-600">Ajouter à Google Agenda</span>
+            <span className="text-sm text-muted-foreground">Ajouter à Google Agenda</span>
           </label>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <Notice tone="red">{error}</Notice>}
 
         <div className="flex gap-2 pt-1">
           {!isNew && (
@@ -297,7 +287,7 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
               variant="ghost"
               onClick={handleDelete}
               disabled={deleting}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="text-state-red-fg hover:bg-state-red hover:text-state-red-fg"
             >
               {deleting ? 'Suppression…' : 'Supprimer'}
             </Button>
@@ -310,8 +300,8 @@ function EntryModal({ entry, gcConnected, onSave, onDelete, onClose }) {
             {saving ? 'Enregistrement…' : (isNew ? 'Ajouter' : 'Enregistrer')}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -355,22 +345,17 @@ export default function AdminPlanning() {
 
       setPhotobooths(licenses);
 
-      const defaultColor = '#94a3b8';
-
       const evtEntries = events
         .filter(e => e.start_date)
         .map(e => {
           const pb = e.kiosk_licenses;
-          const color = pb?.color ?? defaultColor;
           const displayName = e.name || e.client_name || 'Sans nom';
           return {
             id:              `event-${e.id}`,
             title:           displayName,
             start:           e.start_date,
             end:             e.end_date ?? e.start_date,
-            backgroundColor: color,
-            borderColor:     color,
-            textColor:       '#fff',
+            ...(pb?.color ? customColors(pb.color) : UNASSIGNED_COLORS),
             extendedProps: {
               type:         'event',
               eventId:      e.id,
@@ -387,9 +372,7 @@ export default function AdminPlanning() {
         title:           e.title,
         start:           e.start_at,
         end:             e.end_at,
-        backgroundColor: e.color,
-        borderColor:     e.color,
-        textColor:       '#fff',
+        ...customColors(e.color),
         extendedProps: {
           type:              'entry',
           entryId:           e.id,
@@ -425,9 +408,7 @@ export default function AdminPlanning() {
                 title:           item.summary ?? '(sans titre)',
                 start,
                 end,
-                backgroundColor: GOOGLE_BLUE,
-                borderColor:     GOOGLE_BLUE,
-                textColor:       '#fff',
+                ...GOOGLE_COLORS,
                 extendedProps: {
                   type:            'google',
                   googleEventId:   item.id,
@@ -549,9 +530,7 @@ export default function AdminPlanning() {
         title:           created.title,
         start:           created.start_at,
         end:             created.end_at,
-        backgroundColor: created.color,
-        borderColor:     created.color,
-        textColor:       '#fff',
+        ...customColors(created.color),
         extendedProps: {
           type:              'entry',
           entryId:           created.id,
@@ -662,9 +641,7 @@ export default function AdminPlanning() {
         title:           entry.title,
         start:           entry.start_at,
         end:             entry.end_at,
-        backgroundColor: entry.color,
-        borderColor:     entry.color,
-        textColor:       '#fff',
+        ...customColors(entry.color),
         extendedProps: {
           type:              'entry',
           entryId:           entry.id,
@@ -684,7 +661,7 @@ export default function AdminPlanning() {
     setPhotobooths(prev => prev.map(p => p.id === id ? { ...p, color } : p));
     setCalendarEvents(prev => prev.map(e =>
       e.extendedProps.photoboothId === id
-        ? { ...e, backgroundColor: color, borderColor: color }
+        ? { ...e, ...customColors(color) }
         : e
     ));
     await updateLicenseColor(id, color);
@@ -700,172 +677,149 @@ export default function AdminPlanning() {
 
   const api = () => calendarRef.current?.getApi();
 
+  function selectView(view) {
+    if (view === MODULE_VIEW) { setLogiWeek(mondayOf(todayParis())); return; }
+    if (logiWeek) { setLogiWeek(null); requestAnimationFrame(() => api()?.updateSize()); }
+    api()?.changeView(view);
+  }
+
+  const viewOptions = [
+    ...VIEWS.map((v) => ({ value: v.key, label: v.label })),
+    ...(showLogistics ? [{ value: MODULE_VIEW, label: weekView.label }] : []),
+  ];
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full gap-4 px-4 pb-4 sm:px-6 lg:px-8">
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className="hidden md:flex w-52 shrink-0 bg-card border-r border-gray-100 flex-col">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Photobooths</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {/* Entrée "Sans photobooth" */}
-          <button
-            onClick={() => togglePhotobooth('__none__')}
-            className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
-          >
-            <span className={`w-3 h-3 rounded-full shrink-0 border-2 ${hiddenIds.has('__none__') ? 'border-gray-300 bg-card' : 'bg-gray-400 border-gray-400'}`} />
-            <span className={`text-sm truncate ${hiddenIds.has('__none__') ? 'text-gray-300 line-through' : 'text-gray-600'}`}>
-              Non assigné
-            </span>
-          </button>
+      {/* ── Barre latérale ──────────────────────────────────────────────── */}
+      <aside className="hidden w-56 shrink-0 lg:flex">
+        <Card className="flex w-full flex-col overflow-hidden">
+          <h2 className="px-4 pb-2 pt-4 text-[13px] font-medium text-foreground">Bornes</h2>
+          <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
+            {/* Événements sans borne */}
+            <button
+              onClick={() => togglePhotobooth('__none__')}
+              className="flex w-full items-center gap-2.5 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-muted"
+            >
+              <span className={`h-3 w-3 shrink-0 rounded-full border-2 ${hiddenIds.has('__none__') ? 'border-border bg-card' : 'border-transparent bg-muted-foreground'}`} />
+              <span className={`truncate text-sm ${hiddenIds.has('__none__') ? 'text-muted-foreground/60 line-through' : 'text-muted-foreground'}`}>
+                Non assigné
+              </span>
+            </button>
 
-          {photobooths.map(pb => {
-            const hidden = hiddenIds.has(pb.id);
-            return (
-              <div key={pb.id} className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
-                <button
-                  onClick={() => togglePhotobooth(pb.id)}
-                  className="flex items-center gap-2 flex-1 text-left min-w-0"
-                >
-                  <span
-                    className="w-3 h-3 rounded-full shrink-0 border-2 transition-all"
-                    style={hidden
-                      ? { backgroundColor: 'white', borderColor: pb.color }
-                      : { backgroundColor: pb.color, borderColor: pb.color }}
-                  />
-                  <span className={`text-sm truncate ${hidden ? 'text-gray-300 line-through' : 'text-gray-700'}`}>
-                    {pb.label || pb.machine_name || 'Borne sans nom'}
-                  </span>
-                </button>
-                <label
-                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  title="Changer la couleur"
-                >
-                  <input
-                    type="color"
-                    value={pb.color}
-                    onChange={e => handleColorChange(pb.id, e.target.value)}
-                    className="sr-only"
-                  />
-                  <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
-                </label>
-              </div>
-            );
-          })}
+            {photobooths.map(pb => {
+              const hidden = hiddenIds.has(pb.id);
+              return (
+                <div key={pb.id} className="group flex items-center gap-1.5 rounded-control px-2 py-1.5 hover:bg-muted">
+                  <button
+                    onClick={() => togglePhotobooth(pb.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-full border-2 transition-all"
+                      style={hidden
+                        ? { backgroundColor: 'hsl(var(--card))', borderColor: pb.color }
+                        : { backgroundColor: pb.color, borderColor: pb.color }}
+                    />
+                    <span className={`truncate text-sm ${hidden ? 'text-muted-foreground/60 line-through' : 'text-foreground'}`}>
+                      {pb.label || pb.machine_name || 'Borne sans nom'}
+                    </span>
+                  </button>
+                  <label
+                    className="cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
+                    title="Changer la couleur"
+                  >
+                    <input
+                      type="color"
+                      value={pb.color}
+                      onChange={e => handleColorChange(pb.id, e.target.value)}
+                      className="sr-only"
+                    />
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                  </label>
+                </div>
+              );
+            })}
 
-          {photobooths.length === 0 && !loading && (
-            <p className="text-xs text-gray-400 px-2 py-2 italic">
-              Aucun photobooth enregistré.
-            </p>
-          )}
-        </div>
-
-        {/* Légende */}
-        <div className="p-3 border-t border-gray-100 space-y-1.5">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Légende</p>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-medium">↓</span> Livraison
+            {photobooths.length === 0 && !loading && (
+              <p className="px-2 py-2 text-xs italic text-muted-foreground">
+                Aucune borne enregistrée.
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-medium">↑</span> Retrait
-          </div>
-        </div>
 
-        {/* Google Agenda */}
-        {gcEnabled && <div className="p-3 border-t border-gray-100 space-y-2">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Google Agenda</p>
-          {gcConnected ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                Connecté
-              </div>
-              <button
-                onClick={handleGcDisconnect}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                Déconnecter
-              </button>
+          {/* Légende */}
+          <div className="space-y-1.5 border-t border-border p-4">
+            <p className="mb-2 text-[13px] font-medium text-foreground">Légende</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium">↓</span> Livraison
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <button
-                onClick={handleGcConnect}
-                disabled={gcLoading}
-                className="flex items-center gap-1.5 text-xs text-primary hover:text-primary
-                  disabled:opacity-50 transition-colors"
-              >
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
-                {gcLoading ? 'Connexion…' : 'Connecter Google Agenda'}
-              </button>
-              {gcError && <p className="text-xs text-destructive leading-tight">{gcError}</p>}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium">↑</span> Retrait
+            </div>
+          </div>
+
+          {/* Google Agenda */}
+          {gcEnabled && (
+            <div className="space-y-2 border-t border-border p-4">
+              <p className="text-[13px] font-medium text-foreground">Google Agenda</p>
+              {gcConnected ? (
+                <div className="flex flex-col items-start gap-1.5">
+                  <StatusPill tone="green">Connecté</StatusPill>
+                  <Button variant="ghost" size="xs" className="-ml-2 text-muted-foreground" onClick={handleGcDisconnect}>
+                    Déconnecter
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Button variant="outline" size="sm" onClick={handleGcConnect} disabled={gcLoading}>
+                    <Calendar />
+                    {gcLoading ? 'Connexion…' : 'Connecter'}
+                  </Button>
+                  {gcError && <p className="text-xs leading-tight text-state-red-fg">{gcError}</p>}
+                </div>
+              )}
             </div>
           )}
-        </div>}
+        </Card>
       </aside>
 
       {/* ── Zone calendrier ─────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-muted/30">
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
 
-        {/* Toolbar custom */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 bg-card border-b border-gray-100">
-          {/* Titre */}
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 capitalize leading-tight">{logiWeek && weekView ? `${weekView.label} · ${weekTitle(logiWeek)}` : currentTitle}</h2>
-          </div>
+        {/* Barre d'outils */}
+        <div className="flex flex-wrap items-center gap-3">
+          <CardTitle as="h2" className="min-w-0 flex-auto capitalize">{logiWeek && weekView ? `${weekView.label} · ${weekTitle(logiWeek)}` : currentTitle}</CardTitle>
 
           {/* Navigation */}
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-500" aria-label="Précédent"
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Précédent"
               onClick={() => (logiWeek ? setLogiWeek(addDays(logiWeek, -7)) : api()?.prev())}>
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft />
             </Button>
-            <Button variant="ghost" size="icon" className="w-8 h-8 text-gray-500" aria-label="Suivant"
+            <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Suivant"
               onClick={() => (logiWeek ? setLogiWeek(addDays(logiWeek, 7)) : api()?.next())}>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight />
             </Button>
-            <Button variant="outline" size="sm" className="h-8 ml-1"
+            <Button variant="outline" size="sm" className="ml-1"
               onClick={() => (logiWeek ? setLogiWeek(mondayOf(todayParis())) : api()?.today())}>
               Aujourd'hui
             </Button>
           </div>
 
-          {/* Sélecteur de vue */}
-          <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
-            {VIEWS.map(v => (
-              <button key={v.key} onClick={() => {
-                  if (logiWeek) { setLogiWeek(null); requestAnimationFrame(() => api()?.updateSize()); }
-                  api()?.changeView(v.key);
-                }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  !logiWeek && currentView === v.key
-                    ? 'bg-card text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}>
-                {v.label}
-              </button>
-            ))}
-            {showLogistics && (
-              <button onClick={() => setLogiWeek(mondayOf(todayParis()))}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                  logiWeek ? 'bg-card text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}>
-                {weekView.label}
-              </button>
-            )}
-          </div>
+          <SegmentedControl
+            aria-label="Vue du calendrier"
+            value={logiWeek ? MODULE_VIEW : currentView}
+            onValueChange={selectView}
+            options={viewOptions}
+          />
 
-          {/* Bouton ajouter */}
-          <Button className="rounded-xl" onClick={() => setModal({ mode: 'create', data: {} })}>
-            <Plus className="w-4 h-4" />
-            Ajouter
-          </Button>
+          <CreateButton onClick={() => setModal({ mode: 'create', data: {} })}>Ajouter</CreateButton>
         </div>
 
         {/* Vue semaine du module (« Logistique », LAB-72) : le calendrier reste monté, masqué. */}
         {logiWeek && weekView && (
-          <div className="flex-1 overflow-hidden p-4 flex min-h-0">
+          <div className="flex min-h-0 flex-1">
             <Suspense fallback={null}>
               <weekView.Component monday={logiWeek} onOpenEvent={(id) => navigate(`/admin/events/${id}`)} />
             </Suspense>
@@ -873,16 +827,16 @@ export default function AdminPlanning() {
         )}
 
         {/* Calendrier + Prochains événements */}
-        <div className={`flex-1 overflow-hidden p-4 gap-4 min-h-0 ${logiWeek ? 'hidden' : 'flex'}`}>
-          <Card className="overflow-hidden h-full flex-1 min-w-0">
+        <div className={`min-h-0 flex-1 gap-4 ${logiWeek ? 'hidden' : 'flex'}`}>
+          <Card className="h-full min-w-0 flex-1 overflow-hidden">
             {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="flex h-full items-center justify-center">
+                <Spinner />
               </div>
             ) : loadError ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2">
-                <p className="text-sm text-destructive">{loadError}</p>
-                <button onClick={load} className="text-xs text-primary hover:underline">Réessayer</button>
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-card">
+                <Notice tone="red">{loadError}</Notice>
+                <Button variant="outline" size="sm" onClick={load}>Réessayer</Button>
               </div>
             ) : (
               <FullCalendar
@@ -910,12 +864,12 @@ export default function AdminPlanning() {
           </Card>
 
           {/* Panneau « Prochains événements » */}
-          <Card className="hidden xl:flex w-72 shrink-0 h-full flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-border shrink-0">
-              <h3 className="font-semibold text-foreground text-sm">Prochains événements</h3>
-              <p className="text-xs text-muted-foreground">À venir dans le planning</p>
+          <Card className="hidden h-full w-72 shrink-0 flex-col overflow-hidden xl:flex">
+            <div className="shrink-0 px-4 pb-2 pt-4">
+              <CardTitle as="h3">Prochains événements</CardTitle>
+              <p className="text-[13px] text-muted-foreground">À venir dans le planning</p>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+            <div className="flex-1 space-y-1.5 overflow-y-auto p-3">
               {(() => {
                 const now = Date.now();
                 const upcoming = [...visibleEvents]
@@ -923,8 +877,8 @@ export default function AdminPlanning() {
                   .sort((a, b) => new Date(a.start) - new Date(b.start))
                   .slice(0, 15);
                 if (upcoming.length === 0) return (
-                  <div className="flex flex-col items-center justify-center text-center h-full py-12 gap-2">
-                    <Calendar className="w-8 h-8 text-muted-foreground/30" />
+                  <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
+                    <Calendar className="h-8 w-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">Aucun événement à venir</p>
                   </div>
                 );
@@ -932,11 +886,11 @@ export default function AdminPlanning() {
                   <button
                     key={e.id}
                     onClick={() => api()?.gotoDate(e.start)}
-                    className="w-full text-left flex items-start gap-2.5 p-2.5 rounded-xl border border-border hover:bg-muted/50 transition-colors"
+                    className="flex w-full items-start gap-2.5 rounded-xl bg-soft p-2.5 text-left transition-colors hover:bg-muted"
                   >
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: e.backgroundColor }} />
+                    <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: e.backgroundColor }} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
+                      <p className="truncate text-sm font-medium text-foreground">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(e.start).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
                       </p>

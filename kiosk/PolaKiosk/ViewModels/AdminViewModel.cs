@@ -1,30 +1,21 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Windows;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using PolaKiosk.Services;
 using PolaKiosk.Views;
-using SkiaSharp;
 
 namespace PolaKiosk.ViewModels;
-
-/// <summary>Option de la liste déroulante caméra. Mode null = détection automatique.</summary>
-public record CameraOption(string Label, string? Mode, int WebcamIndex);
-
-/// <summary>Taille des photos du Canon (valeur <see cref="CanonPhotoSize"/>).</summary>
-public record PhotoSizeOption(string Label, string Size);
-
-/// <summary>Délai de conservation d'un événement terminé sur le PC.</summary>
-public record RetentionOption(string Label, int Days);
 
 public partial class AdminViewModel : ObservableObject, IReleasable
 {
     /// <summary>Entrée du menu déroulant = suivre l'imprimante par défaut de Windows (aucun nom figé).</summary>
     public const string SystemDefaultPrinter = "Imprimante par défaut du système";
+
+    private const int PreviewDecodeWidth = 960;
 
     private readonly IKioskStateService _state;
     private readonly INavigationService _navigation;
@@ -36,6 +27,9 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     private readonly AppSettings _settings;
     private readonly ISaasSwitchService _saasSwitch;
     private readonly IAppRestart _restart;
+    private readonly IPolaHistory _history;
+    private readonly IPrinterDriver _printerDriver;
+    private readonly TimeProvider _clock;
     private readonly ICameraService? _camera;
     private bool _previewRunning;
 
@@ -46,10 +40,19 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     [ObservableProperty] private string _polaStatusMsg   = "";
     [ObservableProperty] private bool   _isImporting     = false;
 
+    /// <summary>.pola déjà importés, le plus récent d'abord : un appui recharge l'événement (LAB-321).</summary>
+    public ObservableCollection<PolaHistoryItem> PolaHistory { get; } = new();
+    [ObservableProperty] private bool _hasPolaHistory;
+
     public ObservableCollection<string> AvailablePrinters { get; } = new();
     [ObservableProperty] private string _selectedPrinter   = SystemDefaultPrinter;
     [ObservableProperty] private string _printerStatusMsg  = "";
     [ObservableProperty] private string _defaultPrinterHint = "";
+
+    // ── Réglages du pilote (LAB-334) : « bandes coupées » et « normal », enregistrés depuis sa fenêtre ──
+    [ObservableProperty] private string _stripCutSettingStatus = "";
+    [ObservableProperty] private string _normalSettingStatus   = "";
+    [ObservableProperty] private string _driverSettingMsg      = "";
 
     public ObservableCollection<CameraOption> AvailableCameras { get; } = new();
     [ObservableProperty] private CameraOption? _selectedCamera;
@@ -89,8 +92,11 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     public AdminViewModel(IKioskStateService state, INavigationService navigation, ISyncService sync,
         IKioskService kiosk, IPrintService print, IMachineSettingsService machine,
         ICameraDetectionService cameraDetection, AppSettings settings, ISaasSwitchService saasSwitch,
-        IAppRestart restart, ICameraService? camera = null)
+        IAppRestart restart, IPolaHistory history, IPrinterDriver printerDriver, ICameraService? camera = null,
+        TimeProvider? clock = null)
     {
+        _printerDriver   = printerDriver;
+        _clock           = clock ?? TimeProvider.System;
         _camera          = camera;
         _state           = state;
         _navigation      = navigation;
@@ -102,6 +108,7 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         _settings        = settings;
         _saasSwitch      = saasSwitch;
         _restart         = restart;
+        _history         = history;
 
         // Désactiver le mode kiosk pendant l'admin
         _kiosk.DisableKioskMode();
@@ -110,8 +117,33 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         ActiveEventId   = state.ActiveEventId?.ToString() ?? "";
 
         LoadPrinters();
+        RefreshDriverSettingStatus();
         LoadCameras();
         LoadStorageSettings();
+        LoadPolaHistory();
+    }
+
+    private void LoadPolaHistory()
+    {
+        PolaHistory.Clear();
+        try
+        {
+            foreach (var entry in _history.List()) PolaHistory.Add(PolaHistoryItem.From(entry));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Dossier illisible : liste vide, l'import d'un .pola reste possible.
+        }
+        HasPolaHistory = PolaHistory.Count > 0;
+    }
+
+    private void Forget(PolaHistoryEntry entry)
+    {
+        try { _history.Remove(entry); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Fichier verrouillé : l'entrée reste proposée, l'admin peut réessayer.
+        }
     }
 
     private void LoadStorageSettings()
@@ -146,83 +178,6 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         if (opt == null) return;
         _machine.SetEventRetentionDays(opt.Days);
         RetentionStatusMsg = $"✓ Les événements terminés sont supprimés du PC après {opt.Days} jours (photos toutes envoyées).";
-    }
-
-    private void LoadCameras()
-    {
-        AvailableCameras.Clear();
-        AvailableCameras.Add(new CameraOption("Détection automatique", null, 0));
-
-        foreach (var c in _cameraDetection.DetectAvailableCameras())
-        {
-            if (c.Source == CameraSource.Canon)
-                AvailableCameras.Add(new CameraOption("Canon (EOS R100)", "canon", 0));
-            else if (c.Source == CameraSource.Webcam)
-                AvailableCameras.Add(new CameraOption($"Webcam {c.DeviceIndex}", "webcam", c.DeviceIndex));
-        }
-
-        AvailableCameras.Add(new CameraOption("Simulation (test)", "mock", 0));
-
-        // Sélection courante d'après la config appliquée
-        var forced = _settings.Camera.ForcedSource;
-        SelectedCamera = forced switch
-        {
-            CameraSource.Canon  => AvailableCameras.FirstOrDefault(o => o.Mode == "canon"),
-            CameraSource.Webcam => AvailableCameras.FirstOrDefault(o => o.Mode == "webcam" && o.WebcamIndex == _settings.Camera.WebcamIndex)
-                                   ?? AvailableCameras.FirstOrDefault(o => o.Mode == "webcam"),
-            CameraSource.Mock   => AvailableCameras.FirstOrDefault(o => o.Mode == "mock"),
-            _                   => AvailableCameras[0],
-        } ?? AvailableCameras[0];
-    }
-
-    [RelayCommand]
-    private void SaveCamera()
-    {
-        var opt = SelectedCamera;
-        if (opt == null) return;
-
-        _machine.SetCamera(opt.Mode, opt.Mode == "webcam" ? opt.WebcamIndex : (int?)null);
-
-        // Reflet dans la config en mémoire (effectif si le service caméra n'a pas encore été créé)
-        _settings.Camera.ForcedSource = opt.Mode switch
-        {
-            "canon"  => CameraSource.Canon,
-            "webcam" => CameraSource.Webcam,
-            "mock"   => CameraSource.Mock,
-            _        => (CameraSource?)null,
-        };
-        if (opt.Mode == "webcam") _settings.Camera.WebcamIndex = opt.WebcamIndex;
-
-        CameraStatusMsg = $"✓ Caméra : {opt.Label} — redémarrez le kiosk pour l'appliquer.";
-    }
-
-    private void LoadPrinters()
-    {
-        AvailablePrinters.Clear();
-        AvailablePrinters.Add(SystemDefaultPrinter);
-        foreach (var p in _print.GetAvailablePrinters())
-            AvailablePrinters.Add(p);
-
-        var configured = _settings.Kiosk.PrinterName;
-        SelectedPrinter = !string.IsNullOrWhiteSpace(configured) && AvailablePrinters.Contains(configured)
-            ? configured
-            : SystemDefaultPrinter;
-
-        var def = _print.GetDefaultPrinterName();
-        DefaultPrinterHint = string.IsNullOrWhiteSpace(def)
-            ? "Aucune imprimante par défaut détectée dans Windows."
-            : $"Imprimante par défaut de Windows : {def}";
-    }
-
-    [RelayCommand]
-    private void SavePrinter()
-    {
-        var chosen = SelectedPrinter == SystemDefaultPrinter ? null : SelectedPrinter;
-        _machine.SetPrinterName(chosen);
-        _settings.Kiosk.PrinterName = chosen ?? "";  // prise en compte immédiate, sans redémarrer
-        PrinterStatusMsg = chosen == null
-            ? "✓ Imprimante par défaut du système"
-            : $"✓ Imprimante enregistrée : {chosen}";
     }
 
     [RelayCommand]
@@ -290,157 +245,80 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         };
 
         if (dlg.ShowDialog() != true) return;
+        await ImportPolaFromPathAsync(dlg.FileName);
+    }
 
+    /// <summary>
+    /// Import du fichier choisi : l'événement importé devient l'événement actif (comme un envoi depuis
+    /// le SaaS) et la carte « Événement actif » l'affiche aussitôt (LAB-320).
+    /// </summary>
+    internal Task ImportPolaFromPathAsync(string path) => ImportAsync(path, archived: null);
+
+    /// <summary>
+    /// « Recharger » un .pola de l'historique : même chemin qu'un import, sans le fichier d'origine ni
+    /// réseau (LAB-321). Fichier disparu ou illisible : message, et l'entrée quitte la liste.
+    /// </summary>
+    [RelayCommand]
+    private async Task ReloadPolaAsync(PolaHistoryItem? item)
+    {
+        if (item == null || IsImporting) return;
+        await ImportAsync(_history.PathOf(item.Entry), item.Entry);
+    }
+
+    private async Task ImportAsync(string path, PolaHistoryEntry? archived)
+    {
         IsImporting  = true;
-        PolaStatusMsg = "Import en cours...";
+        PolaStatusMsg = archived == null ? "Import en cours..." : $"Chargement de « {archived.EventName} »...";
         try
         {
-            await _sync.ImportPolaFileAsync(dlg.FileName);
-            PolaStatusMsg = $"✓ Fichier importé — le client peut maintenant entrer son code événement.";
+            var ev = await _sync.ImportPolaFileAsync(path);
+            await _state.SetActiveEventAsync(ev.Id, ev.Name, ev.AccessCode);
+            ActiveEventName = ev.Name;
+            ActiveEventId   = ev.Id.ToString();
+            PolaStatusMsg = archived == null
+                ? "✓ Fichier importé — le client peut maintenant entrer son code événement."
+                : $"✓ « {ev.Name} » rechargé : c'est l'événement actif.";
+        }
+        catch (Exception ex) when (archived != null && ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            Forget(archived);
+            PolaStatusMsg = "Erreur : ce fichier .pola n'est plus sur la borne. Il a été retiré de la liste.";
+        }
+        catch (InvalidDataException ex) when (archived != null)
+        {
+            Forget(archived);
+            PolaStatusMsg = $"Erreur : {ex.Message} Il a été retiré de la liste.";
         }
         catch (Exception ex)
         {
             PolaStatusMsg = $"Erreur : {ex.Message}";
         }
-        finally { IsImporting = false; }
-    }
-
-    /// <summary>« Tester la caméra » : ouvre l'appareil choisi au démarrage et affiche l'aperçu.</summary>
-    [RelayCommand]
-    private async Task TestCameraAsync()
-    {
-        if (_camera == null || IsTestingCamera) return;
-        IsTestingCamera      = true;
-        LowDefinitionWarning = "";
-        CameraTestMsg        = "Ouverture de l'appareil…";
-        try
-        {
-            await _camera.InitializeAsync();
-            await _camera.StartLiveViewAsync(OnTestFrame);
-            _previewRunning = true;
-            if (_camera is WebcamCameraService { ActualResolution: { } res } && res.Width > 0)
-            {
-                CameraTestMsg        = $"Aperçu en cours. Webcam : {res.Width} × {res.Height}.";
-                LowDefinitionWarning = CameraTest.LowDefinitionWarning(res.Width, res.Height, isWebcam: true);
-            }
-            else
-            {
-                CameraTestMsg = "Aperçu en cours. Prenez une photo de test pour vérifier la définition.";
-            }
-        }
-        catch (Exception ex)
-        {
-            CameraTestMsg = $"Appareil photo introuvable : {ex.Message}";
-            await StopPreviewAsync();
-        }
-        finally { IsTestingCamera = false; }
-    }
-
-    /// <summary>Une photo de test : définition lue dans le fichier obtenu, puis fichier supprimé.</summary>
-    [RelayCommand]
-    private async Task CaptureTestPhotoAsync()
-    {
-        if (_camera == null || IsTestingCamera) return;
-        IsTestingCamera = true;
-        CameraTestMsg   = "Photo de test en cours…";
-        var dir = Path.Combine(Path.GetTempPath(), "PolaKiosk", "camera-test");
-        try
-        {
-            await _camera.InitializeAsync();
-            Directory.CreateDirectory(dir);
-            var path = await _camera.CaptureAsync(dir);
-            var (w, h) = CameraTest.ReadSize(path);
-            try { File.Delete(path); } catch { }
-
-            var isWebcam = _camera is WebcamCameraService;
-            CameraTestMsg        = $"✓ Photo de test réussie : {w} × {h} px.";
-            LowDefinitionWarning = CameraTest.LowDefinitionWarning(w, h, isWebcam);
-        }
-        catch (Exception ex)
-        {
-            CameraTestMsg = $"La photo de test a échoué : {ex.Message}";
-        }
         finally
         {
-            // La prise de vue arrête l'aperçu (Canon) : on le coupe proprement dans tous les cas.
-            await StopPreviewAsync();
-            IsTestingCamera = false;
+            IsImporting = false;
+            LoadPolaHistory();
         }
     }
 
+    /// <summary>
+    /// Retour (LAB-389) : sur l'accueil de l'événement s'il y en a un d'actif et présent sur la borne
+    /// (même règle qu'au démarrage, <see cref="StartupFlow"/>), sinon sur la saisie du code.
+    /// </summary>
     [RelayCommand]
-    private Task StopCameraTestAsync() => StopPreviewAsync();
-
-    private void OnTestFrame(byte[] jpegBytes)
-    {
-        if (!_previewRunning) return;
-        BitmapSource? frame;
-        try { frame = CameraTest.DecodeFrame(jpegBytes); }
-        catch { return; }
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null) return;
-        dispatcher.BeginInvoke(() =>
-        {
-            if (!_previewRunning) return;
-            TestPreview    = frame;
-            HasTestPreview = true;
-        });
-    }
-
-    private async Task StopPreviewAsync()
-    {
-        var wasRunning = _previewRunning;
-        _previewRunning = false;
-        TestPreview     = null;
-        HasTestPreview  = false;
-        if (wasRunning && _camera != null)
-        {
-            try { await _camera.StopLiveViewAsync(); } catch { }
-        }
-    }
-
-    /// <summary>Sortie de l'écran admin (navigation) : l'aperçu ne doit pas continuer en arrière-plan.</summary>
-    public void Release() => _ = StopPreviewAsync();
-
-    [RelayCommand]
-    private void Back()
+    private async Task BackAsync()
     {
         _ = StopPreviewAsync();
         _kiosk.EnableKioskMode();
-        _navigation.NavigateTo<EventSetupView>(); // fresh instance, ShowPinEntry toujours false
-    }
-}
 
-/// <summary>Outils purs du test caméra de l'admin (LAB-263).</summary>
-public static class CameraTest
-{
-    /// <summary>« Webcam en basse définition : WxH » sous 1280×720 (webcam seulement), sinon vide.</summary>
-    public static string LowDefinitionWarning(int width, int height, bool isWebcam)
-        => isWebcam && WebcamCameraService.IsLowDefinition(width, height)
-            ? $"Webcam en basse définition : {width}x{height}"
-            : "";
-
-    /// <summary>Largeur et hauteur d'une image, lues dans son en-tête.</summary>
-    public static (int Width, int Height) ReadSize(string path)
-    {
-        using var codec = SKCodec.Create(path)
-            ?? throw new InvalidDataException("Image de test illisible.");
-        return (codec.Info.Width, codec.Info.Height);
-    }
-
-    /// <summary>Image d'aperçu (JPEG) décodée et figée, utilisable depuis le fil d'affichage.</summary>
-    public static BitmapSource DecodeFrame(byte[] jpegBytes)
-    {
-        var image = new BitmapImage();
-        using (var stream = new MemoryStream(jpegBytes))
+        var hasEvent = false;
+        try
         {
-            image.BeginInit();
-            image.CacheOption       = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth  = 960;
-            image.StreamSource      = stream;
-            image.EndInit();
+            hasEvent = _state.ActiveEventId is { } id && id != Guid.Empty
+                       && await _sync.GetCurrentEventAsync(id) != null;
         }
-        image.Freeze();
-        return image;
+        catch (Exception) { /* base locale illisible : saisie du code, comme avant */ }
+
+        if (hasEvent) _navigation.NavigateTo<HomeView>();
+        else _navigation.NavigateTo<EventSetupView>(); // fresh instance, ShowPinEntry toujours false
     }
 }

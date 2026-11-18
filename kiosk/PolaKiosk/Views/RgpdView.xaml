@@ -13,17 +13,10 @@
 
             <!-- Message RGPD personnalisé -->
             <Border Style="{StaticResource KioskTile}" Margin="0,0,0,40">
-                <StackPanel>
-                    <TextBlock Text="{Binding ConsentMessage}"
-                               FontSize="20" Foreground="{StaticResource KioskBrownBrush}"
-                               TextWrapping="Wrap" LineHeight="32"
-                               TextAlignment="Center"/>
-                    <!-- Questionnaire obligatoire : l'invité est prévenu avant « J'accepte » -->
-                    <TextBlock Text="{Binding HomeNotice}"
-                               Visibility="{Binding ShowHomeNotice, Converter={StaticResource BoolToVisibility}}"
-                               FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource KioskForestBrush}"
-                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,20,0,0"/>
-                </StackPanel>
+                <TextBlock Text="{Binding ConsentMessage}"
+                           FontSize="20" Foreground="{StaticResource KioskBrownBrush}"
+                           TextWrapping="Wrap" LineHeight="32"
+                           TextAlignment="Center"/>
             </Border>
 
             <!-- Boutons -->

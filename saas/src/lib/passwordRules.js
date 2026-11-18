@@ -7,7 +7,7 @@ import { retryHint } from './httpErrors.js';
 // impose davantage, son refus (weak_password) est traduit plus bas.
 export const PASSWORD_MIN_LENGTH = 8;
 // bcrypt (Supabase Auth) ignore ce qui dépasse 72 octets : Supabase refuse au-delà.
-export const PASSWORD_MAX_BYTES = 72;
+const PASSWORD_MAX_BYTES = 72;
 
 export const RESET_PASSWORD_PATH = '/admin/nouveau-mot-de-passe';
 export const FORGOT_PASSWORD_PATH = '/admin/login?oubli=1';

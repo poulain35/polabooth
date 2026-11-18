@@ -147,11 +147,12 @@ test('track_gallery_event : contrôles avant le code, garde anti-énumération, 
 });
 
 test('front : galerie par la RPC, plus d\'INSERT direct ; aucune notion LAB-232', () => {
-  const lib = src('lib/supabase.js');
-  assert.doesNotMatch(lib, /\.from\('gallery_analytics'\)\s*\.insert/);
-  assert.doesNotMatch(lib, /\.from\('print_logs'\)\s*\.insert/);
+  const lib = src('lib/api/photos.js');
+  const allApi = readdirSync(new URL('../../../src/lib/api/', import.meta.url)).map((f) => src(`lib/api/${f}`)).join('\n');
+  assert.doesNotMatch(allApi, /\.from\('gallery_analytics'\)\s*\.insert/);
+  assert.doesNotMatch(allApi, /\.from\('print_logs'\)\s*\.insert/);
   assert.match(lib, /supabase\.rpc\('track_gallery_event', \{ p_code: code, p_type: type, p_count: count \}\)/);
-  assert.doesNotMatch(lib, /\bp_via\b|event_activity/);
+  assert.doesNotMatch(allApi, /\bp_via\b|event_activity/);
   const gallery = src('pages/PhotoGallery.jsx');
   const calls = [...gallery.matchAll(/trackGalleryEvent\(([^,)]+)/g)].map((m) => m[1].trim());
   assert.ok(calls.length >= 4, calls.join(','));

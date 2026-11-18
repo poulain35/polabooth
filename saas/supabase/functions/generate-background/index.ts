@@ -123,7 +123,11 @@ Deno.serve(async (req) => {
     return corsResponse(200, { url });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erreur interne';
-    return corsResponse(500, { error: msg });
+    // Détail (Replicate) en journal seulement ; le délai dépassé garde son message (LAB-392).
+    console.error('generate-background :', err);
+    if (err instanceof Error && err.message.startsWith('Timeout')) {
+      return corsResponse(504, { error: 'La génération a pris trop de temps, réessayez.' });
+    }
+    return corsResponse(500, { error: 'La génération a échoué, réessayez.' });
   }
 });

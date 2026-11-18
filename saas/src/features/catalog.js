@@ -5,8 +5,13 @@
 // Activation stockée dans organizations.features ({ "<id>": true|false }) :
 // clé absente = defaultEnabled ; socle (core: true) toujours actif ;
 // une fonctionnalité dont une dépendance est inactive est inactive.
+//
+// Une fonctionnalité privée peut compléter son entrée (libellé, description, clés requises) par le
+// catalogue de son module (src/modules/<id>/catalog.js, lu par src/modules/catalog.js, LAB-403).
 
-export const FEATURES = [
+import moduleCatalogs from '../modules/catalog.js';
+
+const OPEN_FEATURES = [
   {
     id: 'core',
     label: 'Événements et bornes',
@@ -165,7 +170,7 @@ export const FEATURES = [
     visibility: 'private',
     core: false,
     defaultEnabled: false,
-    requiredKeys: ['PENNYLANE_API_KEY'],
+    requiredKeys: [],
   },
   {
     id: 'audio_guestbook',
@@ -178,6 +183,11 @@ export const FEATURES = [
     requiredKeys: [],
   },
 ];
+
+export const FEATURES = OPEN_FEATURES.map((f) => ({
+  ...f,
+  ...moduleCatalogs.find((m) => m.id === f.id)?.feature,
+}));
 
 export const FEATURE_IDS = FEATURES.map((f) => f.id);
 

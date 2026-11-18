@@ -32,6 +32,54 @@ public class HomeScreenTests
         HomeScreen.ResolveLayout(personalized, AllFormats.Take(formatCount).ToList()).Should().Be(expected);
     }
 
+    // Écran du client (LAB-291) : seulement si l'accueil est personnalisé, l'option active et le PNG lisible.
+    [Theory]
+    [InlineData(true,  1, true,  true,  HomeLayout.CustomDesign)]
+    [InlineData(true,  3, true,  true,  HomeLayout.CustomDesign)]  // plusieurs formats : tuiles sur l'écran du client
+    [InlineData(false, 1, true,  true,  HomeLayout.Neutral)]       // personnalisation coupée : 1a
+    [InlineData(true,  1, false, true,  HomeLayout.Personalized)]  // option coupée : 1b
+    [InlineData(true,  1, true,  false, HomeLayout.Personalized)]  // PNG absent ou illisible : 1b (spec D7)
+    [InlineData(true,  2, true,  false, HomeLayout.FormatChoice)]  // ... ou 1c
+    [InlineData(true,  2, false, false, HomeLayout.FormatChoice)]
+    public void The_client_screen_needs_personalization_the_option_and_a_readable_png(
+        bool personalized, int formatCount, bool clientDesign, bool hasCustomDesign, HomeLayout expected)
+    {
+        HomeScreen.ResolveLayout(personalized, AllFormats.Take(formatCount).ToList(), clientDesign, hasCustomDesign)
+            .Should().Be(expected);
+    }
+
+    // Écran de l'organisation (LAB-297) : priorité écran du client > écran de l'organisation > 1a / 1b / 1c.
+    [Theory]
+    [InlineData(true,  1, true,  true,  true,  HomeLayout.CustomDesign)]  // le client gagne
+    [InlineData(true,  3, true,  true,  true,  HomeLayout.CustomDesign)]
+    [InlineData(true,  1, false, true,  true,  HomeLayout.OrgDesign)]     // option du client coupée
+    [InlineData(true,  1, true,  false, true,  HomeLayout.OrgDesign)]     // écran du client absent ou illisible
+    [InlineData(false, 1, true,  true,  true,  HomeLayout.OrgDesign)]     // non personnalisé : pas de client, mais l'org (fond neutre)
+    [InlineData(false, 3, false, false, true,  HomeLayout.OrgDesign)]
+    [InlineData(true,  2, false, false, true,  HomeLayout.OrgDesign)]     // plusieurs formats : l'org passe avant 1c
+    [InlineData(false, 1, false, false, false, HomeLayout.Neutral)]       // rien en cache : écrans standard
+    [InlineData(true,  1, false, false, false, HomeLayout.Personalized)]
+    [InlineData(true,  2, false, false, false, HomeLayout.FormatChoice)]
+    public void The_org_screen_comes_after_the_client_screen_and_before_the_standard_ones(
+        bool personalized, int formatCount, bool clientDesign, bool hasCustomDesign, bool hasOrgDesign, HomeLayout expected)
+    {
+        HomeScreen.ResolveLayout(personalized, AllFormats.Take(formatCount).ToList(), clientDesign, hasCustomDesign, hasOrgDesign)
+            .Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(HomeLayout.OrgDesign,    1, true)]   // spec D5 : toucher n'importe où démarre
+    [InlineData(HomeLayout.OrgDesign,    2, true)]
+    [InlineData(HomeLayout.Neutral,      1, true)]
+    [InlineData(HomeLayout.Personalized, 1, true)]
+    [InlineData(HomeLayout.FormatChoice, 2, false)]
+    [InlineData(HomeLayout.CustomDesign, 1, true)]   // pastille : tout l'écran démarre
+    [InlineData(HomeLayout.CustomDesign, 2, false)]  // tuiles : seules elles démarrent
+    public void The_whole_screen_starts_unless_tiles_are_shown(HomeLayout layout, int formatCount, bool expected)
+    {
+        HomeScreen.IsWholeScreenTappable(layout, formatCount).Should().Be(expected);
+    }
+
     [Fact]
     public void Only_formats_the_kiosk_can_shoot_are_offered()
     {

@@ -47,11 +47,11 @@ function Chevron({ up }) {
 function StepColumn({ value, onUp, onDown }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <button type="button" onClick={onUp} className="text-gray-400 hover:text-violet-600 transition-colors">
+      <button type="button" onClick={onUp} className="text-muted-foreground hover:text-primary-ink transition-colors">
         <Chevron up />
       </button>
-      <span className="text-xl font-semibold text-gray-800 tabular-nums w-9 text-center">{value}</span>
-      <button type="button" onClick={onDown} className="text-gray-400 hover:text-violet-600 transition-colors">
+      <span className="text-xl font-medium text-foreground tabular-nums w-9 text-center">{value}</span>
+      <button type="button" onClick={onDown} className="text-muted-foreground hover:text-primary-ink transition-colors">
         <Chevron />
       </button>
     </div>
@@ -64,7 +64,7 @@ function TimeStepper({ hour, minute, onChange }) {
   return (
     <div className="flex items-center justify-center gap-3 py-1 select-none">
       <StepColumn value={pad(hour)}   onUp={() => setHour(hour + 1)}     onDown={() => setHour(hour - 1)} />
-      <span className="text-xl font-semibold text-gray-300 pb-0.5">:</span>
+      <span className="text-xl font-medium text-muted-foreground/60 pb-0.5">:</span>
       <StepColumn value={pad(minute)} onUp={() => setMinute(minute + 1)} onDown={() => setMinute(minute - 1)} />
     </div>
   );
@@ -80,17 +80,17 @@ function SideChevron({ next }) {
 }
 
 function ViewHeader({ label, onPrev, onNext, onLabelClick }) {
-  const navBtn = 'w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors';
+  const navBtn = 'w-9 h-9 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors';
   return (
     <div className="flex items-center justify-between h-10 mb-1.5">
       <button type="button" onClick={onPrev} className={navBtn}><SideChevron /></button>
       {onLabelClick ? (
         <button type="button" onClick={onLabelClick}
-          className="px-2 py-0.5 rounded-md text-[15px] font-semibold text-gray-900 hover:bg-gray-100 transition-colors">
+          className="px-2 py-0.5 rounded-md text-[15px] font-medium text-foreground hover:bg-muted transition-colors">
           {label}
         </button>
       ) : (
-        <span className="text-[15px] font-semibold text-gray-900">{label}</span>
+        <span className="text-[15px] font-medium text-foreground">{label}</span>
       )}
       <button type="button" onClick={onNext} className={navBtn}><SideChevron next /></button>
     </div>
@@ -102,8 +102,8 @@ function GridCell({ label, selected, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`py-2.5 rounded-lg text-sm font-medium text-center transition-colors
-        ${selected ? 'bg-violet-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+      className={`py-2.5 rounded-xl text-sm text-center transition-colors
+        ${selected ? 'bg-primary font-medium text-primary-foreground' : 'text-foreground hover:bg-muted'}`}
     >
       {label}
     </button>
@@ -208,18 +208,18 @@ export default function DateTimePicker({ value, onChange, min, label, placeholde
 
   return (
     <div ref={ref} className="relative">
-      {label && <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>}
+      {label && <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>}
 
       {/* Champ déclencheur */}
       <button
         type="button"
         onClick={toggleOpen}
-        className={`w-full flex items-center gap-2 text-sm border rounded-lg px-3 py-2 text-left outline-none
-          transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100
-          ${open ? 'border-violet-400 ring-2 ring-violet-100' : 'border-gray-200'}
-          ${selected ? 'text-gray-800' : 'text-gray-400'}`}
+        className={`w-full flex min-h-10 items-center gap-2 text-sm border rounded-control bg-card px-3 py-2 text-left outline-none
+          transition focus:border-primary focus:ring-2 focus:ring-primary-soft
+          ${open ? 'border-primary ring-2 ring-primary-soft' : 'border-input'}
+          ${selected ? 'text-foreground' : 'text-muted-foreground'}`}
       >
-        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <svg className="w-4 h-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -228,7 +228,7 @@ export default function DateTimePicker({ value, onChange, min, label, placeholde
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); onChange(''); }}
-            className="text-gray-300 hover:text-gray-500 transition-colors leading-none"
+            className="text-muted-foreground/60 hover:text-muted-foreground transition-colors leading-none"
           >
             ✕
           </span>
@@ -237,7 +237,7 @@ export default function DateTimePicker({ value, onChange, min, label, placeholde
 
       {/* Popover */}
       {open && (
-        <div className="pola-calendar absolute z-50 mt-1 bg-card border border-gray-200 rounded-xl shadow-lg p-3 min-w-[300px]">
+        <div className="pola-calendar absolute z-50 mt-1 bg-card border border-border rounded-dialog shadow-float p-3 min-w-[300px]">
           {view === 'days' && (
             <DayPicker
               mode="single"
@@ -254,14 +254,14 @@ export default function DateTimePicker({ value, onChange, min, label, placeholde
                     <button
                       type="button"
                       onClick={() => setView('months')}
-                      className="px-1.5 py-0.5 rounded-md text-[15px] font-semibold text-gray-900 capitalize hover:bg-gray-100 transition-colors"
+                      className="px-1.5 py-0.5 rounded-md text-[15px] font-medium text-foreground capitalize hover:bg-muted transition-colors"
                     >
                       {month.toLocaleDateString('fr-FR', { month: 'long' })}
                     </button>
                     <button
                       type="button"
                       onClick={() => setView('years')}
-                      className="px-1.5 py-0.5 rounded-md text-[15px] font-semibold text-gray-900 hover:bg-gray-100 transition-colors"
+                      className="px-1.5 py-0.5 rounded-md text-[15px] font-medium text-foreground hover:bg-muted transition-colors"
                     >
                       {month.getFullYear()}
                     </button>
@@ -291,7 +291,7 @@ export default function DateTimePicker({ value, onChange, min, label, placeholde
           )}
 
           {showTime && view === 'days' && (
-            <div className="border-t border-gray-100 mt-1 pt-3">
+            <div className="border-t border-border mt-1 pt-3">
               <TimeStepper hour={hour} minute={minute} onChange={handleTimeChange} />
             </div>
           )}

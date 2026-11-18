@@ -5,8 +5,12 @@
 //
 // `name` : nom de la variable d'environnement de repli (getSecret dans _shared/secrets.ts).
 // `feature` : id du catalogue des fonctionnalités, null pour le socle (emails).
+// Les clés d'une fonctionnalité privée sont déclarées par son module (src/modules/<id>/catalog.js, lu par
+// src/modules/catalog.js, LAB-403) et viennent après celles du code ouvert.
 
-export const SERVICE_KEYS = [
+import moduleCatalogs from '../modules/catalog.js';
+
+const OPEN_SERVICE_KEYS = [
   {
     name: 'BREVO_API_KEY',
     label: 'Clé API Brevo',
@@ -49,13 +53,11 @@ export const SERVICE_KEYS = [
     help: 'Sur replicate.com : Account settings, API tokens.',
     testable: true,
   },
-  {
-    name: 'PENNYLANE_API_KEY',
-    label: 'Jeton API Pennylane',
-    feature: 'invoicing',
-    help: 'Dans Pennylane : Paramètres, Connectivité, Développeurs, jeton API.',
-    testable: true,
-  },
+];
+
+export const SERVICE_KEYS = [
+  ...OPEN_SERVICE_KEYS,
+  ...moduleCatalogs.flatMap((m) => m.serviceKeys ?? []),
 ];
 
 export const SERVICE_KEY_NAMES = SERVICE_KEYS.map((k) => k.name);
@@ -69,13 +71,14 @@ export function getServiceKey(name) {
   return BY_NAME.get(name) ?? null;
 }
 
-// Sections de Paramètres > Clés : socle (emails) puis une section par fonctionnalité qui utilise des clés.
+// Sections de Paramètres > Clés : socle (emails) puis une section par fonctionnalité qui utilise des clés
+// (celles des modules privés en dernier).
 const KEY_GROUPS = [
   { feature: null, title: 'Emails', help: 'Socle : tous les envois d\'emails passent par Brevo.' },
   { feature: 'google_calendar' },
   { feature: 'assistant' },
   { feature: 'ai_visuals' },
-  { feature: 'invoicing' },
+  ...moduleCatalogs.filter((m) => m.serviceKeys?.length).map((m) => ({ feature: m.id })),
 ];
 
 const SMTP_EMAILS_HELP = 'Socle : les emails partent par le serveur SMTP réglé à l\'installation (instance.env). Aucune clé à saisir ici.';

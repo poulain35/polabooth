@@ -15,16 +15,18 @@ import {
 } from '../../lib/kioskEventPush';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { CardHeading, Notice } from './CardParts';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 
 /** Relecture du suivi tant que la borne n'a pas chargé l'envoi (elle le lit toutes les 20 s). */
 const PENDING_REFRESH_MS = 5_000;
 
+// Le message dit l'état de l'envoi ; la teinte l'appuie.
 const STATE_STYLE = {
-  requested: 'text-amber-700',
-  received:  'text-amber-700',
-  applied:   'text-emerald-700',
-  failed:    'text-red-600',
+  requested: 'text-state-amber-fg',
+  received:  'text-state-amber-fg',
+  applied:   'text-state-green-fg',
+  failed:    'text-destructive',
 };
 
 const isPending = (status) => status?.state === 'requested' || status?.state === 'received';
@@ -56,13 +58,13 @@ function PushStatus({ status, eventName, onCancel, cancelling }) {
   const hint = eventPushHint(status);
   return (
     <div className="mt-2 space-y-1">
-      <p className={`text-xs ${STATE_STYLE[status.state] ?? 'text-gray-500'}`}>
-        {eventName ? <span className="text-gray-500">{eventName} · </span> : null}
+      <p className={`text-xs ${STATE_STYLE[status.state] ?? 'text-muted-foreground'}`}>
+        {eventName ? <span className="text-muted-foreground">{eventName} · </span> : null}
         {message}
       </p>
-      {hint && <p className="text-xs text-gray-500">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {canCancelEventPush(status) && (
-        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onCancel} disabled={cancelling}>
+        <Button size="xs" variant="ghost"  onClick={onCancel} disabled={cancelling}>
           {cancelling ? 'Annulation…' : 'Annuler l\'envoi'}
         </Button>
       )}
@@ -115,23 +117,22 @@ export function EventKioskPushCard({ event, licenses, designApproved, onLicenseU
   }
 
   return (
-    <Card className="p-5 rounded-2xl shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center">
-          <Send className="w-4 h-4 text-orange-600" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-800">Envoyer sur la borne</h3>
-          <p className="text-xs text-gray-400">Sans code à taper : la borne charge l'événement toute seule</p>
-        </div>
-      </div>
+    <Card className="p-card">
+      <CardHeading
+        as="h3"
+        className="mb-4"
+        tone="peach"
+        icon={<Send />}
+        title="Envoyer sur la borne"
+        description="Sans code à taper : la borne charge l'événement toute seule"
+      />
 
       {!pushable ? (
-        <p className="text-xs text-gray-500">Événement archivé : il ne peut plus être envoyé sur une borne.</p>
+        <p className="text-xs text-muted-foreground">Événement archivé : il ne peut plus être envoyé sur une borne.</p>
       ) : kiosks.length === 0 ? (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Aucune borne active dans ce compte.{' '}
-          <Link to="/admin/licenses" className="underline underline-offset-2">Voir les bornes</Link>
+          <Link to="/admin/bornes" className="font-medium text-primary-ink hover:underline">Voir les bornes</Link>
         </p>
       ) : (
         <>
@@ -144,18 +145,18 @@ export function EventKioskPushCard({ event, licenses, designApproved, onLicenseU
                 {kiosks.map(k => <SelectItem key={k.id} value={k.id}>{kioskLabel(k)}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button size="sm" onClick={send} disabled={!lic || sending}>
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <Button onClick={send} disabled={!lic || sending}>
+              {sending ? <Loader2 className="animate-spin" /> : <Send />}
               Envoyer sur la borne
             </Button>
           </div>
           {!designApproved && (
-            <p className="text-xs text-amber-700 mt-2">
-              Le design du client n'est pas encore approuvé : la borne imprimera sans cadre tant qu'il ne l'est pas.
-            </p>
+            <Notice tone="amber" className="mt-3">
+              Le cadre photo du client n'est pas encore approuvé : la borne imprimera sans cadre tant qu'il ne l'est pas.
+            </Notice>
           )}
           {status?.otherPending && (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               Un autre événement attend d'être chargé sur cette borne : cet envoi le remplacera.
             </p>
           )}
@@ -198,16 +199,16 @@ export function KioskEventPushSection({ lic, events, onLicenseUpdate, onRefresh 
   }
 
   return (
-    <div className="pt-3 border-t border-gray-50">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Événement sur la borne</p>
+    <div className="border-t border-border pt-4">
+      <p className="mb-2 text-xs font-medium text-muted-foreground">Événement sur la borne</p>
       {!lic.is_active ? (
-        <p className="text-xs text-gray-400">Borne désactivée : réactivez-la pour y envoyer un événement.</p>
+        <p className="text-xs text-muted-foreground">Borne désactivée : réactivez-la pour y envoyer un événement.</p>
       ) : choices.length === 0 ? (
-        <p className="text-xs text-gray-400">Aucun événement en cours dans ce compte.</p>
+        <p className="text-xs text-muted-foreground">Aucun événement en cours dans ce compte.</p>
       ) : (
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={eventId || undefined} onValueChange={setChoice}>
-            <SelectTrigger className="h-8 w-auto min-w-48 max-w-full text-sm" aria-label="Événement à envoyer">
+            <SelectTrigger className="w-auto min-w-48 max-w-full" aria-label="Événement à envoyer">
               <SelectValue placeholder="Choisir un événement" />
             </SelectTrigger>
             <SelectContent>
@@ -218,7 +219,7 @@ export function KioskEventPushSection({ lic, events, onLicenseUpdate, onRefresh 
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" className="h-8" onClick={send} disabled={!selected || sending}>
+          <Button onClick={send} disabled={!selected || sending}>
             {sending ? 'Envoi…' : 'Envoyer sur la borne'}
           </Button>
         </div>

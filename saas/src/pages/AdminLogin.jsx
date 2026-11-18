@@ -11,7 +11,7 @@ import AuthPageShell from '../components/AuthPageShell';
 
 function ErrorLine({ children }) {
   return (
-    <p className="text-sm text-destructive flex items-center gap-1.5 bg-destructive/10 rounded-md px-3 py-2">
+    <p className="text-[13px] text-state-red-fg flex items-center gap-1.5 bg-state-red rounded-xl px-3 py-2">
       <AlertCircle className="w-4 h-4 shrink-0" />
       {children}
     </p>
@@ -43,7 +43,7 @@ function ForgotPasswordForm({ initialEmail, onBack }) {
     <>
       {sent ? (
         <div className="space-y-4">
-          <p className="text-sm text-emerald-700 bg-emerald-50 rounded-md px-3 py-2 flex items-start gap-1.5">
+          <p className="text-[13px] text-state-green-fg bg-state-green rounded-xl px-3 py-2 flex items-start gap-1.5">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             {RESET_REQUEST_SENT}
           </p>
@@ -77,7 +77,7 @@ function ForgotPasswordForm({ initialEmail, onBack }) {
       )}
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        <button type="button" onClick={onBack} className="text-primary hover:underline font-medium">
+        <button type="button" onClick={onBack} className="text-primary-ink hover:underline font-medium">
           ← Retour à la connexion
         </button>
       </p>
@@ -147,7 +147,7 @@ export default function AdminLogin() {
             <button
               type="button"
               onClick={() => { setForgot(true); setError(''); }}
-              className="text-xs text-primary hover:underline font-medium"
+              className="text-xs text-primary-ink hover:underline font-medium"
             >
               Mot de passe oublié ?
             </button>
@@ -167,7 +167,7 @@ export default function AdminLogin() {
       </form>
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        <a href="/" className="text-primary hover:underline font-medium">← Retour à l'accueil</a>
+        <a href="/" className="text-primary-ink hover:underline font-medium">← Retour à l'accueil</a>
       </p>
     </AuthPageShell>
   );

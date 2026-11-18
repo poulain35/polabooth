@@ -14,6 +14,24 @@ public static class EdsPropID
     public const uint Evf_Mode = 0x00000501;
     public const uint SaveTo = 0x0000000b;
     public const uint ImageQuality = 0x00000100;
+
+    // Simulation d'exposition du live view (EOS R, EDSDK 13.20 § 5.2.104) : propriété cachée,
+    // à débloquer avant l'ouverture de session (§ 6.22.3, voir EdsEvfViewType.UnlockKey).
+    public const uint Evf_ViewType = 0x01000513;
+}
+
+// Valeurs de Evf_ViewType (« Expo. simulation »). Désactivée : l'appareil éclaire seul le live
+// view, quels que soient les réglages de prise de vue (faits pour le flash). La photo ne change pas.
+public static class EdsEvfViewType
+{
+    public const uint DuringDofPreview = 0;
+    public const uint Enable = 1;
+    public const uint Disable = 3;
+    public const uint ExposureAndDof = 4;
+
+    // Déblocage décrit par Canon : EdsSetPropertyData(camera, UnlockTarget, UnlockKey, 4, &Evf_ViewType).
+    public const uint UnlockTarget = 0x01000000;
+    public const int UnlockKey = 0x7CBD2BB7;
 }
 
 // Valeurs EdsImageQuality (EDSDKTypes.h) : taille (octet de poids fort), format JPEG (1),
@@ -44,6 +62,16 @@ public struct EdsCapacity
     public int NumberOfFreeClusters;
     public int BytesPerSector;
     [MarshalAs(UnmanagedType.Bool)] public bool Reset;
+}
+
+// EDS_MAX_NAME = 256 ; chaînes ANSI, comme EdsDirectoryItemInfo.
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+public struct EdsDeviceInfo
+{
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string PortName;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string DeviceDescription;
+    public uint DeviceSubType;
+    public uint Reserved;
 }
 
 public static class EdsEvfOutputDevice

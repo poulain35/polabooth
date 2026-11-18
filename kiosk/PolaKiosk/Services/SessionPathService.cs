@@ -20,7 +20,7 @@ public class SessionPathService
 
     /// <summary>Racine des dossiers d'événements : seul endroit où le nettoyage du PC supprime.</summary>
     public string GetEventsRoot()
-        => Path.Combine(Environment.ExpandEnvironmentVariables(_settings.Kiosk.DataDirectory), "events");
+        => KioskPaths.From(_settings).EventsDirectory;
 
     public string GetEventDirectory(string eventName, Guid eventId)
     {
@@ -57,7 +57,7 @@ public class SessionPathService
 
     /// <summary>Racine des photos en attente de validation : <c>{DataDirectory}\pending\</c>.</summary>
     public string GetPendingRoot()
-        => Path.Combine(Environment.ExpandEnvironmentVariables(_settings.Kiosk.DataDirectory), "pending");
+        => KioskPaths.From(_settings).PendingDirectory;
 
     /// <summary>
     /// Dossier d'attente d'une séance : même structure que le dossier de l'événement

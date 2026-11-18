@@ -7,6 +7,8 @@
  * Endpoint public (page d'aide) — protégé par l'anon key Supabase.
  *
  * Body: { code?, name?, phone?, message, urgency?, transcript? }
+ *   transcript : [{ role: 'user' | 'assistant', content }], 24 derniers échanges, 2000 caractères
+ *   chacun ; le reste est ignoré (transcript.ts, LAB-392).
  * Réponse: { ok: true }
  */
 
@@ -17,6 +19,8 @@ import { orgSender } from '../_shared/org-identity.ts';
 import { LIMITS, publicGuard } from '../_shared/public-rate-limit.ts';
 import { requireFeature } from '../_shared/features.ts';
 import { requireInstanceFeature } from '../_shared/feature-guard.ts';
+import { findEventByCode, normalizeAccessCode } from '../_shared/event-by-code.ts';
+import { sanitizeTranscript } from './transcript.ts';
 
 const MAX_MESSAGE_CHARS = 4000;
 
@@ -35,11 +39,11 @@ Deno.serve(async (req) => {
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, MAX_MESSAGE_CHARS) : '';
   if (!message) return corsResponse(400, { error: 'Message vide' });
 
-  const code    = typeof body.code === 'string' ? body.code.toUpperCase().trim() : null;
+  const code    = normalizeAccessCode(body.code);
   const name    = typeof body.name === 'string' ? body.name.trim().slice(0, 200) : null;
   const phone   = typeof body.phone === 'string' ? body.phone.trim().slice(0, 40) : null;
   const urgency = body.urgency === 'blocking' ? 'blocking' : 'normal';
-  const transcript = Array.isArray(body.transcript) ? body.transcript.slice(-24) : null;
+  const transcript = sanitizeTranscript(body.transcript);
 
   const db = adminClient();
   const guard = publicGuard('submit-support-message', req, db, Deno.env.get('RATE_LIMIT_SALT'));
@@ -52,11 +56,11 @@ Deno.serve(async (req) => {
   let eventName = '';
   let contactEmail = '';
   if (code) {
-    const { data: event } = await db
-      .from('events')
-      .select('id, org_id, name')
-      .eq('access_code', code)
-      .maybeSingle();
+    // Code inconnu (ou lecture en échec) : message gardé sans événement, comme avant.
+    const { event, error } = await findEventByCode<{ id: string; org_id: string | null; name: string | null }>(
+      db, code, 'id, org_id, name',
+    );
+    if (error) console.error('submit-support-message : lecture de l\'événement impossible', error);
     if (event) {
       eventId   = event.id;
       orgId     = event.org_id;

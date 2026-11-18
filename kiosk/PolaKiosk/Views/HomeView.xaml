@@ -5,16 +5,16 @@
              xmlns:local="clr-namespace:PolaKiosk.Views"
              SizeChanged="OnSizeChanged">
     <!-- Accueil (LAB-251, maquettes 1a, 1b, 1c en 1280×800) : texte à gauche, tirage de l'événement
-         à droite. 1a et 1b démarrent sur tout l'écran, 1c seulement sur les tuiles de format. -->
+         à droite. 1a et 1b démarrent sur tout l'écran, 1c seulement sur les tuiles de format.
+         Écran du client (LAB-291) : son image en plein écran remplace tout, avec par-dessus la pastille
+         (ou les tuiles s'il y a plusieurs formats), le cadenas et le bouton « Photos ». -->
     <UserControl.Resources>
         <local:LetterSpacingConverter x:Key="LetterSpacing"/>
 
-        <!-- Icônes au trait (grille 24×24) -->
-        <Geometry x:Key="HomeCameraIcon">M4 8h3l2-3h6l2 3h3v11H4z M8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0z</Geometry>
+        <!-- Icônes au trait (grille 24×24) ; appareil photo et cadenas : KioskCameraIcon, KioskLockIcon -->
         <Geometry x:Key="HomeVideoIcon">M5 6h8a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1 -2.5 2.5h-8a2.5 2.5 0 0 1 -2.5 -2.5v-7a2.5 2.5 0 0 1 2.5 -2.5z M15.5 10.5l6 -3.5v10l-6 -3.5z</Geometry>
         <Geometry x:Key="HomeGifIcon">M6 5h12a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3z M10 9.5v5l4.5 -2.5z</Geometry>
         <Geometry x:Key="HomeBoomerangIcon">M17 2l4 4 -4 4 M3 11v-1a4 4 0 0 1 4 -4h14 M7 22l-4 -4 4 -4 M21 13v1a4 4 0 0 1 -4 4H3</Geometry>
-        <Geometry x:Key="HomeLockIcon">M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0v3z</Geometry>
 
         <!-- Icône au trait : la couleur vient de Stroke, la taille de Width/Height -->
         <Style x:Key="HomeStrokeIcon" TargetType="Path">
@@ -25,10 +25,6 @@
             <Setter Property="StrokeLineJoin" Value="Round"/>
             <Setter Property="Stroke" Value="{StaticResource KioskForestBrush}"/>
         </Style>
-
-        <!-- Ombre du tirage posé sur l'arche (0 24px 48px, vert forêt 22 %) -->
-        <DropShadowEffect x:Key="HomePrintShadow" Color="{StaticResource KioskForestColor}"
-                          Opacity="0.22" BlurRadius="48" ShadowDepth="24" Direction="270"/>
 
         <!-- Surtitre en capitales (« PHOTOBOOTH », « BIENVENUE AU PHOTOBOOTH DE ») -->
         <Style x:Key="HomeOverline" TargetType="TextBlock">
@@ -91,15 +87,37 @@
             </Setter>
         </Style>
 
+        <!-- Pastille « Touchez l'écran pour commencer » (1b et écran du client) -->
+        <Style x:Key="HomeStartPill" TargetType="Border">
+            <Setter Property="Height" Value="76"/>
+            <Setter Property="Padding" Value="28,0,34,0"/>
+            <Setter Property="CornerRadius" Value="38"/>
+            <Setter Property="Background" Value="{StaticResource KioskForestBrush}"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <DataTemplate x:Key="HomeStartPillContent">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Grid Width="14" Height="14" Margin="0,0,16,0">
+                    <Ellipse Style="{StaticResource HomePulseHalo}" Fill="{StaticResource KioskBlushBrush}">
+                        <Ellipse.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard Storyboard="{StaticResource HomeDotPulse}"/>
+                            </EventTrigger>
+                        </Ellipse.Triggers>
+                    </Ellipse>
+                    <Ellipse Fill="{StaticResource KioskBlushBrush}"/>
+                </Grid>
+                <TextBlock Text="Touchez l'écran pour commencer" FontSize="24" FontWeight="SemiBold"
+                           Foreground="{StaticResource KioskCreamBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+
         <!-- Tuile de format (1c) : la première en vert forêt, les autres sur papier -->
-        <Style x:Key="HomeFormatTile" TargetType="Button">
+        <Style x:Key="HomeFormatTile" TargetType="Button" BasedOn="{StaticResource KioskTileButton}">
             <Setter Property="Width" Value="184"/>
             <Setter Property="Height" Value="156"/>
             <Setter Property="Margin" Value="0,0,18,0"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Background" Value="{StaticResource KioskPaperBrush}"/>
-            <Setter Property="BorderBrush" Value="#D9CDB8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource KioskSandBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="Foreground" Value="{StaticResource KioskForestBrush}"/>
             <Setter Property="Tag" Value="{StaticResource KioskBrownBrush}"/>
@@ -108,11 +126,11 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bg" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="28" Padding="22" SnapsToDevicePixels="True">
+                                CornerRadius="{DynamicResource KioskTileRadius}" Padding="22" SnapsToDevicePixels="True">
                             <DockPanel>
                                 <Path x:Name="icon" DockPanel.Dock="Top" HorizontalAlignment="Left"
                                       Width="34" Height="34" Style="{StaticResource HomeStrokeIcon}"
-                                      Stroke="{TemplateBinding Foreground}" Data="{StaticResource HomeCameraIcon}"/>
+                                      Stroke="{TemplateBinding Foreground}" Data="{StaticResource KioskCameraIcon}"/>
                                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding Subtitle}" FontSize="15"
                                            Foreground="{TemplateBinding Tag}" TextWrapping="Wrap" LineHeight="19"
                                            LineStackingStrategy="BlockLineHeight" MaxHeight="38"/>
@@ -168,23 +186,38 @@
             </Border.OpacityMask>
         </Border>
 
+        <!-- Écran du client (LAB-291), PNG 1920×1080 : remplit l'écran (« cover »), centré. Sur un écran
+             16:10, une bande d'environ 96 px (pixels de l'image) est coupée à gauche et à droite (spec D3). -->
+        <Image Source="{Binding CustomDesignImage}" Stretch="UniformToFill"
+               HorizontalAlignment="Center" VerticalAlignment="Center"
+               RenderOptions.BitmapScalingMode="HighQuality"
+               Visibility="{Binding IsCustomDesign, Converter={StaticResource BoolToVisibility}}"/>
+
+        <!-- Accueil composé par l'admin pour les bornes de l'organisation (LAB-297), en 1920×1080
+             « cover » : boutons, textes vivants et emplacement de la dernière photo. Un appui hors d'un
+             bouton remonte jusqu'à la grille et démarre la séance (D5). La mention du questionnaire,
+             « Problème technique », le cadenas et le pavé du code restent au-dessus (D9). -->
+        <local:DesignedScreen ContentModel="{Binding DesignedHome}" Personalized="{Binding HomePersonalized}"
+                              UnderlayImage="{Binding BackgroundImage}" ActionStates="{Binding HomeActionStates}"
+                              TextValues="{Binding HomeTexts}" SlotImages="{Binding HomeSlots}"
+                              ActionCommand="{Binding ScreenActionCommand}"
+                              Visibility="{Binding IsOrgDesign, Converter={StaticResource BoolToVisibility}}"/>
+
         <!-- Surface de la maquette (800 de haut, largeur à la proportion de l'écran), mise à l'échelle -->
         <Viewbox Stretch="Uniform">
             <Grid x:Name="DesignSurface" Width="1280" Height="800" ClipToBounds="True">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
                 <!-- Arche vert d'eau et rond rose poudré -->
-                <Border Grid.RowSpan="2" Width="600" Height="720" CornerRadius="300,300,0,0"
+                <Border Width="600" Height="720" CornerRadius="300,300,0,0"
                         Background="{StaticResource KioskMintBrush}" IsHitTestVisible="False"
-                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-60,-40"/>
-                <Ellipse Grid.RowSpan="2" Width="110" Height="110" Fill="{StaticResource KioskBlushBrush}"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-60,-40"
+                        Visibility="{Binding ShowStandardHome, Converter={StaticResource BoolToVisibility}}"/>
+                <Ellipse Width="110" Height="110" Fill="{StaticResource KioskBlushBrush}"
                          IsHitTestVisible="False"
-                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,80,470,0"/>
+                         HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,80,470,0"
+                         Visibility="{Binding ShowStandardHome, Converter={StaticResource BoolToVisibility}}"/>
 
-                <Grid>
+                <!-- 1a, 1b, 1c : marque, textes et tirage (masqués sur l'écran du client et celui de l'organisation) -->
+                <Grid Visibility="{Binding ShowStandardHome, Converter={StaticResource BoolToVisibility}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="720"/>
                         <ColumnDefinition Width="*"/>
@@ -207,7 +240,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Visibility="{Binding HasLogo, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
                             <Path Width="30" Height="30" Style="{StaticResource HomeStrokeIcon}"
-                                  Data="{StaticResource HomeCameraIcon}" Margin="0,0,12,0"/>
+                                  Data="{StaticResource KioskCameraIcon}" Margin="0,0,12,0"/>
                             <TextBlock Text="{Binding BrandName}" FontFamily="{StaticResource KioskTitleFont}"
                                        FontWeight="SemiBold" FontSize="24" VerticalAlignment="Center"
                                        MaxWidth="560" TextTrimming="CharacterEllipsis"
@@ -228,7 +261,7 @@
                             <TextBlock Text="{Binding Source='BIENVENUE AU PHOTOBOOTH DE', Converter={StaticResource LetterSpacing}}" Style="{StaticResource HomeOverline}" Margin="0,0,0,18"/>
                             <TextBlock x:Name="NameTitle" Style="{StaticResource HomeDisplay}"
                                        FontSize="108" LineHeight="103" Text="{Binding DisplayName}"/>
-                            <TextBlock Text="{Binding DateText}" FontSize="22" Foreground="{StaticResource KioskBrownBrush}"
+                            <TextBlock Text="{Binding DateText}" FontSize="{StaticResource KioskLargeTextSize}" Foreground="{StaticResource KioskBrownBrush}"
                                        Margin="0,18,0,0" TextWrapping="Wrap"
                                        Visibility="{Binding HasDate, Converter={StaticResource BoolToVisibility}}"/>
                         </StackPanel>
@@ -245,27 +278,13 @@
                             </Ellipse>
                             <Ellipse Fill="{StaticResource KioskForestBrush}"/>
                             <Path Width="42" Height="42" Style="{StaticResource HomeStrokeIcon}" StrokeThickness="1.7"
-                                  Stroke="{StaticResource KioskCreamBrush}" Data="{StaticResource HomeCameraIcon}"/>
+                                  Stroke="{StaticResource KioskCreamBrush}" Data="{StaticResource KioskCameraIcon}"/>
                         </Grid>
 
                         <!-- 1b : pastille « Touchez l'écran pour commencer » -->
-                        <Border Grid.Row="2" Height="76" Padding="28,0,34,0" CornerRadius="38" HorizontalAlignment="Left"
-                                Background="{StaticResource KioskForestBrush}" IsHitTestVisible="False"
+                        <Border Grid.Row="2" Style="{StaticResource HomeStartPill}" HorizontalAlignment="Left"
                                 Visibility="{Binding IsPersonalized, Converter={StaticResource BoolToVisibility}}">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Grid Width="14" Height="14" Margin="0,0,16,0">
-                                    <Ellipse Style="{StaticResource HomePulseHalo}" Fill="{StaticResource KioskBlushBrush}">
-                                        <Ellipse.Triggers>
-                                            <EventTrigger RoutedEvent="Loaded">
-                                                <BeginStoryboard Storyboard="{StaticResource HomeDotPulse}"/>
-                                            </EventTrigger>
-                                        </Ellipse.Triggers>
-                                    </Ellipse>
-                                    <Ellipse Fill="{StaticResource KioskBlushBrush}"/>
-                                </Grid>
-                                <TextBlock Text="Touchez l'écran pour commencer" FontSize="24" FontWeight="SemiBold"
-                                           Foreground="{StaticResource KioskCreamBrush}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource HomeStartPillContent}"/>
                         </Border>
 
                         <!-- 1c : une tuile par format, seules les tuiles démarrent -->
@@ -282,7 +301,7 @@
                                     </Ellipse>
                                     <Ellipse Fill="{StaticResource KioskForestBrush}"/>
                                 </Grid>
-                                <TextBlock Text="Touchez un format pour commencer" FontSize="22" FontWeight="SemiBold"
+                                <TextBlock Text="Touchez un format pour commencer" FontSize="{StaticResource KioskLargeTextSize}" FontWeight="SemiBold"
                                            Foreground="{StaticResource KioskForestBrush}"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
@@ -313,7 +332,7 @@
                             <!-- Design approuvé : dernier montage, ou design troué sur du sauge avant la 1re photo -->
                             <Border Width="{Binding PrintWidth}" Height="{Binding PrintHeight}"
                                     Background="{StaticResource KioskPaperBrush}" CornerRadius="6"
-                                    Effect="{StaticResource HomePrintShadow}"
+                                    Effect="{StaticResource KioskPrintShadow}"
                                     Visibility="{Binding HasDesign, Converter={StaticResource BoolToVisibility}}">
                                 <Grid>
                                     <Border Background="{StaticResource KioskSageBrush}"
@@ -326,7 +345,7 @@
                                             Visibility="{Binding HasPhotos, Converter={StaticResource BoolToVisibility}}">
                                         <StackPanel Orientation="Horizontal">
                                             <Path Width="14" Height="14" Style="{StaticResource HomeStrokeIcon}" StrokeThickness="2"
-                                                  Data="{StaticResource HomeCameraIcon}" Margin="0,0,8,0"/>
+                                                  Data="{StaticResource KioskCameraIcon}" Margin="0,0,8,0"/>
                                             <TextBlock Text="Liste des photos prises" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource KioskForestBrush}"/>
                                         </StackPanel>
                                     </Border>
@@ -336,7 +355,7 @@
                             <!-- Sans design : tirage de la maquette, photo puis nom et date -->
                             <Border Width="360" Height="530" Padding="18,18,18,0"
                                     Background="{StaticResource KioskPaperBrush}" CornerRadius="6"
-                                    Effect="{StaticResource HomePrintShadow}"
+                                    Effect="{StaticResource KioskPrintShadow}"
                                     Visibility="{Binding HasDesign, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
                                 <DockPanel>
                                     <Grid DockPanel.Dock="Top" Height="400">
@@ -349,7 +368,7 @@
                                                 Visibility="{Binding HasPhotos, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel Orientation="Horizontal">
                                                 <Path Width="14" Height="14" Style="{StaticResource HomeStrokeIcon}" StrokeThickness="2"
-                                                      Data="{StaticResource HomeCameraIcon}" Margin="0,0,8,0"/>
+                                                      Data="{StaticResource KioskCameraIcon}" Margin="0,0,8,0"/>
                                                 <TextBlock Text="Liste des photos prises" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource KioskForestBrush}"/>
                                             </StackPanel>
                                         </Border>
@@ -381,17 +400,55 @@
                     </Grid>
                 </Grid>
 
-                <!-- Mention du questionnaire obligatoire (LAB-222) : bandeau du bas, lisible de loin.
-                     IsHitTestVisible=False : un appui dessus agit comme le reste de l'écran. -->
-                <Border Grid.Row="1" Background="{StaticResource KioskForestBrush}" Padding="32,18" IsHitTestVisible="False"
-                        Visibility="{Binding ShowHomeNotice, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="{Binding HomeNotice}" FontSize="26" FontWeight="SemiBold"
-                               Foreground="{StaticResource KioskCreamBrush}" TextWrapping="Wrap" TextAlignment="Center"/>
-                </Border>
+                <!-- Écran du client (LAB-291) : seuls la pastille (un format) ou les tuiles (plusieurs
+                     formats) et le bouton « Photos » se posent sur l'image. Pastille centrée à 56 px du bas
+                     de la surface de 800 (environ 76 px du bas de l'image 1920×1080, 103 px de haut) :
+                     l'éditeur du SaaS la montre au même endroit. -->
+                <Grid Visibility="{Binding IsCustomDesign, Converter={StaticResource BoolToVisibility}}">
+                    <Border Style="{StaticResource HomeStartPill}" Effect="{StaticResource KioskSoftShadow}"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,56"
+                            Visibility="{Binding ShowCustomStartPill, Converter={StaticResource BoolToVisibility}}">
+                        <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource HomeStartPillContent}"/>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Tiles}" Focusable="False"
+                                  HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,48"
+                                  Visibility="{Binding ShowCustomTiles, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:HomeFormatTile}">
+                                <Button Style="{StaticResource HomeFormatTile}" Margin="9,0" CommandParameter="{Binding}"
+                                        Effect="{StaticResource KioskSoftShadow}"
+                                        Command="{Binding DataContext.StartFormatCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Galerie des photos prises (spec D2), seulement s'il y en a -->
+                    <Button Command="{Binding OpenGalleryCommand}"
+                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,32,40"
+                            Height="56" MinHeight="56" Padding="18,0,24,0" FontSize="18"
+                            Focusable="False" IsTabStop="False"
+                            Style="{StaticResource KioskPrimaryButton}"
+                            Background="{StaticResource KioskPaperBrush}" Foreground="{StaticResource KioskForestBrush}"
+                            BorderBrush="{StaticResource KioskForestLineBrush}" BorderThickness="1.5"
+                            Effect="{StaticResource KioskSoftShadow}"
+                            Visibility="{Binding ShowPhotosButton, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="22" Height="22" Style="{StaticResource HomeStrokeIcon}" StrokeThickness="2"
+                                  Data="{StaticResource KioskCameraIcon}" Margin="0,0,10,0"/>
+                            <TextBlock Text="Photos" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
 
                 <!-- Problème technique (LAB-263) : appareil photo débranché. Couvre tout l'accueil (séance
                      impossible) ; placé avant le cadenas pour que l'accès admin reste possible. -->
-                <Border Grid.RowSpan="2" Background="{StaticResource KioskCreamBrush}"
+                <Border Background="{StaticResource KioskCreamBrush}"
                         Visibility="{Binding IsCameraMissing, Converter={StaticResource BoolToVisibility}}">
                     <Border Style="{StaticResource KioskTile}" Width="820" Padding="64,56"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -399,7 +456,7 @@
                             <Grid Width="96" Height="96" HorizontalAlignment="Center" Margin="0,0,0,28">
                                 <Ellipse Fill="{StaticResource KioskErrorBrush}"/>
                                 <Path Width="44" Height="44" Style="{StaticResource HomeStrokeIcon}" StrokeThickness="1.7"
-                                      Stroke="{StaticResource KioskCreamBrush}" Data="{StaticResource HomeCameraIcon}"/>
+                                      Stroke="{StaticResource KioskCreamBrush}" Data="{StaticResource KioskCameraIcon}"/>
                             </Grid>
                             <TextBlock Text="Problème technique" Style="{StaticResource KioskTitleText}"
                                        FontSize="56" TextAlignment="Center" Margin="0,0,0,24"/>
@@ -417,100 +474,13 @@
                         Style="{StaticResource KioskIconButton}"
                         Visibility="{Binding PinPad.ShowPinEntry, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
                     <Path Width="24" Height="24" Stretch="Uniform" Fill="{StaticResource KioskForestBrush}"
-                          Data="{StaticResource HomeLockIcon}"/>
+                          Data="{StaticResource KioskLockIcon}"/>
                 </Button>
             </Grid>
         </Viewbox>
 
         <!-- Overlay saisie PIN avec pavé numérique -->
-        <Border Background="{StaticResource KioskCreamBrush}" DataContext="{Binding PinPad}"
-                Visibility="{Binding ShowPinEntry, Converter={StaticResource BoolToVisibility}}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="340">
-
-                <TextBlock Text="Code administrateur"
-                           Style="{StaticResource KioskTitleText}" FontSize="30"
-                           HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                <TextBlock Text="Entrez le code PIN"
-                           FontSize="16" Foreground="{StaticResource KioskBrownBrush}"
-                           HorizontalAlignment="Center" Margin="0,0,0,24"/>
-
-                <!-- Affichage des points (un ● par chiffre saisi) -->
-                <TextBlock Text="{Binding PinDots}"
-                           FontSize="32" Foreground="{StaticResource KioskForestBrush}"
-                           HorizontalAlignment="Center" Margin="0,0,0,6"
-                           MinHeight="40"/>
-
-                <!-- Erreur -->
-                <TextBlock Text="{Binding PinError}"
-                           FontSize="15" FontWeight="Medium" Foreground="{StaticResource KioskErrorBrush}"
-                           TextWrapping="Wrap" TextAlignment="Center"
-                           HorizontalAlignment="Center" Margin="0,0,0,16"
-                           Visibility="{Binding HasPinError, Converter={StaticResource BoolToVisibility}}"/>
-
-                <!-- Pavé numérique 3×4 -->
-                <UniformGrid Columns="3" Margin="0,0,0,12">
-                    <UniformGrid.Resources>
-                        <Style TargetType="Button" BasedOn="{StaticResource KioskPadKey}"/>
-                    </UniformGrid.Resources>
-
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="1">
-                        <TextBlock Text="1"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="2">
-                        <TextBlock Text="2"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="3">
-                        <TextBlock Text="3"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="4">
-                        <TextBlock Text="4"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="5">
-                        <TextBlock Text="5"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="6">
-                        <TextBlock Text="6"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="7">
-                        <TextBlock Text="7"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="8">
-                        <TextBlock Text="8"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="9">
-                        <TextBlock Text="9"/>
-                    </Button>
-                    <!-- Ligne basse : annuler / 0 / effacer -->
-                    <Button Command="{Binding CloseAdminPinCommand}">
-                        <TextBlock Text="✕" FontSize="22" Foreground="{StaticResource KioskBrownBrush}"/>
-                    </Button>
-                    <Button Command="{Binding AppendDigitCommand}" CommandParameter="0">
-                        <TextBlock Text="0"/>
-                    </Button>
-                    <Button Command="{Binding DeleteDigitCommand}">
-                        <TextBlock Text="⌫" FontSize="22"/>
-                    </Button>
-                </UniformGrid>
-
-                <!-- Valider : le PIN fait 4 à 8 chiffres, sa longueur n'est pas connue d'avance -->
-                <Button Command="{Binding ValidatePinCommand}" Height="72" Margin="6,0,6,0"
-                        Style="{StaticResource KioskPrimaryButton}" Padding="0">
-                    <TextBlock>
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Text" Value="Valider"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsChecking}" Value="True">
-                                        <Setter Property="Text" Value="Vérification..."/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Button>
-
-            </StackPanel>
-        </Border>
+        <local:AdminPinOverlay DataContext="{Binding PinPad}"/>
 
     </Grid>
 </UserControl>

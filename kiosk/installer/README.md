@@ -56,9 +56,10 @@ Ne les mettez jamais dans le dépôt git.
    Aucun fichier de config à éditer à la main.
 
 > **Backend (dev vs prod)** : un build publié tourne en environnement *Production* et utilise
-> donc la config prod (`appsettings.json` + `appsettings.Instance.json` + `appsettings.Production.json`). Le fichier
-> `appsettings.local.json` (overrides développeur) n'est **ni livré ni chargé** en production —
-> aucun risque de pointer un kiosk sur la base de dev.
+> donc la config prod (`appsettings.json` + `appsettings.Instance.json` + `appsettings.Production.json`). Les fichiers
+> `appsettings.local.json` (overrides développeur) et `appsettings.Development.json` (base de dev, PIN de dev,
+> mode kiosk coupé) ne sont **ni publiés ni livrés** : `dotnet publish` ne les copie pas et `PolaKiosk.iss`
+> les exclut aussi (LAB-394) — aucun risque de pointer un kiosk sur la base de dev.
 >
 > **Adresse du SaaS (open core K2)** : sans adresse Supabase dans les appsettings (build d'une autre
 > instance, sans `appsettings.Production.json`), la borne affiche au premier démarrage l'écran

@@ -183,6 +183,9 @@ public class UpdateServiceTests : IDisposable
         (await service.ApplyAsync(Update(), Ct)).Should().BeTrue();
 
         _started.Should().ContainSingle();
+        _started[0].FileName.Should().Be(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"));
+        Path.IsPathFullyQualified(_started[0].FileName).Should().BeTrue();
         _started[0].ArgumentList.Should().ContainInConsecutiveOrder("-Version", "9.9.9");
         _started[0].ArgumentList.Should().Contain(Path.Combine(service.UpdatesDir, "setup-9.9.9.exe"));
         File.Exists(_dir.File("update.lock")).Should().BeTrue("le watchdog ne doit pas relancer l'app pendant l'installation");
@@ -249,7 +252,9 @@ public class UpdateServiceTests : IDisposable
     [InlineData("9.9.9", "pas-un-hash", ExeUrl, "SHA-256")]
     [InlineData("9.9.9", "", ExeUrl, "SHA-256")]
     [InlineData("9.9.9", null, "", "adresse")]
-    [InlineData("9.9.9", null, "file:///C:/setup.exe", "adresse")]
+    [InlineData("9.9.9", null, "file:///C:/setup.exe", "https")]
+    [InlineData("9.9.9", null, "http://exemple.test/setup-9.9.9.exe", "https")]
+    [InlineData("9.9.9", null, "ftp://exemple.test/setup-9.9.9.exe", "https")]
     public async Task An_unusable_request_is_reported_as_failed(string version, string? sha256, string exeUrl, string expected)
     {
         ServerReturns(Update(sha256: sha256, version: version, exeUrl: exeUrl));

@@ -1,12 +1,15 @@
 # Installer Polabooth : vue d'ensemble
 
+> Guide pas à pas, avec formulaire de configuration : ouvrez [guide-installation.html](guide-installation.html) par un double-clic.
+
 Polabooth est une suite logicielle pour les loueurs de photobooth. Elle a deux parties :
 
 - **le SaaS** : site web où vous gérez vos événements, vos clients, les designs et le parc de bornes,
   et où les invités retrouvent leurs photos ;
 - **la borne** (PolaKiosk) : application Windows installée sur le PC de chaque photobooth.
 
-La borne ne fonctionne qu'avec un SaaS : installez le SaaS d'abord.
+La borne ne fonctionne qu'avec un SaaS : installez le SaaS d'abord. À la première connexion, la carte
+« Mise en route » de la page Aujourd'hui liste ce qu'il reste à renseigner et à connecter.
 
 | Étape | Guide | Durée |
 |---|---|---|
@@ -67,7 +70,7 @@ Prix indicatifs relevés en novembre 2026, à vérifier chez chaque fournisseur.
 | Inno Setup, .NET | Gratuits | | Pour construire l'installeur de la borne. |
 
 Les services facultatifs (images par IA, assistant, agenda Google) se paient chez leur fournisseur
-avec vos propres clés, saisies dans le SaaS (Paramètres > Clés). Sans clé, ces fonctions sont
+avec vos propres clés, saisies dans le SaaS (Réglages > Services connectés). Sans clé, ces fonctions sont
 simplement absentes.
 
 ---

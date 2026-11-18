@@ -107,8 +107,8 @@ test('media_type écrit pour les envois des invités et de l\'admin', () => {
   const guest = fn('record-guest-photo/index.ts');
   assert.match(guest, /const VIDEO_EXT = \/\\\.\(mp4\|mov\|m4v\|webm\)\$\/i;/);
   assert.match(guest, /media_type:\s+VIDEO_EXT\.test\(storagePath\) \? 'video' : 'photo'/);
-  const lib = src('lib/supabase.js');
-  assert.match(lib, /import \{ isVideoUrl \}\s+from '\.\.\/utils\/media\.js';/);
+  const lib = src('lib/api/photos.js');
+  assert.match(lib, /import \{ isVideoUrl \}\s+from '\.\.\/\.\.\/utils\/media\.js';/);
   assert.match(lib, /source: 'admin', media_type: isVideoUrl\(storage_path \?\? photo_url\) \? 'video' : 'photo'/);
 });
 
@@ -117,7 +117,7 @@ test('delete-photo supprime aussi l\'affiche (mêmes clés que media-expiry)', (
   assert.match(del, /import \{ photoKeys \}\s+from '\.\.\/media-expiry\/logic\.ts';/);
   assert.match(del, /\.select\('id, storage_path, thumbnail_url'\)/);
   assert.match(del, /photoKeys\(photo, photosPublicBaseUrl\(\)\)/);
-  assert.match(fn('media-expiry/index.ts'), /'id, storage_path, thumbnail_url'/);
+  assert.match(fn('media-expiry/purge.ts'), /'id, storage_path, thumbnail_url'/);
 });
 
 test('script de vérification dev : transaction annulée, contrôles des critères', { skip: PRIVATE_HISTORY }, () => {

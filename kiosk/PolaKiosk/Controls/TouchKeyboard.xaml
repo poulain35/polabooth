@@ -91,7 +91,7 @@
     </UserControl.Resources>
 
     <!-- Socle crème foncé derrière les touches, comme sur la maquette -->
-    <Border Background="{DynamicResource KioskCreamDarkBrush}" CornerRadius="28" Padding="12"
+    <Border Background="{DynamicResource KioskCreamDarkBrush}" CornerRadius="{DynamicResource KioskTileRadius}" Padding="12"
             HorizontalAlignment="Center">
         <StackPanel x:Name="RowsPanel" HorizontalAlignment="Center"/>
     </Border>

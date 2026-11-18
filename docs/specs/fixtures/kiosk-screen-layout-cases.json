@@ -1,0 +1,244 @@
+{
+  "_doc": [
+    "Cas de test communs du plan des écrans composés (spec docs/specs/ecrans-borne-admin.md, « Contrat du plan »).",
+    "Lus par saas/src/lib/kioskScreenLayout.test.js et par les tests kiosk de ScreenLayout.Parse.",
+    "Chaque cas : `layout` = JSON tel que publié ; `expected` = résultat normalisé de la lecture par la borne (null = plan refusé, la borne affiche l'écran standard).",
+    "Règles de normalisation :",
+    "- kind inconnu, size différente de 1920x1080 ou version absente/<= 0 : plan refusé (null).",
+    "- background absent : plan refusé, sauf transparent_background = true.",
+    "- bouton sans action connue de l'écran, sans image, ou avec x/y/w/h manquant ou w/h <= 0 : ignoré.",
+    "- action en double : seul le premier bouton est gardé.",
+    "- texte sans variable connue de l'écran, ou boîte invalide : ignoré.",
+    "- font = nom de famille. Fraunces (casse ignorée, « Fraunces 72pt SuperSoft » compris) : embarquée, poids forcé à 600, font_file null. DM Sans : embarquée, poids ramené à 400, 500, 600 ou 700 (le plus proche, le plus fin à égalité, 400 par défaut), font_file null.",
+    "- autre famille avec font_file (texte non vide) : famille gardée (sans guillemets ni espaces autour), poids arrondi entre 100 et 900 (400 par défaut). Sans font_file, ou famille vide : DM Sans, poids comme DM Sans, font_file null.",
+    "- défauts du texte : angle 0, size 40, color #1B241F, align left (left|center|right), uppercase false, char_spacing 0, max_lines 1 (1 à 3), personalized_only false.",
+    "- emplacement inconnu de l'écran, en double ou boîte invalide : ignoré. Défauts : angle 0, radius 0.",
+    "- `ignored` liste ce qui a été écarté (type + valeur), pour le journal ; l'ordre suit le plan."
+  ],
+  "allowed": {
+    "home": { "actions": ["start", "gallery"], "variables": ["event_name", "event_date"], "slots": ["last_photo"] },
+    "result": {
+      "actions": ["print", "copies_minus", "copies_plus", "email", "qr", "retake", "finish"],
+      "variables": ["copies", "prints_remaining", "print_status", "countdown", "share_status"],
+      "slots": ["photo_preview"]
+    }
+  },
+  "cases": [
+    {
+      "name": "partage complet de la spec",
+      "layout": {
+        "version": 7, "kind": "result", "size": { "w": 1920, "h": 1080 },
+        "background": "screen-result-v7-bg.png", "background_neutral": null, "transparent_background": false,
+        "buttons": [
+          { "action": "print", "x": 1180, "y": 420, "w": 420, "h": 120, "image": "screen-result-v7-btn-print.png" },
+          { "action": "finish", "x": 1460, "y": 900, "w": 300, "h": 100, "image": "screen-result-v7-btn-finish.png" }
+        ],
+        "texts": [
+          { "variable": "countdown", "x": 140, "y": 960, "w": 600, "h": 50, "angle": 0,
+            "font": "DM Sans", "weight": 500, "size": 30, "color": "#6E5140",
+            "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false }
+        ],
+        "slots": [
+          { "slot": "photo_preview", "x": 140, "y": 120, "w": 594, "h": 810, "angle": -2, "radius": 8 }
+        ]
+      },
+      "expected": {
+        "version": 7, "kind": "result",
+        "background": "screen-result-v7-bg.png", "background_neutral": null, "transparent_background": false,
+        "buttons": [
+          { "action": "print", "x": 1180, "y": 420, "w": 420, "h": 120, "image": "screen-result-v7-btn-print.png" },
+          { "action": "finish", "x": 1460, "y": 900, "w": 300, "h": 100, "image": "screen-result-v7-btn-finish.png" }
+        ],
+        "texts": [
+          { "variable": "countdown", "x": 140, "y": 960, "w": 600, "h": 50, "angle": 0,
+            "font": "DM Sans", "weight": 500, "font_file": null, "size": 30, "color": "#6E5140",
+            "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false }
+        ],
+        "slots": [
+          { "slot": "photo_preview", "x": 140, "y": 120, "w": 594, "h": 810, "angle": -2, "radius": 8 }
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "name": "accueil avec fond neutre et textes personnalisés seulement",
+      "layout": {
+        "version": 3, "kind": "home", "size": { "w": 1920, "h": 1080 },
+        "background": "screen-home-v3-bg.png", "background_neutral": "screen-home-v3-bg-neutral.png",
+        "transparent_background": false,
+        "buttons": [
+          { "action": "start", "x": 760, "y": 820, "w": 400, "h": 130, "image": "screen-home-v3-btn-start.png" },
+          { "action": "gallery", "x": 1500, "y": 860, "w": 260, "h": 100, "image": "screen-home-v3-btn-gallery.png" }
+        ],
+        "texts": [
+          { "variable": "event_name", "x": 360, "y": 420, "w": 1200, "h": 220, "angle": 0,
+            "font": "Fraunces", "weight": 600, "size": 110, "color": "#24412F",
+            "align": "center", "uppercase": false, "char_spacing": 0, "max_lines": 2, "personalized_only": true },
+          { "variable": "event_date", "x": 660, "y": 660, "w": 600, "h": 60, "angle": 0,
+            "font": "DM Sans", "weight": 600, "size": 36, "color": "#6E5140",
+            "align": "center", "uppercase": true, "char_spacing": 200, "max_lines": 1, "personalized_only": true }
+        ],
+        "slots": [
+          { "slot": "last_photo", "x": 1460, "y": 300, "w": 300, "h": 410, "angle": -4, "radius": 6 }
+        ]
+      },
+      "expected": {
+        "version": 3, "kind": "home",
+        "background": "screen-home-v3-bg.png", "background_neutral": "screen-home-v3-bg-neutral.png",
+        "transparent_background": false,
+        "buttons": [
+          { "action": "start", "x": 760, "y": 820, "w": 400, "h": 130, "image": "screen-home-v3-btn-start.png" },
+          { "action": "gallery", "x": 1500, "y": 860, "w": 260, "h": 100, "image": "screen-home-v3-btn-gallery.png" }
+        ],
+        "texts": [
+          { "variable": "event_name", "x": 360, "y": 420, "w": 1200, "h": 220, "angle": 0,
+            "font": "Fraunces", "weight": 600, "font_file": null, "size": 110, "color": "#24412F",
+            "align": "center", "uppercase": false, "char_spacing": 0, "max_lines": 2, "personalized_only": true },
+          { "variable": "event_date", "x": 660, "y": 660, "w": 600, "h": 60, "angle": 0,
+            "font": "DM Sans", "weight": 600, "font_file": null, "size": 36, "color": "#6E5140",
+            "align": "center", "uppercase": true, "char_spacing": 200, "max_lines": 1, "personalized_only": true }
+        ],
+        "slots": [
+          { "slot": "last_photo", "x": 1460, "y": 300, "w": 300, "h": 410, "angle": -4, "radius": 6 }
+        ],
+        "ignored": []
+      }
+    },
+    {
+      "name": "fond transparent sans image de fond",
+      "layout": {
+        "version": 1, "kind": "home", "size": { "w": 1920, "h": 1080 },
+        "background": null, "transparent_background": true,
+        "buttons": [ { "action": "start", "x": 760, "y": 820, "w": 400, "h": 130, "image": "b.png" } ],
+        "texts": [], "slots": []
+      },
+      "expected": {
+        "version": 1, "kind": "home",
+        "background": null, "background_neutral": null, "transparent_background": true,
+        "buttons": [ { "action": "start", "x": 760, "y": 820, "w": 400, "h": 130, "image": "b.png" } ],
+        "texts": [], "slots": [], "ignored": []
+      }
+    },
+    {
+      "name": "valeurs inconnues, doublons et défauts",
+      "layout": {
+        "version": 2, "kind": "result", "size": { "w": 1920, "h": 1080 },
+        "background": "bg.png", "future_field": { "x": 1 },
+        "buttons": [
+          { "action": "print", "x": 100, "y": 100, "w": 300, "h": 120, "image": "p1.png" },
+          { "action": "print", "x": 500, "y": 100, "w": 300, "h": 120, "image": "p2.png" },
+          { "action": "teleport", "x": 100, "y": 300, "w": 300, "h": 120, "image": "t.png" },
+          { "action": "start", "x": 100, "y": 500, "w": 300, "h": 120, "image": "s.png" },
+          { "action": "qr", "x": 100, "y": 700, "w": 0, "h": 120, "image": "q.png" },
+          { "action": "email", "x": 100, "y": 700, "w": 300, "h": 120 },
+          { "action": "finish", "x": 1460, "y": 900, "w": 300, "h": 100, "image": "f.png" }
+        ],
+        "texts": [
+          { "variable": "copies", "x": 900, "y": 100, "w": 120, "h": 80 },
+          { "variable": "print_status", "x": 900, "y": 300, "w": 500, "h": 60, "font": "comic_sans", "weight": 520 },
+          { "variable": "share_status", "x": 900, "y": 400, "w": 500, "h": 60, "font": "fraunces", "weight": 400, "align": "justify", "max_lines": 9 },
+          { "variable": "event_name", "x": 900, "y": 500, "w": 500, "h": 60 },
+          { "variable": "weather", "x": 900, "y": 600, "w": 500, "h": 60 }
+        ],
+        "slots": [
+          { "slot": "photo_preview", "x": 140, "y": 120, "w": 594, "h": 810 },
+          { "slot": "photo_preview", "x": 800, "y": 120, "w": 594, "h": 810 },
+          { "slot": "last_photo", "x": 140, "y": 120, "w": 300, "h": 400 }
+        ]
+      },
+      "expected": {
+        "version": 2, "kind": "result",
+        "background": "bg.png", "background_neutral": null, "transparent_background": false,
+        "buttons": [
+          { "action": "print", "x": 100, "y": 100, "w": 300, "h": 120, "image": "p1.png" },
+          { "action": "finish", "x": 1460, "y": 900, "w": 300, "h": 100, "image": "f.png" }
+        ],
+        "texts": [
+          { "variable": "copies", "x": 900, "y": 100, "w": 120, "h": 80, "angle": 0,
+            "font": "DM Sans", "weight": 400, "font_file": null, "size": 40, "color": "#1B241F",
+            "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "print_status", "x": 900, "y": 300, "w": 500, "h": 60, "angle": 0,
+            "font": "DM Sans", "weight": 500, "font_file": null, "size": 40, "color": "#1B241F",
+            "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "share_status", "x": 900, "y": 400, "w": 500, "h": 60, "angle": 0,
+            "font": "Fraunces", "weight": 600, "font_file": null, "size": 40, "color": "#1B241F",
+            "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 3, "personalized_only": false }
+        ],
+        "slots": [
+          { "slot": "photo_preview", "x": 140, "y": 120, "w": 594, "h": 810, "angle": 0, "radius": 0 }
+        ],
+        "ignored": [
+          { "type": "button", "value": "print" },
+          { "type": "button", "value": "teleport" },
+          { "type": "button", "value": "start" },
+          { "type": "button", "value": "qr" },
+          { "type": "button", "value": "email" },
+          { "type": "text", "value": "event_name" },
+          { "type": "text", "value": "weather" },
+          { "type": "slot", "value": "photo_preview" },
+          { "type": "slot", "value": "last_photo" }
+        ]
+      }
+    },
+    {
+      "name": "polices des textes vivants : fichier joint, embarquées, repli DM Sans",
+      "layout": {
+        "version": 5, "kind": "home", "size": { "w": 1920, "h": 1080 }, "background": "bg.png",
+        "texts": [
+          { "variable": "event_name", "x": 10, "y": 10, "w": 900, "h": 200, "font": "Great Vibes", "weight": 700, "font_file": "https://x.supabase.co/storage/v1/object/public/kiosk-backgrounds/org/o1/screen-home-v5-font-1.ttf" },
+          { "variable": "event_date", "x": 10, "y": 300, "w": 900, "h": 60, "font": "\"Ma Police\"", "weight": 1000, "font_file": "screen-home-v5-font-2.otf" },
+          { "variable": "event_date", "x": 10, "y": 400, "w": 900, "h": 60, "font": "Pacifico", "weight": 650 },
+          { "variable": "event_date", "x": 10, "y": 500, "w": 900, "h": 60, "font": "DM Sans", "weight": 300, "font_file": "screen-home-v5-font-3.ttf" },
+          { "variable": "event_date", "x": 10, "y": 600, "w": 900, "h": 60, "font": "Fraunces 72pt SuperSoft", "weight": 400 },
+          { "variable": "event_date", "x": 10, "y": 700, "w": 900, "h": 60, "font": "Lobster", "font_file": "" },
+          { "variable": "event_date", "x": 10, "y": 800, "w": 900, "h": 60, "font": "Lobster", "weight": 333.4, "font_file": "screen-home-v5-font-4.ttf" }
+        ]
+      },
+      "expected": {
+        "version": 5, "kind": "home",
+        "background": "bg.png", "background_neutral": null, "transparent_background": false,
+        "buttons": [],
+        "texts": [
+          { "variable": "event_name", "x": 10, "y": 10, "w": 900, "h": 200, "angle": 0, "font": "Great Vibes", "weight": 700, "font_file": "https://x.supabase.co/storage/v1/object/public/kiosk-backgrounds/org/o1/screen-home-v5-font-1.ttf", "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 300, "w": 900, "h": 60, "angle": 0, "font": "Ma Police", "weight": 900, "font_file": "screen-home-v5-font-2.otf", "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 400, "w": 900, "h": 60, "angle": 0, "font": "DM Sans", "weight": 600, "font_file": null, "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 500, "w": 900, "h": 60, "angle": 0, "font": "DM Sans", "weight": 400, "font_file": null, "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 600, "w": 900, "h": 60, "angle": 0, "font": "Fraunces", "weight": 600, "font_file": null, "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 700, "w": 900, "h": 60, "angle": 0, "font": "DM Sans", "weight": 400, "font_file": null, "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false },
+          { "variable": "event_date", "x": 10, "y": 800, "w": 900, "h": 60, "angle": 0, "font": "Lobster", "weight": 333, "font_file": "screen-home-v5-font-4.ttf", "size": 40, "color": "#1B241F", "align": "left", "uppercase": false, "char_spacing": 0, "max_lines": 1, "personalized_only": false }
+        ],
+        "slots": [],
+        "ignored": []
+      }
+    },
+    {
+      "name": "kind inconnu : refusé",
+      "layout": { "version": 1, "kind": "gallery", "size": { "w": 1920, "h": 1080 }, "background": "bg.png", "buttons": [] },
+      "expected": null
+    },
+    {
+      "name": "taille différente : refusé",
+      "layout": { "version": 1, "kind": "home", "size": { "w": 1280, "h": 800 }, "background": "bg.png", "buttons": [] },
+      "expected": null
+    },
+    {
+      "name": "version absente : refusé",
+      "layout": { "kind": "home", "size": { "w": 1920, "h": 1080 }, "background": "bg.png", "buttons": [] },
+      "expected": null
+    },
+    {
+      "name": "fond absent sans transparence : refusé",
+      "layout": { "version": 1, "kind": "home", "size": { "w": 1920, "h": 1080 }, "buttons": [] },
+      "expected": null
+    },
+    {
+      "name": "listes absentes : écran vide accepté",
+      "layout": { "version": 4, "kind": "home", "size": { "w": 1920, "h": 1080 }, "background": "bg.png" },
+      "expected": {
+        "version": 4, "kind": "home",
+        "background": "bg.png", "background_neutral": null, "transparent_background": false,
+        "buttons": [], "texts": [], "slots": [], "ignored": []
+      }
+    }
+  ]
+}

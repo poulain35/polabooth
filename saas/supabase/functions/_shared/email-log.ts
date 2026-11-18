@@ -6,7 +6,7 @@
 // Les emails internes (alertes cron/kiosk, notifications admin) et les photos kiosk envoyées aux
 // invités ne passent pas ici : email_logs est l'historique de communication avec le client.
 
-export type EmailLogScope = { leadId: string } | { eventId: string } | { prospectId: string };
+type EmailLogScope = { leadId: string } | { eventId: string } | { prospectId: string };
 
 export interface EmailLogEntry {
   scope: EmailLogScope;

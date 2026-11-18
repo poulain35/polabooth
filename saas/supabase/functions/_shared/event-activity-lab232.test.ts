@@ -115,15 +115,16 @@ test('écriture en échec ou rien à écrire : jamais d\'exception', async () =>
 
 // ── Fonctions ───────────────────────────────────────────────────────────────────────────────
 
-test('send-kiosk-photo : comptage par sendKioskEmailAndCount, 502 sur refus Brevo, sans le destinataire', () => {
+test('send-kiosk-photo : comptage par sendKioskEmailAndCount, 502 sur refus du fournisseur, sans le destinataire', () => {
   const src = fnSrc('send-kiosk-photo');
   assert.match(src, /import \{ sendKioskEmailAndCount \} from '\.\.\/_shared\/event-activity\.ts';/);
-  const tryBlock = src.slice(src.indexOf('  try {\n    await sendKioskEmailAndCount('), src.indexOf("return corsResponse(200, { message: 'Email envoyé avec succès' })"));
+  const tryBlock = src.slice(src.indexOf('  try {\n    messageId = await sendKioskEmailAndCount('), src.indexOf("return corsResponse(200, { message: 'Email envoyé avec succès' })"));
   assert.match(tryBlock, /sendKioskEmailAndCount\(db, event\.id, \(\) =>\s+sendHtmlEmail\(\{ to, subject/);
   assert.match(tryBlock, /if \(e instanceof EmailSendError\) return corsResponse\(502/);
   assert.doesNotMatch(src, /event_activity'\)|kind: 'kiosk_email'/, 'aucune écriture directe hors du module partagé');
-  // Sans clé Brevo : réponse « simulé » avant l'envoi, donc jamais comptée.
-  assert.ok(src.indexOf('Email simulé') < src.indexOf('sendKioskEmailAndCount(db'));
+  // Rien d'envoyé (aucun fournisseur, LAB-300 D14) : messageId null, donc jamais compté ; réponse « simulé ».
+  assert.match(src, /if \(!messageId\) return corsResponse\(200, \{ message: 'Email simulé/);
+  assert.ok(src.indexOf('Email simulé') > src.indexOf('sendKioskEmailAndCount(db'));
 });
 
 test('get-photos : ouverture par QR comptée après le contrôle du code, attendue avant la réponse', () => {

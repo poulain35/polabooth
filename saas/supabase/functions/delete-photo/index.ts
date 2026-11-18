@@ -52,7 +52,10 @@ Deno.serve(async (req) => {
   }
 
   const { error: deleteErr } = await db.from('photos').delete().eq('id', photo_id);
-  if (deleteErr) return corsResponse(500, { error: deleteErr.message });
+  if (deleteErr) {
+    console.error('delete-photo : suppression', photo_id, deleteErr);
+    return corsResponse(500, { error: 'Suppression impossible, réessayez.' });
+  }
 
   return corsResponse(200, { success: true });
 });

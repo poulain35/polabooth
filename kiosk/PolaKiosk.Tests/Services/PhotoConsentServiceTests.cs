@@ -87,7 +87,7 @@ public sealed class PhotoConsentServiceTests : IDisposable
         var composite = Path.Combine(_dir.Path, "composite.jpg");
 
         await NewSessions().RecordSessionAsync(_sessionId, EventId, DateTime.UtcNow, "photo.jpg", composite,
-            LiveViewModel.StagePhotoConsent(Consent(at), _sessionId, EventId, AccessCode));
+            CaptureFinisher.StagePhotoConsent(Consent(at), _sessionId, EventId, AccessCode));
 
         using var ctx = _db.NewContext();
         (await ctx.Sessions.CountAsync(s => s.Id == _sessionId, TestContext.Current.CancellationToken)).Should().Be(1);
@@ -104,7 +104,7 @@ public sealed class PhotoConsentServiceTests : IDisposable
 
     [Fact]
     public void No_consent_means_nothing_to_stage()
-        => LiveViewModel.StagePhotoConsent(null, _sessionId, EventId, AccessCode).Should().BeNull();
+        => CaptureFinisher.StagePhotoConsent(null, _sessionId, EventId, AccessCode).Should().BeNull();
 
     [Fact]
     public void Each_session_gets_its_own_consent_row()
@@ -129,7 +129,7 @@ public sealed class PhotoConsentServiceTests : IDisposable
         }
 
         var write = () => NewSessions().RecordSessionAsync(_sessionId, EventId, DateTime.UtcNow, "photo.jpg", "composite.jpg",
-            LiveViewModel.StagePhotoConsent(Consent(), _sessionId, EventId, AccessCode));
+            CaptureFinisher.StagePhotoConsent(Consent(), _sessionId, EventId, AccessCode));
 
         await write.Should().ThrowAsync<DbUpdateException>();
         (await RowsAsync()).Should().BeEmpty();
@@ -154,7 +154,7 @@ public sealed class PhotoConsentServiceTests : IDisposable
         var (photo, composite, paths) = NewPendingCapture();
 
         await NewSessions(paths).CommitPendingSessionAsync(_sessionId, EventId, EventName, DateTime.UtcNow, photo, composite,
-            LiveViewModel.StagePhotoConsent(Consent(), _sessionId, EventId, AccessCode));
+            CaptureFinisher.StagePhotoConsent(Consent(), _sessionId, EventId, AccessCode));
 
         (await RowsAsync()).Should().ContainSingle().Which.SessionId.Should().Be(_sessionId);
     }

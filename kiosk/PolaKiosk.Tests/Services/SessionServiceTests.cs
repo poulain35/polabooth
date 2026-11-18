@@ -19,7 +19,7 @@ public class SessionServiceTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        try { Directory.Delete(_dir, recursive: true); } catch { }
+        try { Directory.Delete(_dir, recursive: true); } catch { /* nettoyage d'un dossier temporaire */ }
     }
 
     private SessionService NewService() => new(_db.NewContext(), _supabase.Object, _log.Object, NewPaths());
@@ -52,6 +52,20 @@ public class SessionServiceTests : IDisposable
         session.CompositePath.Should().Be(composite);
         session.Uploaded.Should().BeFalse();
         ShareInfoFile.Read(composite)!.SessionId.Should().Be(id);
+    }
+
+    [Fact]
+    public async Task The_frame_of_the_session_is_kept_for_the_gallery()
+    {
+        var frameId = Guid.NewGuid();
+        var withFrame = await NewService().RecordSessionAsync(Guid.NewGuid(), EventId, DateTime.UtcNow,
+            NewComposite("a.jpg"), NewComposite("a.jpg"), templateId: frameId);
+        var withoutFrame = await NewService().RecordSessionAsync(Guid.NewGuid(), EventId, DateTime.UtcNow,
+            NewComposite("b.jpg"), NewComposite("b.jpg"));
+
+        (await NewService().GetSessionTemplateIdAsync(withFrame)).Should().Be(frameId);
+        (await NewService().GetSessionTemplateIdAsync(withoutFrame)).Should().BeNull("photo brute ou sans cadre");
+        (await NewService().GetSessionTemplateIdAsync(Guid.NewGuid())).Should().BeNull("séance inconnue");
     }
 
     [Fact]
@@ -135,9 +149,9 @@ public class SessionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Gallery_reopen_of_a_legacy_photo_is_stable_and_counted_once()
+    public async Task Gallery_reopen_of_a_photo_without_session_is_stable_and_counted_once()
     {
-        // Photo prise avant l'enregistrement des séances, déjà partagée (ancien format de fichier)
+        // Montage sans ligne de séance (enregistrement raté), déjà partagé, fichier compagnon sans séance
         var composite = NewComposite();
         File.WriteAllText(ShareInfoFile.PathFor(composite),
             """{"url":"https://cdn.example/ancienne.jpg","photoId":"0a0b0c0d-1111-4222-8333-944455556666"}""");
@@ -148,7 +162,7 @@ public class SessionServiceTests : IDisposable
         await NewService().AttachCompositeAsync(second, EventId, composite);
 
         second.Should().Be(first);
-        first.Should().Be(SessionService.LegacySessionId(composite));
+        first.Should().NotBe(Guid.Empty);
         using var ctx = _db.NewContext();
         var session = await ctx.Sessions.SingleAsync(TestContext.Current.CancellationToken);
         session.Id.Should().Be(first);

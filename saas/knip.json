@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "supabase/functions/*/index.ts",
+    "public/sw.js",
+    "scripts/*.mjs",
+    "src/modules/booking/legal/build-cgl.mjs"
+  ],
+  "ignoreDependencies": ["npm"]
+}

@@ -89,7 +89,7 @@ export function initialReportSelection(savedIds, photos, max = MAX_PHOTOS) {
   return saved.length ? saved : defaultReportPhotos(photos, max);
 }
 
-const kioskName = (k) => (typeof k?.label === 'string' && k.label.trim() ? `${k.label.trim()} ` : '');
+const kioskPrefix = (k) => (typeof k?.label === 'string' && k.label.trim() ? `${k.label.trim()} ` : '');
 
 /** Messages des blocages, avec le nom des bornes concernées quand il est connu. */
 export function blockerMessages(blockers, kiosks = []) {
@@ -98,7 +98,7 @@ export function blockerMessages(blockers, kiosks = []) {
   const byState = (state) => list.filter((k) => k?.state === state);
   const perKiosk = (state, text, fallback) => {
     const found = byState(state);
-    return found.length ? found.map((k) => text(kioskName(k))) : [fallback];
+    return found.length ? found.map((k) => text(kioskPrefix(k))) : [fallback];
   };
   const out = [];
   for (const code of BLOCKER_CODES) {
@@ -116,7 +116,7 @@ export function blockerMessages(blockers, kiosks = []) {
         (name) => `La borne ${name}n’a pas été connectée depuis l’événement.`,
         'La borne n’a pas été connectée depuis l’événement.'));
     } else if (code === 'kiosk_unidentified') {
-      out.push('Des photos viennent d’une borne inconnue. Choisissez la borne dans « Photobooth assigné », puis actualisez le bilan.');
+      out.push('Des photos viennent d’une borne inconnue. Choisissez la borne dans « Borne assignée », puis actualisez le bilan.');
     } else if (code === 'no_client_email') {
       out.push(NO_CLIENT_EMAIL);
     }

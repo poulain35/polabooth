@@ -10,10 +10,10 @@ import { getServiceSetting, type SettingsDb } from './secrets.ts';
 /** Couleur « Tomate » de Google Agenda : celle des prestations historiques. */
 export const GCAL_PRESTATION_COLOR = '11';
 export const GCAL_TIME_ZONE = 'Europe/Paris';
-export const GCAL_API_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
+const GCAL_API_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-export const EVENT_GCAL_COLUMNS = 'id, name, client_name, access_code, start_date, end_date, photobooth_id, gcal_event_id';
+const EVENT_GCAL_COLUMNS = 'id, name, client_name, access_code, start_date, end_date, photobooth_id, gcal_event_id';
 
 export interface EventForGcal {
   id: string;
@@ -89,7 +89,7 @@ export async function pushToGoogle(
   }
 }
 
-export async function boothNameOf(db: GcalDb, photoboothId: string | null | undefined): Promise<string | null> {
+async function boothNameOf(db: GcalDb, photoboothId: string | null | undefined): Promise<string | null> {
   if (!photoboothId) return null;
   const { data } = await db.from('kiosk_licenses').select('label, machine_id').eq('id', photoboothId).maybeSingle();
   return data ? (data.label || data.machine_id || null) : null;
@@ -112,7 +112,10 @@ export type GcalEventLinkFinder = (db: GcalDb, eventId: string) => Promise<GcalE
 /** Event SaaS → événement Google. Sans lien : corps de l'event ; avec lien : celui de la ligne reliée. */
 export async function syncEventGcal(d: GcalSyncDeps, eventId: string, findLink?: GcalEventLinkFinder): Promise<GcalSyncOutcome> {
   const { data: ev, error } = await d.db.from('events').select(EVENT_GCAL_COLUMNS).eq('id', eventId).maybeSingle();
-  if (error) return gcalFail(500, error.message);
+  if (error) {
+    console.error('gcal : lecture de l’événement', eventId, error);
+    return gcalFail(500, 'Lecture de l’événement impossible.');
+  }
   if (!ev) return gcalFail(404, 'Événement introuvable.');
 
   const link = findLink ? await findLink(d.db, eventId) : null;

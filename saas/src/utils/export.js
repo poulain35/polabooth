@@ -1,4 +1,4 @@
-import { findPhotoZones, flattenObjects, photoZoneRect } from '../lib/photoZones';
+import { findPhotoZones, flattenObjects, photoZoneRect } from '../lib/photoZones.js';
 
 // Masque/affiche un objet, même rangé dans des groupes imbriqués : Fabric ne marque « dirty »
 // que le groupe direct, un groupe parent mis en cache garderait sinon l'ancien rendu.
@@ -47,17 +47,12 @@ export async function exportAsHighResPNG(fabricCanvas, format, options = {}) {
   const origVT = fabricCanvas.viewportTransform.slice();
   const needsReset = origW !== canvasWidth || origH !== canvasHeight;
 
-  if (needsReset) {
-    fabricCanvas._exportMode = true;
-    fabricCanvas.setWidth(canvasWidth);
-    fabricCanvas.setHeight(canvasHeight);
-    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    fabricCanvas.renderAll();
-  }
-
   // Drawn objects in paint order, group children included (groups themselves are not drawn).
   const objects = flattenObjects(fabricCanvas.getObjects());
   const photoZones = findPhotoZones(fabricCanvas.getObjects());
+  const visibleBefore = objects.map((o) => o.visible);
+  const origBgColor = fabricCanvas.backgroundColor;
+  const origBgImage = fabricCanvas.backgroundImage;
 
   // Objects painted above the first photo zone are foreground overlays that must
   // survive the punch-out (otherwise an image dropped on a zone gets cut).
@@ -67,47 +62,56 @@ export async function exportAsHighResPNG(fabricCanvas, format, options = {}) {
       ? objects.filter((o, i) => i > firstZoneIndex && !o.isPhotoZone)
       : [];
 
-  // --- Base render: full canvas with photo zones hidden ---
-  photoZones.forEach((o) => setVisible(o, false));
-  fabricCanvas.renderAll();
-  const baseURL = fabricCanvas.toDataURL({
-    format: 'png',
-    multiplier: scale,
-    enableRetinaScaling: false,
-  });
-  photoZones.forEach((o) => setVisible(o, true));
-
-  // --- Foreground render: only the overlay objects, on a transparent background ---
+  let baseURL;
   let foregroundURL = null;
-  if (punchZones && foregroundObjects.length) {
-    const origBgColor = fabricCanvas.backgroundColor;
-    const origBgImage = fabricCanvas.backgroundImage;
-    const hidden = [];
-    objects.forEach((o) => {
-      if (!foregroundObjects.includes(o) && o.visible) {
-        hidden.push(o);
-        setVisible(o, false);
-      }
-    });
-    fabricCanvas.backgroundColor = null;
-    fabricCanvas.backgroundImage = null;
+  // finally : même en cas d'échec (canvas « tainted » par une image distante), le design est rendu
+  // tel quel à l'éditeur (aperçu sur la borne, LAB-307).
+  try {
+    if (needsReset) {
+      fabricCanvas._exportMode = true;
+      fabricCanvas.setWidth(canvasWidth);
+      fabricCanvas.setHeight(canvasHeight);
+      fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+      fabricCanvas.renderAll();
+    }
+
+    // --- Base render: full canvas with photo zones hidden ---
+    photoZones.forEach((o) => setVisible(o, false));
     fabricCanvas.renderAll();
-    foregroundURL = fabricCanvas.toDataURL({
+    baseURL = fabricCanvas.toDataURL({
       format: 'png',
       multiplier: scale,
       enableRetinaScaling: false,
     });
-    hidden.forEach((o) => setVisible(o, true));
+    photoZones.forEach((o) => setVisible(o, true));
+
+    // --- Foreground render: only the overlay objects, on a transparent background ---
+    if (punchZones && foregroundObjects.length) {
+      objects.forEach((o) => {
+        if (!foregroundObjects.includes(o) && o.visible) setVisible(o, false);
+      });
+      fabricCanvas.backgroundColor = null;
+      fabricCanvas.backgroundImage = null;
+      fabricCanvas.renderAll();
+      foregroundURL = fabricCanvas.toDataURL({
+        format: 'png',
+        multiplier: scale,
+        enableRetinaScaling: false,
+      });
+    }
+  } finally {
+    objects.forEach((o, i) => {
+      if (o.visible !== visibleBefore[i]) setVisible(o, visibleBefore[i]);
+    });
     fabricCanvas.backgroundColor = origBgColor;
     fabricCanvas.backgroundImage = origBgImage;
-  }
-
-  // Restore expanded canvas state
-  if (needsReset) {
-    fabricCanvas.setWidth(origW);
-    fabricCanvas.setHeight(origH);
-    fabricCanvas.setViewportTransform(origVT);
-    fabricCanvas._exportMode = false;
+    // Restore expanded canvas state
+    if (needsReset) {
+      fabricCanvas.setWidth(origW);
+      fabricCanvas.setHeight(origH);
+      fabricCanvas.setViewportTransform(origVT);
+      fabricCanvas._exportMode = false;
+    }
     fabricCanvas.renderAll();
   }
 
@@ -154,11 +158,106 @@ export async function exportAsHighResPNG(fabricCanvas, format, options = {}) {
   return offscreen.toDataURL('image/png');
 }
 
-export function downloadPNG(dataURL, filename = 'template-photobooth.png') {
-  const link = document.createElement('a');
-  link.download = filename;
-  link.href = dataURL;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+/**
+ * Écrans de la borne (LAB-298) : exporte les images d'un plan de buildScreenLayout, à partir des
+ * `parts` calculées sur les objets de premier niveau du canvas (même ordre que serializeState).
+ * - fond : seuls les objets de `parts.background.objectIndices` (le décor), sans bouton, texte
+ *   vivant ni emplacement ; le fond du canvas reste transparent s'il l'est ;
+ * - fond neutre (accueil) : idem sans les objets « Seulement si l'accueil est personnalisé » ;
+ * - un PNG transparent par bouton, recadré sur sa boîte d'export (`box`, px d'export).
+ * Retourne `[{ name, dataUrl }]`. Le canvas est rendu à W×H puis remis dans son état d'origine.
+ */
+export function exportScreenParts(fabricCanvas, format, parts) {
+  const { exportWidth, canvasWidth, canvasHeight } = format;
+  const scale = exportWidth / canvasWidth;
+  const objects = fabricCanvas.getObjects();
+  const visibleBefore = objects.map((o) => o.visible);
+  const origW = fabricCanvas.width;
+  const origH = fabricCanvas.height;
+  const origVT = fabricCanvas.viewportTransform.slice();
+  const origExportMode = fabricCanvas._exportMode;
+  const origBgColor = fabricCanvas.backgroundColor;
+  const origBgImage = fabricCanvas.backgroundImage;
+
+  // Seuls les objets de `indices` sont visibles (un objet masqué dans l'éditeur le reste).
+  const showOnly = (indices) => {
+    const keep = new Set(indices);
+    objects.forEach((o, i) => setVisible(o, keep.has(i) && visibleBefore[i] !== false));
+  };
+  const render = (crop = null) => {
+    fabricCanvas.renderAll();
+    return fabricCanvas.toDataURL({
+      format: 'png',
+      multiplier: scale,
+      enableRetinaScaling: false,
+      ...(crop ?? {}),
+    });
+  };
+
+  const out = [];
+  try {
+    fabricCanvas._exportMode = true;
+    fabricCanvas.setWidth(canvasWidth);
+    fabricCanvas.setHeight(canvasHeight);
+    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+
+    if (parts.background?.name) {
+      showOnly(parts.background.objectIndices);
+      out.push({ name: parts.background.name, dataUrl: render() });
+    }
+    if (parts.backgroundNeutral?.name) {
+      showOnly(parts.backgroundNeutral.objectIndices);
+      out.push({ name: parts.backgroundNeutral.name, dataUrl: render() });
+    }
+    if (parts.buttons?.length) {
+      fabricCanvas.backgroundColor = null;
+      fabricCanvas.backgroundImage = null;
+      for (const button of parts.buttons) {
+        showOnly([button.objectIndex]);
+        const { x, y, w, h } = button.box;
+        out.push({
+          name: button.name,
+          dataUrl: render({ left: x / scale, top: y / scale, width: w / scale, height: h / scale }),
+        });
+      }
+    }
+  } finally {
+    objects.forEach((o, i) => setVisible(o, visibleBefore[i]));
+    fabricCanvas.backgroundColor = origBgColor;
+    fabricCanvas.backgroundImage = origBgImage;
+    fabricCanvas.setWidth(origW);
+    fabricCanvas.setHeight(origH);
+    fabricCanvas.setViewportTransform(origVT);
+    fabricCanvas._exportMode = origExportMode;
+    fabricCanvas.renderAll();
+  }
+  return out;
+}
+
+/**
+ * Aperçu d'un écran de la borne (LAB-298) pour les cartes de l'admin : PNG à la moitié du canvas
+ * (480×270), tous les objets visibles, sans damier ni repères. null si le canvas est « tainted ».
+ */
+export function exportScreenPreview(fabricCanvas, format) {
+  const origW = fabricCanvas.width;
+  const origH = fabricCanvas.height;
+  const origVT = fabricCanvas.viewportTransform.slice();
+  const origExportMode = fabricCanvas._exportMode;
+  try {
+    fabricCanvas._exportMode = true;
+    fabricCanvas.setWidth(format.canvasWidth);
+    fabricCanvas.setHeight(format.canvasHeight);
+    fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    fabricCanvas.renderAll();
+    return fabricCanvas.toDataURL({ format: 'png', multiplier: 0.5, enableRetinaScaling: false });
+  } catch (err) {
+    console.warn('Aperçu de l’écran impossible :', err?.message ?? err);
+    return null;
+  } finally {
+    fabricCanvas.setWidth(origW);
+    fabricCanvas.setHeight(origH);
+    fabricCanvas.setViewportTransform(origVT);
+    fabricCanvas._exportMode = origExportMode;
+    fabricCanvas.renderAll();
+  }
 }

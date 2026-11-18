@@ -8,14 +8,18 @@ import { FEATURES, getFeature } from './catalog.js';
 import { ASSISTANT_MODELS, ASSISTANT_MODEL_LINKS, PRICES_CHECKED_ON, VISUAL_MODELS } from './aiModels.js';
 import * as server from '../../supabase/functions/_shared/service-keys.ts';
 import { PRIVATE_HISTORY } from '../../scripts/private-history.mjs';
+import moduleCatalogs from '../modules/catalog.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+// Clés des modules privés installés : déclarées par leur catalogue (src/modules/<id>/catalog.js, LAB-403).
+const MODULE_KEYS = moduleCatalogs.flatMap((m) => m.serviceKeys ?? []).map((k) => k.name);
+const MODULE_GROUPS = moduleCatalogs.filter((m) => m.serviceKeys?.length).map((m) => m.id);
 const EXPECTED = [
   'BREVO_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN',
-  'ANTHROPIC_API_KEY', 'REPLICATE_API_TOKEN', 'PENNYLANE_API_KEY',
+  'ANTHROPIC_API_KEY', 'REPLICATE_API_TOKEN', ...MODULE_KEYS,
 ];
 
-test('catalogue des clés : les 7 clés, champs complets, fonctionnalité connue', () => {
+test('catalogue des clés : clés ouvertes puis celles des modules, champs complets, fonctionnalité connue', () => {
   assert.deepEqual(SERVICE_KEY_NAMES, EXPECTED);
   for (const k of SERVICE_KEYS) {
     assert.ok(k.label && k.help, k.name);
@@ -110,17 +114,17 @@ test('aide au choix des modèles : forme et ids alignés sur les fonctions serve
 
 test('keyGroups : par défaut (Brevo, tout installé), toutes les sections et toutes les clés', () => {
   const groups = keyGroups();
-  assert.deepEqual(groups.map((g) => g.feature), [null, 'google_calendar', 'assistant', 'ai_visuals', 'invoicing']);
+  assert.deepEqual(groups.map((g) => g.feature), [null, 'google_calendar', 'assistant', 'ai_visuals', ...MODULE_GROUPS]);
   assert.match(groups[0].help, /Brevo/);
   assert.deepEqual(groups.flatMap((g) => g.keys.map((k) => k.name)).sort(), [...SERVICE_KEY_NAMES].sort());
   for (const g of groups) assert.ok(g.keys.every((k) => k.feature === g.feature));
 });
 
 test('keyGroups : module privé absent du build = section masquée ; SMTP = pas de clé Brevo', () => {
-  const groups = keyGroups({ installed: (id) => id !== 'invoicing', emailProvider: 'smtp' });
+  const groups = keyGroups({ installed: (id) => !MODULE_GROUPS.includes(id), emailProvider: 'smtp' });
   assert.deepEqual(groups.map((g) => g.feature), [null, 'google_calendar', 'assistant', 'ai_visuals']);
   assert.deepEqual(groups[0].keys, []);
   assert.match(groups[0].help, /SMTP/);
   assert.doesNotMatch(groups[0].help, /Brevo/);
-  assert.ok(!groups.flatMap((g) => g.keys).some((k) => k.name === 'BREVO_API_KEY' || k.name === 'PENNYLANE_API_KEY'));
+  assert.ok(!groups.flatMap((g) => g.keys).some((k) => k.name === 'BREVO_API_KEY' || MODULE_KEYS.includes(k.name)));
 });

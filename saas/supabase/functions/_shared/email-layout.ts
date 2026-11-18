@@ -51,6 +51,10 @@ export const BODY_FONT = 'Roboto, Arial, sans-serif';
 export interface LayoutOptions {
   /** `admin` : sans le bloc avis / réseaux / adresse (emails internes). */
   audience?: 'client' | 'admin';
+  /** Couleurs d'un événement (email de la borne) : filet de la carte et titre. */
+  theme?: { accent: string; titleColor: string };
+  /** En-tête à la place du logo du loueur (logo de l'événement), HTML déjà échappé. */
+  headerHtml?: string;
 }
 
 /** Gabarit commun à tous les emails HTML (client et admin). */
@@ -77,10 +81,10 @@ export function layout(title: string, body: string, opts: LayoutOptions = {}): s
   <tr><td align="center">
     <table role="presentation" class="pola-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
       <tr><td align="center" class="pola-pad" style="padding:32px 32px 24px;">
-        ${BRAND_MARKS.header}
+        ${opts.headerHtml ?? BRAND_MARKS.header}
       </td></tr>
-      <tr><td class="pola-card" bgcolor="${BRAND.card}" style="background:${BRAND.card};border-radius:8px;padding:40px 32px;font-family:${BODY_FONT};${fontSize('body')}line-height:1.5;color:${BRAND.text};">
-        <h1 style="margin:0 0 24px;font-family:${HEADING_FONT};font-weight:600;${fontSize('h1')}line-height:1.25;color:${BRAND.heading};">${escapeHtml(title)}</h1>
+      <tr><td class="pola-card" bgcolor="${BRAND.card}" style="background:${BRAND.card};border-radius:8px;${opts.theme ? `border-top:4px solid ${opts.theme.accent};` : ''}padding:40px 32px;font-family:${BODY_FONT};${fontSize('body')}line-height:1.5;color:${BRAND.text};">
+        <h1 style="margin:0 0 24px;font-family:${HEADING_FONT};font-weight:600;${fontSize('h1')}line-height:1.25;color:${opts.theme?.titleColor ?? BRAND.heading};">${escapeHtml(title)}</h1>
 ${content}
       </td></tr>
       ${opts.audience === 'admin' ? '' : BRAND_MARKS.footer}
@@ -97,12 +101,12 @@ export function button(url: string, label: string, color: string = BRAND.button)
 }
 
 export function buttonRow(
-  buttons: Array<{ url: string; label: string; color?: string }>,
+  buttons: Array<{ url: string; label: string; color?: string; textColor?: string }>,
   opts: { align?: 'left' | 'center'; margin?: string } = {},
 ): string {
   const cells = buttons.map((b) => {
     const bg = b.color ?? BRAND.button;
-    return `<td bgcolor="${bg}" style="background:${bg};border-radius:8px;"><a href="${escapeHtml(b.url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${BODY_FONT};${fontSize('body')}font-weight:700;line-height:1.2;color:${BRAND.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(b.label)}</a></td>`;
+    return `<td bgcolor="${bg}" style="background:${bg};border-radius:8px;"><a href="${escapeHtml(b.url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${BODY_FONT};${fontSize('body')}font-weight:700;line-height:1.2;color:${b.textColor ?? BRAND.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(b.label)}</a></td>`;
   }).join('<td width="12" style="width:12px;">&nbsp;</td>');
   const center = opts.align === 'center';
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"${center ? ' align="center"' : ''} style="margin:${opts.margin ?? (center ? '24px auto' : '24px 0')};"><tr>${cells}</tr></table>`;
@@ -177,4 +181,14 @@ export function infoTable(rows: Array<[string, string]>): string {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;border-collapse:collapse;">${rows.map(([k, v], i) =>
     `<tr><td style="${td(i === rows.length - 1)}color:${BRAND.muted};padding-right:12px;">${escapeHtml(k)}</td><td style="${td(i === rows.length - 1)}text-align:right;font-weight:700;">${escapeHtml(v)}</td></tr>`).join('')}</table>
   </td></tr></table>`;
+}
+
+/**
+ * Ligne « Suivre ma réservation » des emails de l'événement (spec suivi-client-reservation, D8),
+ * placée en fin de corps, avant la signature. Sans lien : chaîne vide, l'email reste celui d'avant
+ * octet pour octet (événement créé à la main, module booking absent ou coupé).
+ */
+export function trackingLine(url?: string | null): string {
+  if (!url) return '';
+  return `\n    ${smallText(`Où en est votre réservation ? ${textLink(url, 'Suivre ma réservation', true)}`, { margin: '24px 0 0' })}`;
 }

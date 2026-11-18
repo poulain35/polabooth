@@ -59,8 +59,11 @@ test('tâches planifiées : jobs pg_cron réels, fonction de la même fonctionna
   assert.deepEqual(MANIFEST.always_on.crons.filter((j) => !entries.some(([, e]) => e.crons.includes(j))), []);
 });
 
+// `eventByCode(db, code, { …, feature: 'x' })` (LAB-392) appelle requireFeature après avoir trouvé
+// l'événement : vérifié par event-by-code.test.ts.
 const guardOf = (feature: string) => new RegExp(
-  `(requireFeature|requireInstanceFeature|cronFeatureGate)\\([^;]*'${feature}'|isFeatureEnabled\\([^)]*'${feature}'\\)`,
+  `(requireFeature|requireInstanceFeature|cronFeatureGate)\\([^;]*'${feature}'|isFeatureEnabled\\([^)]*'${feature}'\\)` +
+  `|eventByCode(<[^(]*>)?\\(db, [^;]*feature: '${feature}'`,
 );
 const sources = (fn: string) => readdirSync(join(FUNCTIONS_DIR, fn))
   .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))

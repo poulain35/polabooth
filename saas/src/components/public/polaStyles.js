@@ -1,16 +1,8 @@
 /**
- * Classes et constantes des pages client publiques (LAB-62), reprises telles quelles de la
- * maquette validée saas/docs/design/reservation-recap/recap.html (v3.3). Style du site vitrine :
- * tokens `pola-*` (tailwind.config.js), DM Sans + Cormorant Garamond.
+ * Constantes des pages client publiques (LAB-62) : contact du loueur, polices et icônes. Les classes
+ * sont dans index.css (`pola-*`, `pola-pf-*`, LAB-395), à écrire telles quelles dans les pages (LAB-397).
  */
 import { BRAND } from '../../lib/instanceBrand.js';
-
-export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pola-green focus-visible:ring-offset-2 focus-visible:ring-offset-pola-bg';
-export const BTN_PRIMARY = `inline-flex items-center justify-center gap-2.5 rounded-full bg-pola-green text-white text-[17px] font-medium leading-tight px-7 py-4 hover:bg-pola-green-dark transition-colors disabled:opacity-70 disabled:cursor-wait ${FOCUS}`;
-export const BTN_SECONDARY = `inline-flex items-center justify-center gap-2 rounded-full border-2 border-pola-green text-pola-green-dark text-base font-medium leading-tight px-6 py-3 hover:bg-pola-green hover:text-white transition-colors disabled:opacity-70 disabled:cursor-wait ${FOCUS}`;
-export const BTN_DESTRUCTIVE = `inline-flex items-center justify-center gap-2 rounded-full bg-pola-error text-white text-[17px] font-medium leading-tight px-7 py-4 hover:bg-[#7d2318] transition-colors disabled:opacity-70 disabled:cursor-wait ${FOCUS}`;
-export const LINK = `font-medium text-pola-green-dark underline underline-offset-4 decoration-pola-green/60 hover:decoration-pola-green-dark rounded-sm ${FOCUS}`;
-export const CHECKBOX = `h-6 w-6 mt-0.5 shrink-0 rounded accent-[#5e745d] cursor-pointer ${FOCUS}`;
 
 /** Contact public du loueur (affiché sur toutes les pages client ; jamais renvoyé par l'API) : marque de l'instance (open core L7). */
 export const ORG = {

@@ -17,11 +17,13 @@
  */
 
 import { adminClient } from '../_shared/auth.ts';
+import { jsonResponse } from '../_shared/cors.ts';
 import { cronOnly } from '../_shared/admin-guard.ts';
 import { isFeatureEnabled } from '../_shared/features.ts';
 import { sendAccessCodeEmail } from '../_shared/email.ts';
 import { recordEmailLog } from '../_shared/email-log.ts';
 import { orgSenderCache } from '../_shared/org-identity.ts';
+import { clientTrackingUrl } from '../_shared/client-tracking.ts';
 
 const DEFAULT_DAYS_BEFORE = 30;
 
@@ -46,8 +48,11 @@ Deno.serve(async (req) => {
     .select('id, features, business_profile, brevo_access_template_id')
     .eq('business_profile->access_email_auto->>enabled', 'true');
 
-  if (orgErr) return json(500, { error: orgErr.message });
-  if (!orgs?.length) return json(200, { checked: 0, sent: 0 });
+  if (orgErr) {
+    console.error('send-access-emails : lecture des organisations', orgErr);
+    return jsonResponse(500, { error: 'Lecture des organisations impossible' });
+  }
+  if (!orgs?.length) return jsonResponse(200, { checked: 0, sent: 0 });
 
   let sent = 0;
   const senderOf = orgSenderCache(db);
@@ -99,6 +104,7 @@ Deno.serve(async (req) => {
           expiresAt:  ev.end_date ?? undefined,
           templateId,
           sender:     await senderOf(org.id),
+          trackingUrl: await clientTrackingUrl(db, ev.id),
         });
         await recordEmailLog(db, {
           scope: { eventId: ev.id }, recipient: ev.client_email, type: 'access_code', ...sentEmail,
@@ -110,12 +116,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json(200, { checked: orgs.length, sent });
+  return jsonResponse(200, { checked: orgs.length, sent });
 });
-
-function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

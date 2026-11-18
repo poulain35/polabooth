@@ -4,12 +4,51 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Thème de l'admin (classe admin-ui, LAB-363) et mode sombre (classe dark, LAB-340), posés avant le
+         premier rendu : même règle que src/lib/theme.js (alignement vérifié par src/lib/theme.test.js). -->
+    <script id="admin-theme-boot">
+      (function () {
+        try {
+          var p = location.pathname.replace(/\/+$/, '') || '/';
+          var excluded = ['/admin/login', '/admin/nouveau-mot-de-passe'];
+          var prefixes = ['/admin/demandes/'];
+          var admin = p === '/admin' || p.indexOf('/admin/') === 0;
+          if (/^\/associer$/.test(p) || (admin && !/^\/admin\/demandes\/[^/]+\/preuve$/.test(p))) {
+            document.documentElement.classList.add('admin-ui');
+          }
+          if (!admin) return;
+          if (excluded.indexOf(p) !== -1) return;
+          if (/^\/admin\/(templates\/(new|[^/]+\/edit)|ecrans-borne\/[^/]+)$/.test(p)) return;
+          var store = null;
+          try { store = window.localStorage; } catch (e) { store = null; }
+          for (var i = 0; i < prefixes.length; i++) {
+            if (p.indexOf(prefixes[i]) !== 0) continue;
+            // Demande ouverte avec une session : le menu va s'afficher, on pose le thème tout de suite.
+            if (!/^\/admin\/demandes\/[^/]+$/.test(p)) return;
+            var session = false;
+            try {
+              for (var k = 0; k < store.length; k++) if (/^sb-.+-auth-token$/.test(String(store.key(k)))) session = true;
+            } catch (e) { session = false; }
+            if (!session) return;
+          }
+          var choice = null;
+          try { choice = store.getItem('pola-admin-theme'); } catch (e) { choice = null; }
+          var dark = choice === 'dark';
+          if (choice !== 'dark' && choice !== 'light') {
+            dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          }
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) { /* thème clair */ }
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#7c3aed" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <title>Éditeur de templates photobooth</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Police de l'admin (LAB-363) -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300..600&display=swap" rel="stylesheet">
     <!-- Sans-serif (lot 1) -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,700;1,400&family=Open+Sans:ital,wght@0,300;0,400;0,700;1,400&family=Lato:ital,wght@0,300;0,400;0,700;1,400&family=Montserrat:ital,wght@0,300;0,400;0,700;1,400&family=Nunito:wght@300;400;700&family=Raleway:ital,wght@0,300;0,400;0,700;1,400&family=Poppins:ital,wght@0,300;0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&family=Source+Sans+3:ital,wght@0,300;0,400;0,700;1,400&family=Ubuntu:ital,wght@0,300;0,400;0,700;1,400&family=Josefin+Sans:ital,wght@0,300;0,400;0,700;1,400&family=Quicksand:wght@300;400;700&family=Mulish:ital,wght@0,300;0,400;0,700;1,400&family=Karla:ital,wght@0,300;0,400;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
     <!-- Sans-serif (lot 2) -->

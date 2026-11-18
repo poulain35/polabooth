@@ -2,6 +2,9 @@
 // _shared/modules/<id>/. Aucune fonction d'une fonctionnalité ouverte ne doit l'atteindre, même
 // indirectement : la version ouverte du dépôt se construit sans ce dossier.
 // Les modules privés peuvent s'importer entre eux (ex. booking → invoicing).
+// Seule porte du code ouvert vers les modules (LAB-403) : _shared/private-modules.ts, qui ne lit que leurs
+// catalogues (_shared/modules/<id>/catalog.ts, données pures sans import à l'exécution) et que le dépôt
+// public remplace par une liste vide.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -17,6 +20,7 @@ const MANIFEST = JSON.parse(readFileSync(fileURLToPath(new URL('../../features.j
 
 const rel = (path: string) => relative(FUNCTIONS_DIR, path).split(sep).join('/');
 const isModule = (path: string) => rel(path).startsWith('_shared/modules/');
+const GATEWAY = join(FUNCTIONS_DIR, '_shared', 'private-modules.ts');
 
 const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)(['"])(\.\.?\/[^'"]+)\1/g;
 
@@ -35,6 +39,7 @@ function pathToModule(entry: string): string[] | null {
     const file = chain.at(-1)!;
     if (seen.has(file)) continue;
     seen.add(file);
+    if (file === GATEWAY) continue;
     for (const next of importsOf(file)) {
       if (isModule(next)) return [...chain, next].map(rel);
       if (existsSync(next) && !seen.has(next)) queue.push([...chain, next]);
@@ -80,6 +85,19 @@ test('code partagé ouvert (_shared hors modules, hors tests) : aucun import de 
     .filter((chain): chain is string[] => chain !== null)
     .map((chain) => chain.join(' → '));
   assert.deepEqual(offenders, []);
+});
+
+test('registre des modules (seule porte) : uniquement les catalogues, chacun sans import à l\'exécution', () => {
+  const RUNTIME_IMPORT = /^\s*(?:import|export)\s+(?!type\b)[^;]*?from\s*['"][^'"]+['"]|\bimport\s*\(/gm;
+  const targets = importsOf(GATEWAY).filter(isModule).map(rel);
+  for (const target of targets) {
+    assert.match(target, /^_shared\/modules\/[a-z_]+\/catalog\.ts$/, target);
+    const id = target.split('/')[2];
+    assert.ok(privateFeatures.includes(id as never), `${target} : pas une fonctionnalité privée`);
+    const text = readFileSync(join(FUNCTIONS_DIR, target), 'utf8');
+    assert.deepEqual(text.match(RUNTIME_IMPORT) ?? [], [], `${target} : import à l'exécution`);
+  }
+  if (!NO_MODULES) assert.ok(targets.length > 0, 'catalogues déclarés');
 });
 
 test('le parcours détecte bien un import indirect (garde-fou du test)', { skip: NO_MODULES }, () => {

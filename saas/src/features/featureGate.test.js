@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { FEATURE_IDS } from './catalog.js';
 import {
   FEATURE_DISABLED, NAV_FEATURES, featureAvailable, featureInstalled, filterNav, hasPublicFeature,
-  isFeatureDisabledError, navItemFeature, publicFeaturesFrom,
+  isFeatureDisabledError, navItemAvailable, navItemFeature, publicFeaturesFrom,
 } from './featureGate.js';
 
 test('isFeatureDisabledError : réponse d\'edge function (404 { error })', () => {
@@ -61,33 +61,41 @@ test('menu : chaque entrée d\'AdminLayout a une fonctionnalité du catalogue', 
   const src = readFileSync(new URL('../pages/admin/AdminLayout.jsx', import.meta.url), 'utf8');
   const block = src.slice(src.indexOf('const MODULES = ['), src.indexOf('function navClass'));
   const targets = [...block.matchAll(/\bto:\s*'([^']+)'/g)].map((m) => m[1]);
-  assert.ok(targets.length >= 15, 'menu lu');
+  // Refonte de la navigation (LAB-335) : sept entrées au plus, dans cet ordre.
+  assert.deepEqual(targets, ['aujourdhui', 'ventes', 'events', 'bornes', 'reglages', 'templates', 'aide']);
   for (const to of targets) {
     assert.ok(to in NAV_FEATURES, `entrée sans correspondance : ${to}`);
-    assert.ok(FEATURE_IDS.includes(NAV_FEATURES[to]), `${to} → ${NAV_FEATURES[to]}`);
+    for (const id of [NAV_FEATURES[to]].flat()) assert.ok(FEATURE_IDS.includes(id), `${to} → ${id}`);
   }
   assert.match(src, /filterNav\(MODULES,/);
 });
 
 test('menu : socle toujours visible, entrée inconnue = socle', () => {
-  for (const to of ['dashboard', 'events', 'emails', 'templates', 'decorations', 'fonts', 'licenses', 'settings', 'settings/features']) {
+  for (const to of ['aujourdhui', 'events', 'bornes', 'reglages', 'templates']) {
     assert.ok(['core', 'templates'].includes(navItemFeature(to)), to);
   }
   assert.equal(navItemFeature('inconnu'), 'core');
-  assert.equal(navItemFeature('leads'), 'booking');
-  assert.equal(navItemFeature('audio'), 'audio_guestbook');
-  assert.equal(navItemFeature('assistant'), 'help');
+  assert.deepEqual(navItemFeature('ventes'), ['booking', 'prospects']);
+  assert.equal(navItemFeature('aide'), 'help');
+});
+
+test('menu : « Demandes et devis » visible si booking ou prospects est disponible', () => {
+  const avail = (...ids) => (id) => ['core', ...ids].includes(id);
+  assert.equal(navItemAvailable('ventes', avail()), false);
+  assert.equal(navItemAvailable('ventes', avail('booking')), true);
+  assert.equal(navItemAvailable('ventes', avail('prospects')), true);
+  assert.equal(navItemAvailable('events', avail()), true);
 });
 
 test('filterNav : retire les entrées inactives et les groupes vides', () => {
   const modules = [
-    { id: 'a', items: [{ to: 'dashboard' }, { to: 'stats' }] },
-    { id: 'b', items: [{ to: 'photos' }, { to: 'audio' }] },
-    { id: 'c', items: [{ to: 'leads' }, { to: 'prospects' }] },
+    { id: 'a', items: [{ to: 'aujourdhui' }, { to: 'ventes' }] },
+    { id: 'b', items: [{ to: 'aide' }] },
+    { id: 'c', items: [{ to: 'reglages' }, { to: 'templates' }] },
   ];
-  const active = new Set(['core', 'templates', 'gallery']);
+  const active = new Set(['core', 'templates']);
   const out = filterNav(modules, (id) => active.has(id));
-  assert.deepEqual(out.map((m) => [m.id, m.items.map((i) => i.to)]), [['a', ['dashboard']], ['b', ['photos']]]);
+  assert.deepEqual(out.map((m) => [m.id, m.items.map((i) => i.to)]), [['a', ['aujourdhui']], ['c', ['reglages', 'templates']]]);
   // tout actif : menu inchangé
   assert.deepEqual(filterNav(modules, () => true), modules);
 });

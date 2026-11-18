@@ -187,7 +187,8 @@ test('inventaire : toute fonction qui envoie un email de email.ts passe l\'expé
 test('send-kiosk-photo : expéditeur de l\'événement, puis de l\'entreprise, puis son nom', () => {
   const src = read('send-kiosk-photo/index.ts');
   assert.match(src, /getOrgIdentity\(db, event\.org_id, \{ \.\.\.identityDefaults\(\), senderName: '' \}\)/);
-  assert.match(src, /email: emailCfg\.sender_email \|\| identity\.senderEmail,/);
-  assert.match(src, /name:  emailCfg\.sender_name  \|\| identity\.senderName \|\| identity\.companyName,/);
-  assert.ok(src.indexOf('Email simulé') < src.indexOf('getOrgIdentity('), 'aucune lecture sans clé Brevo');
+  // Expéditeur choisi par _shared/kiosk-email.ts (LAB-300), partagé avec kiosk-email-preview.
+  const shared = read('_shared/kiosk-email.ts');
+  assert.match(shared, /email: text\(email\.sender_email\) \|\| p\.identity\.senderEmail,/);
+  assert.match(shared, /name: text\(email\.sender_name\) \|\| p\.identity\.senderName \|\| p\.identity\.companyName,/);
 });

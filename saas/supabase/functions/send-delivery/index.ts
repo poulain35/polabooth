@@ -22,7 +22,7 @@
 
 import { handleCors, corsResponse } from '../_shared/cors.ts';
 import { adminClient, sessionUser } from '../_shared/auth.ts';
-import { authenticate, cronOnly, forbiddenOrg, isServiceRoleRequest } from '../_shared/admin-guard.ts';
+import { authenticate, cronOnly, isServiceRoleRequest, requireOrgAccess } from '../_shared/admin-guard.ts';
 import { sendDeliveryEmail, type SentEmail } from '../_shared/email.ts';
 import { recordEmailLog } from '../_shared/email-log.ts';
 import { orgSender } from '../_shared/org-identity.ts';
@@ -31,6 +31,7 @@ import { featureDisabled } from '../_shared/feature-guard.ts';
 import { BREVO_REFUSED_STATUS, brevoRefusedBody, deliveryDecision, type DeliveryMode } from './manual-send.ts';
 import { deliveryAttachmentUrl, deliveryLinks } from '../_shared/delivery-links.ts';
 import { appUrl } from '../_shared/app-url.ts';
+import { clientTrackingUrl } from '../_shared/client-tracking.ts';
 
 const serviceRoleKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const APP_URL         = appUrl().replace(/\/$/, '');
@@ -85,24 +86,19 @@ Deno.serve(async (req) => {
   if (auth.response) return auth.response;
   const user = auth.user;
 
-  const { data: eventData, error: evErr } = await db
-    .from('events')
-    .select(EVENT_COLUMNS)
-    .eq('id', eventId)
-    .single();
+  // Propriétaire de l'organisation de l'événement : 404 s'il n'existe pas, 403 sinon (LAB-392).
+  const access = await requireOrgAccess(db, user.id, { kind: 'event', id: eventId });
+  if (access.response) return access.response;
 
-  if (evErr || !eventData) return corsResponse(404, { error: 'Événement introuvable' });
+  const [{ data: eventData, error: evErr }, { data: org, error: orgErr }] = await Promise.all([
+    db.from('events').select(EVENT_COLUMNS).eq('id', eventId).single(),
+    db.from('organizations').select('id, features, business_profile').eq('id', access.orgId).single(),
+  ]);
+  if (evErr || orgErr || !eventData || !org) {
+    console.error('send-delivery : lecture impossible', eventId, evErr ?? orgErr);
+    return corsResponse(500, { error: 'Lecture de l’événement impossible, réessayez.' });
+  }
   const event = eventData as EventRow;
-
-  // Vérifier que l'admin est propriétaire de l'organisation.
-  const { data: org } = await db
-    .from('organizations')
-    .select('id, features, business_profile')
-    .eq('id', event.org_id)
-    .eq('owner_id', user.id)
-    .maybeSingle();
-
-  if (!org) return forbiddenOrg();
   if (!isFeatureEnabled(org.features, 'delivery_email')) return featureDisabled();
 
   if (!event.client_email) {
@@ -139,7 +135,10 @@ async function runCron(db: ReturnType<typeof adminClient>) {
     .select('id, features, business_profile')
     .eq('business_profile->delivery_auto->>enabled', 'true');
 
-  if (orgErr) return corsResponse(500, { error: orgErr.message });
+  if (orgErr) {
+    console.error('send-delivery (cron) : lecture des organisations', orgErr);
+    return corsResponse(500, { error: 'Lecture des organisations impossible' });
+  }
   if (!orgs?.length) return corsResponse(200, { checked: 0, sent: 0 });
 
   let sent = 0;
@@ -191,6 +190,7 @@ async function deliver(db: ReturnType<typeof adminClient>, ev: EventRow, profile
     reviewUrl:       profile.google_review_url || undefined,
     attachmentUrl:   deliveryAttachmentUrl(ev.delivery_attachment_url) ?? undefined,
     sender:          await orgSender(db, ev.org_id),
+    trackingUrl:     await clientTrackingUrl(db, ev.id),
   });
 
   await recordEmailLog(db, { scope: { eventId: ev.id }, recipient: ev.client_email!, type: 'delivery', ...sentEmail });

@@ -29,8 +29,9 @@ internal sealed class LicenseCache
 
     public LicenseCache(string dataDir, string machineId)
     {
-        _cachePath = Path.Combine(dataDir, "license.json");
-        _keyPath   = Path.Combine(dataDir, "license.key");
+        var paths  = new KioskPaths(dataDir);
+        _cachePath = paths.LicenseFile;
+        _keyPath   = paths.LicenseKeyFile;
         _machineId = machineId;
     }
 

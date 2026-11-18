@@ -20,9 +20,9 @@ public class KioskStateService : IKioskStateService
 
     public KioskStateService(AppSettings settings)
     {
-        var dataDir = Environment.ExpandEnvironmentVariables(settings.Kiosk.DataDirectory);
-        Directory.CreateDirectory(dataDir);
-        _statePath = Path.Combine(dataDir, "state.json");
+        var paths = KioskPaths.From(settings);
+        Directory.CreateDirectory(paths.Root);
+        _statePath = paths.StateFile;
         Load();
     }
 

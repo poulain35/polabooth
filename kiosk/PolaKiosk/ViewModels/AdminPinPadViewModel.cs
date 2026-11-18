@@ -16,18 +16,12 @@ public partial class AdminPinPadViewModel : ObservableObject
     internal const int MinPinLength = 4;
     internal const int MaxPinLength = 8;
 
-    // Anti-bruteforce PIN
-    internal const int MaxPinAttempts    = 5;
-    internal const int PinLockoutSeconds = 30;
-
     private readonly IAdminPinService _adminPin;
     private readonly INavigationService _navigation;
-    private readonly Func<DateTime> _utcNow;
+    private readonly IPinAttemptLimiter _attempts;
 
     // PIN saisi — géré manuellement pour éviter les callbacks en cascade
     private string _pin = "";
-    private int _pinFailedAttempts;
-    private DateTime _pinLockedUntil = DateTime.MinValue;
     private Task _refresh = Task.CompletedTask;
 
     [ObservableProperty] private string _pinDots = "";
@@ -36,14 +30,11 @@ public partial class AdminPinPadViewModel : ObservableObject
     [ObservableProperty] private bool _showPinEntry = false;
     [ObservableProperty] private bool _isChecking = false;
 
-    public AdminPinPadViewModel(IAdminPinService adminPin, INavigationService navigation)
-        : this(adminPin, navigation, () => DateTime.UtcNow) { }
-
-    internal AdminPinPadViewModel(IAdminPinService adminPin, INavigationService navigation, Func<DateTime> utcNow)
+    public AdminPinPadViewModel(IAdminPinService adminPin, INavigationService navigation, IPinAttemptLimiter attempts)
     {
         _adminPin   = adminPin;
         _navigation = navigation;
-        _utcNow     = utcNow;
+        _attempts   = attempts;
     }
 
     [RelayCommand]
@@ -111,7 +102,7 @@ public partial class AdminPinPadViewModel : ObservableObject
             case PinCheckResult.Accepted:
                 ClearEntry();
                 ShowPinEntry = false;
-                _pinFailedAttempts = 0;
+                _attempts.RecordSuccess();
                 try { _navigation.NavigateTo<Views.AdminView>(); }
                 catch (Exception ex) { ShowError($"Erreur : {ex.Message}"); }
                 break;
@@ -122,32 +113,34 @@ public partial class AdminPinPadViewModel : ObservableObject
                 break;
 
             default:
-                _pinFailedAttempts++;
                 _pin    = "";
                 PinDots = "";
-                if (_pinFailedAttempts >= MaxPinAttempts)
-                {
-                    _pinLockedUntil    = _utcNow().AddSeconds(PinLockoutSeconds);
-                    _pinFailedAttempts = 0;
-                    ShowError($"Trop de tentatives. Réessayez dans {PinLockoutSeconds}s.");
-                }
+                var failure = _attempts.RecordFailure();
+                if (failure.LockedFor is { } lockedFor) ShowLockedOut(lockedFor);
                 else
                 {
-                    var left = MaxPinAttempts - _pinFailedAttempts;
+                    var left = failure.AttemptsLeft;
                     ShowError($"Code incorrect ({left} essai{(left > 1 ? "s" : "")} restant{(left > 1 ? "s" : "")}).");
                 }
                 break;
         }
     }
 
-    // Verrouillage anti-bruteforce
+    // Anti-bruteforce : compteur commun aux pavés et gardé au redémarrage (IPinAttemptLimiter).
     private bool IsLockedOut()
     {
-        var now = _utcNow();
-        if (now >= _pinLockedUntil) return false;
-        var remaining = (int)Math.Ceiling((_pinLockedUntil - now).TotalSeconds);
-        ShowError($"Trop de tentatives. Réessayez dans {remaining}s.");
+        if (_attempts.LockRemaining() is not { } remaining) return false;
+        ShowLockedOut(remaining);
         return true;
+    }
+
+    private void ShowLockedOut(TimeSpan remaining)
+        => ShowError($"Trop de tentatives. Réessayez dans {FormatDelay(remaining)}.");
+
+    internal static string FormatDelay(TimeSpan delay)
+    {
+        var seconds = (int)Math.Ceiling(delay.TotalSeconds);
+        return seconds < 60 ? $"{seconds} s" : $"{(int)Math.Ceiling(seconds / 60.0)} min";
     }
 
     private void ClearEntry()

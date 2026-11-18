@@ -33,12 +33,13 @@ src/
 ├── App.jsx              # Routage (public, client, admin)
 ├── main.jsx
 ├── lib/
-│   └── supabase.js      # client Supabase + toutes les fonctions d'API
+│   ├── supabase.js      # point d'entrée de l'API : ré-exporte lib/api/*
+│   └── api/             # client Supabase (client.js) + fonctions d'API, un fichier par domaine
 │                        # (+ modules purs testés : photoZones, polaBundle, kiosk*…)
 ├── features/            # fonctionnalités activables : catalog.js, featureGate.js, modules.js
 ├── modules/             # emplacement des modules privés éventuels ; ici le registre index.js est vide
 ├── hooks/               # useFeatures…
-├── components/          # Editor.jsx (canvas Fabric.js), Toolbar, PropertiesPanel, panneaux admin…
+├── components/          # Editor.jsx (canvas Fabric.js, découpé dans editor/), Toolbar, PropertiesPanel, panneaux admin…
 ├── pages/               # Landing, EditorPage, PhotoGallery, Slideshow, EventReport, AdminPair…
 │   └── admin/           # AdminEvents, AdminEventDetail, AdminTemplates, AdminLicenses, AdminSettings…
 ├── utils/               # formats.js, export.js (PNG haute définition), textEffects.js, media.js
@@ -69,12 +70,14 @@ scripts/                 # install-instance, check-open-build, kiosk-config…
 /admin/login               → AdminLogin (?next= : retour après connexion ; ?oubli=1 : mot de passe oublié)
 /admin/nouveau-mot-de-passe → AdminResetPassword (lien de l'email de réinitialisation)
 /admin/*                   → RequireAuth (session Supabase obligatoire)
-  /admin/events[/new|/:id]       événements
+  /admin                         → /admin/aujourdhui
+  /admin/aujourdhui              tableau de bord « Aujourd'hui »
+  /admin/events[/new|/:id]       événements (?vue=calendrier ; fiche à onglets ?tab=)
+  /admin/bornes                  parc de bornes, matériel, écrans, alertes (?tab=)
+  /admin/ecrans-borne/:kind      composition d'un écran de la borne
+  /admin/reglages                réglages, fonctionnalités activables, clés des services (#section)
   /admin/templates[/new|/:id/edit] modèles
-  /admin/photos[/:id]            photos
   /admin/decorations, /admin/fonts
-  /admin/licenses                parc de bornes
-  /admin/settings[/features]     réglages, fonctionnalités activables, clés des services
 ```
 
 `redirectTo` de la réinitialisation du mot de passe = `VITE_APP_URL` + `/admin/nouveau-mot-de-passe` :
@@ -116,10 +119,14 @@ canvas_json (fabric.canvas.toJSON()), is_active, thumbnail, created_at
 
 ### Table `client_designs`
 ```
-id, event_id → events, canvas_json, format,
+id, event_id → events, kind ('print' | 'home'), slot (1 à 4), label, canvas_json, format,
 status ('draft' | 'submitted' | 'approved' | 'rejected'), feedback, png_url, created_at
 ```
-Aucun droit pour `anon`. La borne lit le design approuvé par la RPC `kiosk_get_approved_design`.
+UNIQUE (event_id, kind, slot) : `print` = cadre (modèle photo, jusqu'à 4 par événement, numérotés par
+`slot`, nommés par `label`, 24 caractères), `home` = écran d'accueil de la borne (1920×1080, un seul,
+`slot = 1`). Toute lecture ou écriture par événement filtre `kind` (upsert avec
+`onConflict: 'event_id,kind,slot'`) ; `design_versions.kind` et `slot` suivent la même règle. Seul le modèle photo pilote
+`events.status`. Aucun droit pour `anon`. La borne lit le design approuvé par la RPC `kiosk_get_approved_design`.
 
 ### Autres tables
 - `organizations` : comptes ; `features`, `service_settings`, contact, `logo_url`, `kiosk_limit`
@@ -148,8 +155,11 @@ Aucun droit pour `anon`. La borne lit le design approuvé par la RPC `kiosk_get_
   (vérifié par `_shared/features-manifest.test.ts`).
 - Modules privés : `src/modules/<id>/` et `supabase/functions/_shared/modules/<id>/`. Le code ouvert
   n'y accède que par `src/features/modules.js` (`moduleRoutes`, `<ModuleSlot>`, `moduleHook`) et ne
-  les importe jamais (ESLint, `_shared/open-core-modules.test.ts`).
-- Version ouverte : `VITE_PRIVATE_MODULES=none npm run build` (le registre devient `[]`), puis
+  les importe jamais (ESLint, `_shared/open-core-modules.test.ts`). Seules exceptions : les registres de
+  catalogues `src/modules/catalog.js` et `_shared/private-modules.ts` (données pures qu'un module ajoute aux
+  catalogues ouverts : libellé de sa fonctionnalité, clés de service, test de clé, impact de ses crons ; listes
+  vides dans ce dépôt).
+- Version ouverte : `VITE_PRIVATE_MODULES=none npm run build` (les registres deviennent `[]`), puis
   `npm run check:open-build` vérifie `dist/`.
 
 ### Marque de l'instance
@@ -164,8 +174,8 @@ Aucune marque dans le code ouvert (`src/features/openCoreBrand.test.js`, `check:
 - Borne : `appsettings.Instance.json` et `installer/instance.iss` (voir `kiosk/CLAUDE.md`).
 
 ### Clés des services
-Une clé par instance. Catalogue front `src/features/serviceKeys.js`, serveur `_shared/service-keys.ts`,
-liste blanche SQL `service_key_allowed` : ajouter une clé = les trois (test `serviceKeys.test.js`).
+Une clé par instance. Catalogue front `src/features/serviceKeys.js`, serveur `_shared/service-keys.ts`
+(plus les clés déclarées par les catalogues des modules), liste blanche SQL `service_key_allowed` : ajouter une clé = les trois (test `serviceKeys.test.js`).
 - Valeurs dans Vault sous `service_key:<NAME>` ; table `service_keys` (nom, 4 derniers caractères,
   date). RPC `set_service_key`, `delete_service_key`, `list_service_keys` réservées à
   `is_app_admin()` ; aucune RPC ne renvoie une valeur au navigateur.
@@ -195,10 +205,19 @@ Définis dans `src/utils/formats.js`. Toujours utiliser ces constantes.
 
 ---
 
-## `src/lib/supabase.js`
+## `src/lib/supabase.js` et `src/lib/api/`
 
-**Toute interaction avec Supabase passe par ce fichier** (ou par le `api.js` d'un module privé).
-Ne jamais appeler `supabase` dans un composant : créer une fonction ici et l'importer.
+**Toute interaction avec Supabase passe par `lib/api/`** (ou par le `api.js` d'un module privé).
+Ne jamais appeler `supabase` dans un composant : créer une fonction dans le fichier du domaine
+(`designs.js`, `photos.js`, `kiosks.js`…) et l'importer depuis `lib/supabase`, qui ré-exporte tout
+`lib/api/` (un nom exporté y est donc unique).
+
+- Appeler une edge function : `callFunction` de `lib/api/functions.js` (logique pure et testée dans
+  `lib/functionCall.js`), jamais un `fetch` aux en-têtes recopiés. `admin: true` ajoute le jeton de
+  la session (sans session : « Session expirée — reconnectez-vous », rien n'est envoyé) ; l'erreur
+  porte le message du serveur, sinon le `fallback` de l'appel. `requestFunction` rend `{ res, data }`
+  sans lever, `fetchFunction` la réponse brute (fichier). L'organisation du propriétaire connecté se
+  lit par `ownOrganization(columns)` de `lib/api/session.js`.
 
 - Les templates, décorations et polices ont un cache en mémoire : appeler
   `invalidateTemplatesCache()` après toute modification de modèle.
@@ -272,11 +291,23 @@ Deno.serve(async (req) => {
 Les fonctions figent `_shared/` au déploiement : un changement dans `_shared/` oblige à redéployer
 toutes les fonctions qui l'importent.
 
+**Briques partagées** : `_shared/event-by-code.ts` (événement lu par son code d'accès, fonctions du
+client et des invités), `_shared/cors.ts` (`corsResponse`, `jsonResponse` sans CORS pour les tâches
+planifiées), `_shared/auth.ts` (`adminClient`, `userClient`, `sessionUser`), `requireOrgAccess` de
+`_shared/admin-guard.ts` (droits sur un événement ou un design). Réponses au client : messages
+génériques, détails dans les journaux. Limites anti-abus : sans `RATE_LIMIT_SALT`, les fonctions
+publiques répondent 503 ; en-têtes IP de confiance : `clientIp` de `_shared/rate-limit.ts`.
+Inscriptions publiques fermées : les comptes se créent par invitation.
+
 **Emails** : `_shared/email.ts` envoie par Brevo ou par SMTP (`_shared/smtp.ts`). Choix
 (`_shared/email-provider.ts`) : `EMAIL_PROVIDER` = `brevo` | `smtp` ; absent = Brevo, sauf sans clé
 Brevo avec `SMTP_HOST` défini. Secrets SMTP : `SMTP_HOST`, `SMTP_PORT` (465 par défaut, TLS direct ;
 Supabase bloque les ports 25 et 587), `SMTP_USER`, `SMTP_PASSWORD`. En SMTP, aucun suivi d'ouverture
 (`email-sync` répond `skipped`).
+
+**Email de la borne** : construit par `_shared/kiosk-email.ts` (textes, variables, couleur et logo de
+l'événement, `_shared/event-branding.ts`), partagé par `send-kiosk-photo` et `kiosk-email-preview`
+(aperçu et email de test à l'adresse de l'admin connecté). Brevo ou SMTP : aucune clé Brevo exigée.
 
 **Garde-fou en dev ou en test** (`_shared/email-guard.ts`, jamais en production) :
 `EMAIL_SUBJECT_PREFIX`, `EMAIL_ALLOWLIST`, `EMAIL_REDIRECT_TO`.
@@ -354,7 +385,7 @@ La borne utilise la clé `anon` et des RPC `SECURITY DEFINER` qui vérifient sa 
 | `kiosk_pairing_lookup`, `kiosk_pairing_approve` | association (côté admin, `authenticated`) |
 | `kiosk_check_license`, `kiosk_heartbeat` | licence ; état (version, imprimante, appareil photo, envois en attente) toutes les 2 min |
 | `kiosk_get_event(p_code, p_machine_id, p_secret)` | `{id, org_id, name, access_code, start_date, end_date, form_config: {kiosk}}`, événements du compte de la borne seulement |
-| `kiosk_get_approved_design(p_machine_id, p_secret, p_event_id)` | `{id, format, canvas_json, final_png_url}` ou `null` |
+| `kiosk_get_approved_design(p_machine_id, p_secret, p_event_id)` | `{id, format, canvas_json, final_png_url, home_design, label, frames}` (cadre approuvé au plus petit `slot`) ou `null` ; `frames` = les autres cadres approuvés triés par `slot` si `frame_choice.enabled` vaut `true`, sinon `null` ; `home_design` = `{id, final_png_url}` de l'écran d'accueil approuvé si `home.personalized` et `home.client_design` valent `true`, sinon `null` |
 | `get_org_contact_by_event(p_event_id)` | société, téléphone, email, `logo_url` |
 | `get-kiosk-upload-url` (fonction) | URL PUT présignée vers le stockage (5 min, type et taille signés) |
 | `kiosk_record_photo` | ligne `photos` (idempotente sur `storage_path`) |
@@ -409,8 +440,19 @@ Codes d'erreur communs : `42501` = licence refusée ; `P0001` = identification (
 
 ### Fichier `.pola`
 Construit par `buildPolaBundle` (`src/lib/polaBundle.js`, pur et testé), appelé par `exportPolaFile`.
-Sans design approuvé (ou sans PNG), l'export est refusé (`PolaExportError`). Format complet :
+Sans design approuvé (ou sans PNG), l'export est refusé (`PolaExportError`). L'écran d'accueil du
+client (`home_design` + `assets.home_design`) n'est écrit que s'il est validé et que
+`home.personalized` et `home.client_design` valent `true` (`polaHomeDesign`). Format complet :
 `docs/format-pola.md`.
+
+### Écran d'accueil créé par le client (admin)
+Interrupteur « Le client crée son écran d'accueil (1920×1080) » dans l'onglet Accueil de la fiche
+événement (`form_config.kiosk.home.client_design`, booléen strict, faux par défaut). Bloc « Écran
+d'accueil du client » : statut, aperçu 16:9 avec le cadre 16:10 en pointillés, Valider / Refuser
+(motif obligatoire). Un écran validé est en lecture seule pour le client : « Rouvrir pour correction »
+le refuse avec un motif. `review-design` accepte `kind = 'home'` sans toucher `events.status`
+(règles : `review-design/logic.ts`, emails : `review-design/home-emails.ts`, journal
+`home_design_approved` / `home_design_rejected`). Listes des designs à valider : `src/lib/clientDesigns.js`.
 
 ---
 

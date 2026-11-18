@@ -12,7 +12,10 @@
         "brevo-webhook",
         "email-sync",
         "test-service-key",
-        "get-release-upload-url"
+        "get-release-upload-url",
+        "kiosk-email-preview",
+        "google-font-file",
+        "send-test-email"
       ],
       "tables": [
         "organizations",
@@ -31,27 +34,36 @@
         "cron_http_calls",
         "cron_job_alerts",
         "rpc_rate_limit_salt",
-        "service_keys"
+        "service_keys",
+        "kiosk_screens",
+        "equipment_types",
+        "equipment_items"
       ],
       "crons": [
         "check-cron-alerts",
-        "purge-cron-history"
+        "purge-cron-history",
+        "purge-kiosk-logs"
       ]
     },
     "templates": {
-      "functions": [],
+      "functions": [
+        "design-images-cleanup"
+      ],
       "tables": [
         "templates",
         "decorations",
         "custom_fonts"
       ],
-      "crons": []
+      "crons": [
+        "design-images-cleanup"
+      ]
     },
     "client_design": {
       "functions": [
         "autosave-design",
         "design-versions",
         "submit-design",
+        "upload-design-image",
         "review-design",
         "send-access-emails",
         "resend-access-email",
@@ -73,7 +85,6 @@
         "delete-photo",
         "get-guest-upload-url",
         "record-guest-photo",
-        "photo-webhook",
         "media-expiry"
       ],
       "tables": [
@@ -166,12 +177,13 @@
     }
   },
   "always_on": {
-    "$comment": "Exécutées même fonctionnalité inactive : purges RGPD (SQL, sans garde) et désinscription d'un prospect (un refus de contact se respecte toujours).",
+    "$comment": "Exécutées même fonctionnalité inactive : purges RGPD (SQL, sans garde), ménage des PDF de facturation orphelins (données personnelles) et désinscription d'un prospect (un refus de contact se respecte toujours).",
     "functions": [],
     "crons": [
       "purge-cron-history",
       "purge-kiosk-photo-consents",
-      "purge-kiosk-guest-responses"
+      "purge-kiosk-guest-responses",
+      "purge-kiosk-logs"
     ]
   }
 }

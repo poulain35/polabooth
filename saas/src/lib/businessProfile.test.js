@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import {
   BUSINESS_PROFILE_DEFAULT, CLIENT_EMAIL_KEYS, IDENTITY_KEYS, businessProfileForm, businessProfilePatch, mergeBusinessProfile, profilePatch,
 } from './businessProfile.js';
@@ -74,14 +74,16 @@ test('fusion pure : n\'altère ni la valeur en base ni le patch', () => {
 });
 
 test('enregistrement : relit la valeur en base puis écrit la fusion, plus aucun remplacement direct', () => {
-  const lib = readFileSync(new URL('./supabase.js', import.meta.url), 'utf8');
+  const lib = readFileSync(new URL('./api/settings.js', import.meta.url), 'utf8');
+  const apiDir = new URL('./api/', import.meta.url);
+  const allApi = readdirSync(apiDir).map((f) => readFileSync(new URL(f, apiDir), 'utf8')).join('\n');
   const start = lib.indexOf('export async function saveBusinessProfile(');
   const body = lib.slice(start, lib.indexOf('\n}\n', start));
   assert.ok(start > 0);
   assert.ok(body.indexOf('getBusinessProfile(orgId)') < body.indexOf('mergeBusinessProfile(stored, patch)'));
   assert.ok(body.indexOf('mergeBusinessProfile(stored, patch)') < body.indexOf('.update({ business_profile: businessProfile, ...columns })'));
-  assert.doesNotMatch(lib, /updateBusinessProfile/);
-  assert.equal(lib.match(/update\(\{ business_profile/g).length, 1, 'un seul endroit écrit business_profile');
+  assert.doesNotMatch(allApi, /updateBusinessProfile/);
+  assert.equal(allApi.match(/update\(\{ business_profile/g).length, 1, 'un seul endroit écrit business_profile');
 });
 
 test('bilan client (LAB-238) : default_for enregistré, défaut professionnel, sous-clés gardées', () => {

@@ -26,11 +26,29 @@ en service.
 | PC | Windows 10 ou 11 (64 bits), 8 Go de RAM, SSD | Mini-PC ou portable. Un seul compte Windows, avec ouverture de session automatique (la borne démarre à la connexion de l'utilisateur). |
 | Écran | Écran tactile | L'interface est faite pour le tactile (gros boutons, clavier à l'écran). Testée sur un 12 pouces. |
 | Appareil photo | Canon compatible EDSDK, en USB (testé : EOS R100) | Sans Canon, la borne prend la première webcam. Le kit EDSDK de Canon est inclus dans l'installeur prêt à l'emploi ; pour construire le vôtre, voir 3.2. |
-| Imprimante | Imprimante photo avec pilote Windows (testé : DNP DS620, RX1-HS) | Formats 10×15 et bandes 5×15. Tout pilote Windows fonctionne. |
+| Imprimante | Imprimante photo avec pilote Windows (testé : DNP DS620, RX1-HS) | Formats 10×15 et bandes 5×15. Tout pilote Windows fonctionne s'il propose ces formats (nom « 4x6 », « 10x15 », « 2x6 »… ou taille exacte). Pour imprimer deux bandes par feuille 10×15, le pilote doit savoir couper la feuille en deux (DNP : coupe 2 pouces, voir 5.3). |
 | Réseau | Wi-Fi, Ethernet ou clé 4G | Pas obligatoire pendant l'événement : les photos partent dès le retour du réseau. Il faut du réseau pour associer la borne et charger un événement (ou un fichier `.pola`, voir 6). |
 
 L'appareil photo doit être réglé en mode photo (pas vidéo), sans mise en veille automatique, et
 alimenté sur secteur si possible (adaptateur secteur Canon) : une batterie vide arrête la borne.
+
+Réglez l'exposition du Canon pour le flash, comme pour une photo normale. Sur les Canon EOS R, la
+borne désactive d'elle-même la « simulation d'exposition » : l'aperçu à l'écran reste clair même si
+les réglages sont faits pour le flash, et la photo garde l'exposition que vous avez choisie.
+
+### Matériel testé
+
+Seul ce matériel a été essayé sur une vraie borne. Un autre matériel peut fonctionner : s'il marche
+chez vous, dites-le dans l'onglet **Discussions** du dépôt Polabooth pour compléter la liste.
+
+| Matériel | Modèle | Ce qui a été vérifié |
+|---|---|---|
+| PC | Mini-PC sous Windows | Toute la borne (borne 1.0.18, novembre 2026) |
+| Appareil photo | Canon EOS R100, en USB | Aperçu en direct clair, prise de vue au flash (borne 1.0.18) |
+| Webcam | Webcam d'un PC de test | Aperçu et prise de vue, sans Canon branché |
+| Imprimante | DNP DS620 | Impression 10×15, et deux bandes 5×15 coupées sur une feuille 10×15 avec le réglage « bandes coupées » (voir 5.3) ; les deux formats sur le même événement, avec le choix du cadre (borne 1.0.18) |
+| Imprimante | DNP RX1-HS | Impression |
+| Écran | Écran tactile 12 pouces | Toute la borne au doigt |
 
 ---
 
@@ -158,11 +176,15 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
    `photobooth.mon-entreprise.fr`. La borne lit `kiosk-config.json` puis redémarre.
 2. **Association** : la borne affiche un code et un QR code. Scannez-le avec un téléphone (ou ouvrez
    `https://<votre SaaS>/associer` et tapez le code), connectez-vous au SaaS, nommez la borne,
-   validez. La borne est liée à votre compte ; elle apparaît dans « Parc kiosk ».
-3. **Code PIN** de l'écran d'administration de la borne : dans le SaaS, « Parc kiosk », carte de la borne, choisissez
+   validez. La borne est liée à votre compte ; elle apparaît dans la page **Bornes**.
+3. **Code PIN** de l'écran d'administration de la borne : dans le SaaS, page **Bornes** (onglet État), carte de la borne, choisissez
    un PIN (4 à 8 chiffres) pour cette borne puis « Envoyer à la borne ». Sans PIN, l'administration
    de la borne reste fermée.
-4. **Code événement** : tapez le code d'accès d'un événement de votre compte (affiché sur sa fiche
+4. **Imprimante et bandes coupées** (obligatoire, une seule fois) : ouvrez l'écran
+   d'administration de la borne, choisissez l'imprimante, « Enregistrer », puis « Enregistrer le
+   réglage bandes coupées » (détail en 5.3). **Sans ce réglage, les bandes 5×15 ne s'impriment pas
+   correctement.** Faites-le dès l'installation, avant le premier événement.
+5. **Code événement** : tapez le code d'accès d'un événement de votre compte (affiché sur sa fiche
    dans le SaaS). Il faut un design approuvé pour l'événement. Vous pouvez aussi envoyer
    l'événement à la borne depuis le SaaS.
 
@@ -170,7 +192,27 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
 
 Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN.
 
-- **Imprimante** : choisissez l'imprimante dans la liste (ou l'imprimante par défaut de Windows).
+- **Imprimante** : choisissez l'imprimante dans la liste (ou l'imprimante par défaut de Windows),
+  puis « Enregistrer ».
+- **Bandes 5×15** (même carte) : une bande s'imprime deux fois sur une feuille 10×15 que
+  l'imprimante coupe en deux. **Obligatoire dès l'installation de la borne**, sinon les bandes ne
+  s'impriment pas correctement. À faire une fois par imprimante, après l'avoir enregistrée, et à
+  refaire après un changement d'imprimante ou une mise à jour du pilote (la carte l'indique) :
+  1. « Enregistrer le réglage bandes coupées » : la fenêtre des préférences du pilote s'ouvre.
+     Cochez la coupe 2 pouces (« 2inch cut ») puis validez (OK).
+  2. « Enregistrer le réglage normal » (facultatif) : dans la même fenêtre, vérifiez que la coupe
+     2 pouces est décochée puis validez. Sans ce réglage, les 10×15 partent avec le réglage par
+     défaut du pilote.
+  3. Faites un essai avec un cadre en bande (deux bandes coupées au milieu), puis un 10×15 (feuille
+     entière, non coupée).
+
+  Emplacement de l'option dans les pilotes DNP (DS620, RX1-HS) : **à vérifier**. Elle se trouve
+  dans les préférences d'impression du pilote, probablement dans un onglet d'options ou
+  « Avancé » ; son nom exact (« 2inch cut » ou proche) reste à relever. Le format de papier choisi
+  dans cette fenêtre n'a pas d'importance : la borne impose le 10×15 (4x6) ensuite.
+  Sans réglage « bandes coupées », la borne envoie la bande seule au format 2x6. Si le pilote n'a
+  pas ce papier (cas de la DS620), elle demande une taille personnalisée que le pilote imprime mal,
+  et un avertissement est écrit dans les journaux (catégorie `print`, « Papier 2x6 introuvable »).
 - **Caméra** : « Détection automatique » (Canon, sinon webcam) ou une source précise ; « Tester la caméra » montre l'image et la définition.
 - **Photos du Canon** : petite, moyenne (conseillé) ou grande taille.
 - **Nettoyage du PC** : nombre de jours avant d'effacer les photos d'un événement terminé (30 par
@@ -190,6 +232,11 @@ d'administration de la borne. La borne garde les photos et les envoie au retour 
 
 La borne doit quand même avoir été associée une fois, avec du réseau.
 
+La borne garde une copie des 20 derniers fichiers importés : dans l'écran d'administration,
+« .pola déjà importés » → « Recharger » remet un événement en place sans clé USB. Ces copies sont
+dans `%AppData%\PolaKiosk\pola-history\` (avec `history.json`, qui les décrit). Vous pouvez supprimer
+ce dossier : la liste repart vide, rien d'autre ne change.
+
 Contenu du fichier et règles de lecture : [format-pola.md](format-pola.md).
 
 ---
@@ -198,10 +245,10 @@ Contenu du fichier et règles de lecture : [format-pola.md](format-pola.md).
 
 1. Téléchargez la nouvelle version prête à l'emploi (onglet Releases), ou construisez la vôtre
    (étape 4, avec un numéro plus grand).
-2. Dans le SaaS, « Parc kiosk » > « Versions kiosk » : indiquez le numéro, envoyez
+2. Dans le SaaS, page **Bornes**, onglet **Versions** : indiquez le numéro, envoyez
    `setup-polakiosk.exe`, ajoutez des notes. L'installeur part dans votre stockage S3 (le bucket
    des photos, dossier `releases/`), pas dans Supabase.
-3. Sur la carte de chaque borne : choisissez la version puis « Mettre à jour ».
+3. Pour chaque borne : choisissez la version puis « Mettre à jour ».
 
 La borne s'installe seule à sa prochaine connexion, jamais pendant une séance photo. En cas
 d'échec, la carte affiche le message et l'ancienne version continue de tourner. Pour revenir en
@@ -221,6 +268,9 @@ Détails techniques (watchdog, journaux, rollback) : `kiosk/installer/README.md`
 | La borne prend la webcam au lieu du Canon | Installeur construit sans les DLL EDSDK (3.2 ; l'installeur prêt à l'emploi les contient), ou caméra forcée sur webcam dans l'administration. |
 | Administration fermée | Définissez et envoyez le PIN depuis le SaaS (5.2, point 3). La borne doit avoir du réseau pour le recevoir. |
 | Rien ne s'imprime | Imprimante choisie dans l'administration ? Papier et ruban chargés ? Testez une impression depuis Windows. |
+| Bandes imprimées une seule fois, ou feuille non coupée | Réglage « bandes coupées » absent ou refusé (autre imprimante, pilote changé) : la carte Imprimante de l'administration l'indique, comme les journaux (catégorie `print`). Enregistrez-le à nouveau (5.3) et vérifiez que la coupe 2 pouces est cochée. |
+| Un 10×15 sort coupé en deux | Le réglage « normal » a été enregistré avec la coupe cochée, ou le réglage par défaut du pilote la contient : enregistrez le réglage normal, coupe décochée (5.3). |
+| Photo agrandie et rognée, ou imprimée sur un autre format | Le pilote ne propose pas le papier attendu. Dans les journaux de la borne (catégorie `print`), au premier tirage : la liste des formats du pilote, puis le format retenu ou « Papier … introuvable ». Choisissez un pilote qui propose le 10×15 (4x6) et la bande (2x6). |
 | Photos absentes de la galerie en ligne | La borne était hors ligne : elles partent au retour du réseau. Le nombre d'envois en attente s'affiche sur la carte de la borne dans le SaaS. |
 
 Journaux de la borne : `%LocalAppData%\PolaKiosk\` (`fatal.log`, `watchdog.log`, `update.log`).

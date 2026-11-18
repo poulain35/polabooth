@@ -99,6 +99,7 @@ async function loadBanner() {
   const out = js
     .replace('"../lib/galleryBanner"', JSON.stringify(abs('./galleryBanner.js')))
     .replace('"./public/polaHead"', JSON.stringify(abs('../components/public/polaHead.js')))
+    .replace('"./public/polaStyles"', JSON.stringify(abs('../components/public/polaStyles.js')))
     .replace('"../lib/instanceBrand"', JSON.stringify(abs('./instanceBrand.js')))
     .replace('"react/jsx-runtime"', JSON.stringify(import.meta.resolve('react/jsx-runtime')))
     .replace('"react"', JSON.stringify(import.meta.resolve('react')));
@@ -265,7 +266,7 @@ test('diaporama : aucun import du bandeau, de la galerie photo ou de la galerie 
 // ── Réglage admin ────────────────────────────────────────────────────────────
 
 test('réglages admin : interrupteur et enregistrement passent par isBookingBannerEnabled (toujours un booléen)', () => {
-  const s = src('../pages/admin/AdminSettings.jsx');
+  const s = src('../pages/admin/reglages/GallerySettings.jsx');
   const bp = src('./businessProfile.js');
   assert.match(bp, /\[BOOKING_BANNER_SETTING\]: true,/, 'défaut affiché');
   assert.match(bp, /\[BOOKING_BANNER_SETTING\]: isBookingBannerEnabled\(cfg\[BOOKING_BANNER_SETTING\]\),/);
@@ -321,7 +322,9 @@ test('migration : droits, garde anti-énumération et ordre des migrations', { s
   assert.doesNotMatch(NEW_SQL, /DROP FUNCTION|kiosk_get_event|get_event_form_enabled|get_org_contact_by_code|ALTER TABLE|GRANT [^;]*\bON\b (?!FUNCTION public\.get_public_event)/);
   const files = readdirSync(new URL(MIG_DIR, import.meta.url)).filter((f) => f.endsWith('.sql')).sort();
   const definers = files.filter((f) => src(`${MIG_DIR}${f}`).includes('FUNCTION public.get_public_event('));
-  assert.equal(definers.at(-1), '20261114000100_gallery_booking_banner.sql', 'dernière définition de get_public_event');
+  // Redéfinie ensuite par LAB-301 (habillage, publicEventBranding.test.js), qui garde ces deux champs.
+  assert.deepEqual(definers.slice(definers.indexOf('20261114000100_gallery_booking_banner.sql')),
+    ['20261114000100_gallery_booking_banner.sql', '20261221000000_event_branding_public.sql'], 'définitions suivantes de get_public_event');
   assert.equal(files.filter((f) => f.startsWith('20261114000100')).length, 1, 'horodatage unique');
   const others = files.filter((f) => f !== '20261114000100_gallery_booking_banner.sql');
   assert.ok(!others.some((f) => src(`${MIG_DIR}${f}`).includes('leads_converted_event_idx')), 'nom d\'index libre');

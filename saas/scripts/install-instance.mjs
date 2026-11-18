@@ -1,6 +1,8 @@
 // Installe (ou met à jour) une instance du SaaS sur un projet Supabase vide (open core étape 2, lot I2).
 // Usage : npm run install-instance [-- --dry-run] — guide : docs/installation-instance.md.
-// Relançable : chaque étape vérifie l'existant (migrations, secrets, Vault, crons, compte, organisation).
+// Relançable : chaque étape vérifie l'existant (Auth, migrations, secrets, Vault, crons, compte, organisation).
+// CLI Supabase lancée par npx (version épinglée) ; jeton SUPABASE_ACCESS_TOKEN de instance.env passé à la CLI
+// et à l'API de gestion (réglages Auth, anciennes clés), jamais affiché. --local : jamais d'API de gestion.
 // Aucun secret en argument de commande : mot de passe par variable d'environnement, secrets et SQL par
 // fichiers temporaires effacés à la fin. La clé service_role ne sert qu'ici, jamais dans un fichier du front.
 import { spawnSync } from 'node:child_process';
@@ -12,11 +14,13 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { FEATURES } from '../src/features/catalog.js';
 import {
-  CLI_MAJOR, GENERATED_ONCE, MIN_NODE_MAJOR, MissingJwtKeysError, buildVercelJson, envProductionContent,
-  functionSecrets, majorVersion, openFunctions, parseCliJson, parseEnvFile,
+  CLI_VERSION, GENERATED_ONCE, MIN_NODE_MAJOR, ManagementApiError, MissingJwtKeysError, REDIRECTS_CONTENT,
+  buildVercelJson, cliCommand, configureAuth, createManagementApi, describeAuthPatch, ensureLegacyKeys,
+  envProductionContent, functionSecrets, majorVersion, openFunctions, parseCliJson, parseEnvFile,
   parseSecretsList, pickJwtKeys, privateCrons, queryRows, secretsEnvFile, secretsToSet, STORAGE_READY_SQL,
-  storageReady, supabaseUrlOf, unscheduleSql, validateInstanceEnv, vaultUpsertSql,
+  stepLabel, storageReady, supabaseUrlOf, unscheduleSql, validateInstanceEnv, vaultUpsertSql,
 } from './install-instance-lib.mjs';
+import { CHECK_SYMBOLS, checksSummaryLine, checksVerdict, runChecks } from './install-instance-checks.mjs';
 
 const SAAS_DIR = fileURLToPath(new URL('..', import.meta.url));
 const isWindows = process.platform === 'win32';
@@ -28,12 +32,15 @@ const USAGE = `Installation d'une instance du SaaS photobooth.
   npm run install-instance [-- options]
 
 Options :
-  --dry-run              Affiche ce qui serait fait, sans rien modifier (ni Supabase, ni fichiers).
+  --dry-run              Affiche ce qui serait fait, sans rien modifier (ni Supabase, ni fichiers) ;
+                         les vérifications envoient quand même l'email et le fichier de test.
   --config <fichier>     Fichier de configuration (défaut : saas/instance.env).
   --skip-build           Ne construit pas le site (dossier dist/).
+  --skip-email-test      Vérifications : connexion à la messagerie sans envoyer l'email de test.
+  --skip-checks          Saute les vérifications de la messagerie et du stockage (déconseillé).
   --new-admin-password   Donne un nouveau mot de passe au compte administrateur et l'affiche.
   --local                Supabase local (tests) : clés lues par « supabase status », secrets et fonctions
-                         seulement affichés.
+                         seulement affichés, réglages Auth de supabase/config.toml (pas d'API de gestion).
   --workdir <dossier>    Dossier contenant supabase/ pour la CLI (défaut : saas/).
   --help                 Cette aide.
 
@@ -47,13 +54,13 @@ const bold = color('1');
 const green = color('32');
 const yellow = color('33');
 const red = color('31');
-const step = (n, title) => console.log(`\n${bold(`${n}. ${title}`)}`);
+const step = (id) => console.log(`\n${bold(stepLabel(id))}`);
 const ok = (text) => console.log(`   ${green('✓')} ${text}`);
 const info = (text) => console.log(`   ${text}`);
 const warn = (text) => { warnings.push(text); console.log(`   ${yellow('!')} ${text}`); };
 const plan = (text) => console.log(`   ${yellow('[simulation]')} ${text}`);
 
-// ── CLI supabase ────────────────────────────────────────────────────────────────────────────
+// ── CLI supabase (par npx, version épinglée) ────────────────────────────────────────────────
 
 const quoteArg = (arg) => (/[\s"&|<>^()%!]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg);
 
@@ -67,12 +74,13 @@ function makeCli({ workdir, env }) {
       stdio: inherit ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
       maxBuffer: 64 * 1024 * 1024,
     };
+    const { command, args: commandArgs } = cliCommand(fullArgs);
     const res = isWindows
-      ? spawnSync(['supabase', ...fullArgs.map(quoteArg)].join(' '), { ...options, shell: true })
-      : spawnSync('supabase', fullArgs, options);
+      ? spawnSync([command, ...commandArgs.map(quoteArg)].join(' '), { ...options, shell: true })
+      : spawnSync(command, commandArgs, options);
     if (res.error) {
       throw new InstallError(res.error.code === 'ENOENT'
-        ? `La CLI supabase est introuvable. Installez-la (npm install -g supabase@${CLI_MAJOR}), puis relancez.`
+        ? 'npx est introuvable : installez Node.js (npm et npx sont inclus) depuis https://nodejs.org, puis relancez.'
         : `supabase ${args[0]} : ${res.error.message}`);
     }
     if (res.status !== 0) {
@@ -118,30 +126,25 @@ function makeApi(baseUrl, serviceKey) {
 
 // ── Étapes ──────────────────────────────────────────────────────────────────────────────────
 
-function checkPrerequisites(cli, opts) {
-  step(1, 'Prérequis');
+function checkPrerequisites(cli) {
+  step('prerequisites');
   const nodeMajor = majorVersion(process.version);
   if (nodeMajor < MIN_NODE_MAJOR) {
     throw new InstallError(`Node.js ${MIN_NODE_MAJOR} ou plus récent est nécessaire (installé : ${process.version}). Téléchargez la version LTS sur https://nodejs.org.`);
   }
   ok(`Node.js ${process.version}`);
-  const version = cli(['--version'], { allowFail: true })?.trim();
-  if (!version) throw new InstallError(`La CLI supabase est introuvable. Installez-la (npm install -g supabase@${CLI_MAJOR}), puis relancez.`);
-  const cliMajor = majorVersion(version);
-  if (cliMajor === null || cliMajor < CLI_MAJOR) {
-    throw new InstallError(`La CLI supabase ${CLI_MAJOR}.x est nécessaire (installée : ${version || 'inconnue'}). Mettez-la à jour : npm install -g supabase@${CLI_MAJOR}.`);
+  info(`CLI Supabase ${CLI_VERSION} par npx (téléchargée la première fois, une minute environ)…`);
+  let version;
+  try {
+    version = cli(['--version']).trim();
+  } catch (e) {
+    throw new InstallError(`La CLI Supabase n'a pas pu être lancée par npx (supabase@${CLI_VERSION}). Vérifiez la connexion Internet, puis relancez.\n   ${e.message}`);
   }
-  if (cliMajor > CLI_MAJOR) warn(`CLI supabase ${version} : le script est prévu pour la version ${CLI_MAJOR}.x. En cas d'erreur, installez supabase@${CLI_MAJOR}.`);
-  else ok(`CLI supabase ${version}`);
-  if (opts.local || opts.dryRun) return;
-  if (cli(['projects', 'list'], { json: true, allowFail: true }) === null) {
-    throw new InstallError('Vous n\'êtes pas connecté à Supabase. Lancez « supabase login », puis relancez le script.');
-  }
-  ok('Connecté à Supabase');
+  ok(`CLI Supabase ${version}`);
 }
 
 function readConfig(opts) {
-  step(2, 'Configuration');
+  step('config');
   if (!existsSync(opts.envFile)) {
     throw new InstallError(`Fichier introuvable : ${opts.envFile}\n   Copiez saas/instance.env.example en saas/instance.env, remplissez-le, puis relancez.`);
   }
@@ -150,15 +153,39 @@ function readConfig(opts) {
   for (const name of Object.keys(values)) {
     if (!(name in known)) warn(`${name} n'est pas une variable connue (faute de frappe ?) : elle est ignorée.`);
   }
-  const { config, errors } = validateInstanceEnv(values, { local: opts.local });
+  const { config, errors } = validateInstanceEnv(values, { local: opts.local, fallbackToken: process.env.SUPABASE_ACCESS_TOKEN });
   const all = [...parseErrors, ...errors];
   if (all.length) {
     throw new InstallError(`${opts.envFile} contient ${all.length} erreur(s) :\n${all.map((e) => `   - ${e}`).join('\n')}`);
   }
   ok(`${opts.envFile} lu`);
   info(`SaaS : ${config.appUrl} · entreprise : ${config.companyName} · administrateur : ${config.adminEmail}`);
-  if (!opts.local) info(`Projet Supabase : ${config.projectRef}`);
+  if (!opts.local) {
+    info(`Projet Supabase : ${config.projectRef}`);
+    info(`Jeton Supabase : ${values.SUPABASE_ACCESS_TOKEN?.trim() ? 'lu dans instance.env' : 'variable d\'environnement SUPABASE_ACCESS_TOKEN'} (masqué)`);
+  }
   return config;
+}
+
+async function setupAuth(api, config, opts) {
+  step('auth');
+  if (opts.local) {
+    info('Supabase local : réglages lus dans supabase/config.toml, API de gestion non utilisée.');
+    return;
+  }
+  const { body, changed, keptTemplates } = await configureAuth(api, config, { dryRun: opts.dryRun });
+  ok(`Jeton accepté, projet ${config.projectRef} trouvé`);
+  const lines = describeAuthPatch(body, { keptTemplates });
+  if (!changed.length) {
+    ok('Réglages déjà à jour :');
+    lines.forEach((line) => info(`  ${line}`));
+  } else if (opts.dryRun) {
+    plan(`Réglages à poser (${changed.length} champ(s) à modifier) :`);
+    lines.forEach((line) => plan(`  ${line}`));
+  } else {
+    ok(`Réglages posés (${changed.length} champ(s) modifié(s)) :`);
+    lines.forEach((line) => info(`  ${line}`));
+  }
 }
 
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -185,7 +212,7 @@ function waitForStorage(cli, config, opts, tmp) {
 }
 
 function pushDatabase(cli, config, opts, tmp) {
-  step(3, 'Base de données');
+  step('database');
   const remote = opts.local ? [] : [`--remote=${config.projectRef}`, '--yes'];
   const passwordEnv = opts.local ? {} : { SUPABASE_DB_PASSWORD: config.dbPassword };
   if (opts.dryRun) {
@@ -205,8 +232,17 @@ function pushDatabase(cli, config, opts, tmp) {
   ok('Migrations appliquées');
 }
 
-function fetchKeys(cli, config, opts) {
-  step(4, 'Clés du projet');
+async function enableLegacyKeys(api, opts) {
+  const state = await ensureLegacyKeys(api, { dryRun: opts.dryRun });
+  if (state === 'enabled') ok('Anciennes clés API (anon, service_role) déjà actives');
+  else if (state === 'would-enable') plan('activation des anciennes clés API (anon, service_role)');
+  else if (state === 'enabled-now') ok('Anciennes clés API (anon, service_role) activées');
+  else info('Activation automatique des anciennes clés indisponible : si elles manquent, le message suivant explique quoi faire.');
+}
+
+async function fetchKeys(cli, api, config, opts) {
+  step('keys');
+  if (!opts.local) await enableLegacyKeys(api, opts);
   if (opts.dryRun) {
     plan(opts.local ? 'supabase status (clés anon et service_role)' : `supabase projects api-keys --remote=${config.projectRef} --reveal`);
     return { supabaseUrl: opts.local ? 'http://127.0.0.1:54321' : supabaseUrlOf(config.projectRef), anon: 'eyJ…', serviceRole: 'eyJ…' };
@@ -215,7 +251,7 @@ function fetchKeys(cli, config, opts) {
   let json;
   if (opts.local) {
     json = cli(['status'], { json: true, allowFail: true });
-    if (!json?.API_URL) throw new InstallError(`Supabase local non démarré : lancez « supabase start --workdir ${opts.workdir} ».`);
+    if (!json?.API_URL) throw new InstallError(`Supabase local non démarré : lancez « npx supabase@${CLI_VERSION} start --workdir ${opts.workdir} » (Docker nécessaire).`);
     supabaseUrl = json.API_URL;
   } else {
     json = cli(['projects', 'api-keys', `--remote=${config.projectRef}`, '--reveal'], { json: true });
@@ -232,7 +268,7 @@ function fetchKeys(cli, config, opts) {
 }
 
 function setFunctionSecrets(cli, config, keys, opts, tmp) {
-  step(5, 'Secrets des fonctions et du Vault');
+  step('secrets');
   const desired = functionSecrets(config);
   if (opts.local || opts.dryRun) {
     plan(`supabase secrets set (${Object.keys(desired).length} secrets) : ${Object.keys(desired).join(', ')}`);
@@ -276,7 +312,7 @@ function runSql(cli, config, opts, tmp, sql) {
 }
 
 function deployFunctions(cli, config, opts) {
-  step(6, 'Fonctions serveur');
+  step('functions');
   const manifest = JSON.parse(readFileSync(join(SAAS_DIR, 'supabase', 'features.json'), 'utf8'));
   const functionsDir = join(SAAS_DIR, 'supabase', 'functions');
   const dirs = readdirSync(functionsDir).filter((n) => !n.startsWith('_') && !n.startsWith('.') && statSync(join(functionsDir, n)).isDirectory());
@@ -293,7 +329,7 @@ function deployFunctions(cli, config, opts) {
 }
 
 function unscheduleCrons(cli, config, opts, tmp) {
-  step(7, 'Tâches planifiées des fonctionnalités privées');
+  step('crons');
   const manifest = JSON.parse(readFileSync(join(SAAS_DIR, 'supabase', 'features.json'), 'utf8'));
   const jobs = privateCrons(manifest, FEATURES);
   const sql = unscheduleSql(jobs);
@@ -324,9 +360,9 @@ async function findUserByEmail(api, email) {
 const newPassword = () => randomBytes(12).toString('base64url');
 
 async function createAdmin(config, keys, opts) {
-  step(8, 'Compte administrateur et organisation');
+  step('admin');
   if (opts.dryRun) {
-    plan(`Compte ${config.adminEmail} : invitation par email + mot de passe généré (rien si le compte existe)`);
+    plan(`Compte ${config.adminEmail} : invitation par email + mot de passe généré (invitation renvoyée si elle n'est pas encore acceptée, rien si le compte est confirmé)`);
     plan(`Organisation « ${config.companyName} » dont il est propriétaire (rien si elle existe) ; administrateur de l'application`);
     return null;
   }
@@ -348,15 +384,18 @@ async function createAdmin(config, keys, opts) {
 
   if (user.email_confirmed_at) {
     if (!password) ok(`Compte ${config.adminEmail} déjà créé (mot de passe oublié : relancez avec --new-admin-password)`);
-  } else if (user.invited_at) {
-    ok(`Invitation déjà envoyée à ${config.adminEmail}, pas encore acceptée (email perdu : relancez avec --new-admin-password)`);
   } else {
+    // Invitation pas encore acceptée (email perdu, mauvais réglage SMTP corrigé depuis) : chaque relance la
+    // renvoie, avec le mot de passe déjà donné. Supabase accepte de réinviter une adresse non confirmée.
+    const resend = Boolean(user.invited_at);
     try {
       await api('POST', `/auth/v1/invite?redirect_to=${encodeURIComponent(`${config.appUrl}/admin`)}`, { email: config.adminEmail });
       invited = true;
-      ok(`Invitation envoyée à ${config.adminEmail}`);
+      ok(resend
+        ? `Invitation renvoyée à ${config.adminEmail} (pas encore acceptée ; mot de passe inchangé, affiché à la première installation)`
+        : `Invitation envoyée à ${config.adminEmail}`);
     } catch (e) {
-      warn(`Invitation non envoyée (${e.message}). Adresse confirmée sans email : configurez l'envoi des emails de Supabase Auth (voir le guide).`);
+      warn(`Invitation non envoyée (${e.message}). Adresse confirmée sans email : vérifiez les réglages SMTP de instance.env (voir le guide), puis relancez.`);
       await api('PUT', `/auth/v1/admin/users/${user.id}`, { email_confirm: true });
     }
   }
@@ -387,7 +426,7 @@ async function createAdmin(config, keys, opts) {
 }
 
 function writeFrontFiles(config, keys, opts) {
-  step(9, 'Fichiers du site');
+  step('front');
   const envFile = join(SAAS_DIR, '.env.production');
   if (opts.dryRun) {
     plan(`${envFile} (adresse Supabase, clé anon, adresse du SaaS ; clé anon JWT de kiosk-config.json)`);
@@ -398,9 +437,9 @@ function writeFrontFiles(config, keys, opts) {
 }
 
 function buildSite(config, keys, opts) {
-  step(10, 'Construction du site (version ouverte)');
+  step('build');
   if (opts.skipBuild) { info('Ignorée (--skip-build).'); return; }
-  if (opts.dryRun) { plan('VITE_PRIVATE_MODULES=none npm run build → dist/ (+ dist/kiosk-config.json, dist/vercel.json)'); return; }
+  if (opts.dryRun) { plan('VITE_PRIVATE_MODULES=none npm run build → dist/ (+ dist/kiosk-config.json, dist/vercel.json, dist/_redirects)'); return; }
   for (const name of ['.env.local', '.env.production.local']) {
     if (existsSync(join(SAAS_DIR, name))) warn(`${name} existe et remplace les valeurs de .env.production : vérifiez son contenu.`);
   }
@@ -416,18 +455,19 @@ function buildSite(config, keys, opts) {
   const base = JSON.parse(readFileSync(join(SAAS_DIR, 'vercel.json'), 'utf8'));
   const mediaUrls = [config.storage.STORAGE_ENDPOINT, config.storage.STORAGE_PUBLIC_URL, config.storage.STORAGE_PHOTOS_PUBLIC_URL];
   writeFileSync(join(SAAS_DIR, 'dist', 'vercel.json'), buildVercelJson(base, { supabaseUrl: keys.supabaseUrl, mediaUrls }));
+  writeFileSync(join(SAAS_DIR, 'dist', '_redirects'), REDIRECTS_CONTENT);
   ok(`Site construit dans ${join(SAAS_DIR, 'dist')}`);
 }
 
 function printNextSteps(config, keys, admin, opts) {
-  step(11, 'Il vous reste à faire');
+  step('next');
   const storageOrigin = new URL(config.storage.STORAGE_PUBLIC_URL).origin;
   const lines = [
     `Hébergez le dossier saas/dist/ à l'adresse ${config.appUrl}. Toute adresse inconnue doit renvoyer index.html`
-      + ' (Vercel : dist/vercel.json le fait ; Netlify : fichier _redirects « /* /index.html 200 » ; Nginx : try_files $uri /index.html).',
-    `Supabase > Authentication > URL Configuration : Site URL = ${config.appUrl}, Redirect URLs = ${config.appUrl}/**`,
+      + ' (Vercel : dist/vercel.json le fait ; Netlify : dist/_redirects le fait ; Nginx : try_files $uri /index.html).',
     `CORS du bucket ${config.storage.STORAGE_BUCKET}${config.storage.STORAGE_PHOTOS_BUCKET ? ` et ${config.storage.STORAGE_PHOTOS_BUCKET}` : ''} :`
-      + ` origine ${config.appUrl}, méthodes GET et PUT, en-têtes autorisés *, en-tête exposé ETag.`,
+      + ` origine ${config.appUrl}, méthodes GET et PUT, en-têtes autorisés *, en-tête exposé ETag`
+      + ' (vérifié, et posé si possible, à l\'étape « Vérifications » ; à poser à la main s\'il y est signalé ⚠).',
     `Sécurité du site (CSP, en observation) : dist/vercel.json autorise ${keys.supabaseUrl} et ${storageOrigin}.`
       + ' Autre hébergeur : reprenez ses en-têtes.',
     `Sur la borne, au premier démarrage, saisissez l'adresse ${config.appUrl} (elle lit ${config.appUrl}/kiosk-config.json).`,
@@ -438,9 +478,45 @@ function printNextSteps(config, keys, admin, opts) {
     info(bold(`Mot de passe de ${config.adminEmail} : ${admin.password}`));
     info('Notez-le maintenant : il ne sera plus affiché.');
     if (admin.invited) info('Cliquez d\'abord sur le lien de l\'email d\'invitation (il confirme l\'adresse), puis connectez-vous.');
+  } else if (admin?.invited) {
+    console.log();
+    info('Cliquez d\'abord sur le lien du nouvel email d\'invitation, puis connectez-vous avec le mot de passe de la'
+      + ' première installation (perdu : relancez avec --new-admin-password).');
   }
   info(`Connexion : ${config.appUrl}/admin/login`);
-  if (opts.local) info(`Mode local : emails visibles dans Mailpit (voir « supabase status »). Projet : ${keys.supabaseUrl}`);
+  if (opts.local) info(`Mode local : emails visibles dans Mailpit (voir « npx supabase@${CLI_VERSION} status »). Projet : ${keys.supabaseUrl}`);
+}
+
+// ── Vérifications : messagerie et stockage (LAB-376) ──────────────────────────────────────────
+
+async function runChecksStep(config, opts) {
+  step('checks');
+  if (opts.skipChecks) {
+    warn('Vérifications de la messagerie et du stockage ignorées (--skip-checks) : une erreur SMTP, de lecture publique ou de CORS ne se verra qu\'à l\'usage.');
+    return;
+  }
+  info(opts.dryRun
+    ? 'Simulation : l\'email de test part et le fichier de test est envoyé puis supprimé ; la règle CORS n\'est pas posée.'
+    : 'Messagerie (connexion, email de test), puis chaque bucket (envoi, lecture publique, CORS, suppression).');
+  const paint = { ok: green, warn: yellow, error: red, skip: (t) => t };
+  const items = await runChecks(config, {
+    fetch,
+    dryRun: opts.dryRun,
+    skipEmailTest: opts.skipEmailTest,
+    local: opts.local,
+    onItem: (item) => {
+      console.log(`   ${paint[item.status](CHECK_SYMBOLS[item.status])} ${item.message}`);
+      if (item.hint) info(`  → ${item.hint}`);
+      for (const line of item.details ?? []) info(`     ${line}`);
+    },
+  });
+  for (const item of items) if (item.status === 'warn') warnings.push(item.message);
+  console.log();
+  info(bold(checksSummaryLine(items)));
+  const { counts, blocking } = checksVerdict(items);
+  if (blocking) {
+    throw new InstallError(`${counts.error} vérification(s) en échec (✗ ci-dessus) : rien n'a été modifié. Corrigez instance.env ou le réglage indiqué, puis relancez.`);
+  }
 }
 
 // ── Programme ───────────────────────────────────────────────────────────────────────────────
@@ -451,6 +527,8 @@ async function main() {
       'dry-run': { type: 'boolean', default: false },
       local: { type: 'boolean', default: false },
       'skip-build': { type: 'boolean', default: false },
+      'skip-email-test': { type: 'boolean', default: false },
+      'skip-checks': { type: 'boolean', default: false },
       'new-admin-password': { type: 'boolean', default: false },
       config: { type: 'string' },
       workdir: { type: 'string' },
@@ -462,6 +540,8 @@ async function main() {
     dryRun: args['dry-run'],
     local: args.local,
     skipBuild: args['skip-build'],
+    skipEmailTest: args['skip-email-test'],
+    skipChecks: args['skip-checks'],
     newAdminPassword: args['new-admin-password'],
     envFile: resolve(args.config ?? join(SAAS_DIR, 'instance.env')),
     workdir: resolve(args.workdir ?? SAAS_DIR),
@@ -473,10 +553,15 @@ async function main() {
   const cli = makeCli({ workdir: opts.workdir, env: cliEnv });
   const tmp = mkdtempSync(join(tmpdir(), 'pola-install-'));
   try {
-    checkPrerequisites(cli, opts);
+    checkPrerequisites(cli);
     const config = readConfig(opts);
+    await runChecksStep(config, opts);
+    // Jeton lu nativement par la CLI : « supabase login » inutile. Supabase local : ni jeton ni API de gestion.
+    if (!opts.local) cliEnv.SUPABASE_ACCESS_TOKEN = config.accessToken;
+    const api = opts.local ? null : createManagementApi({ fetch, token: config.accessToken, ref: config.projectRef });
+    await setupAuth(api, config, opts);
     pushDatabase(cli, config, opts, tmp);
-    const keys = fetchKeys(cli, config, opts);
+    const keys = await fetchKeys(cli, api, config, opts);
     setFunctionSecrets(cli, config, keys, opts, tmp);
     deployFunctions(cli, config, opts);
     unscheduleCrons(cli, config, opts, tmp);
@@ -497,7 +582,8 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(`\n${red('Erreur :')} ${e instanceof InstallError ? e.message : (e?.stack ?? e)}`);
+  const known = e instanceof InstallError || e instanceof ManagementApiError;
+  console.error(`\n${red('Erreur :')} ${known ? e.message : (e?.stack ?? e)}`);
   console.error('Corrigez le problème puis relancez : les étapes déjà faites ne sont pas refaites.');
   process.exit(1);
 });

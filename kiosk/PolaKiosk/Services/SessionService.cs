@@ -1,6 +1,4 @@
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PolaKiosk.Models.LocalDb;
 
@@ -30,9 +28,10 @@ public class SessionService : ISessionService
     }
 
     public async Task<Guid> RecordSessionAsync(Guid sessionId, Guid eventId, DateTime capturedAtUtc,
-        string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null)
+        string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
+        Guid? templateId = null)
     {
-        _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, photoPath, compositePath));
+        _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, photoPath, compositePath, templateId));
         stageInSameTransaction?.Invoke(_db);
         await _db.SaveChangesAsync();
 
@@ -44,7 +43,8 @@ public class SessionService : ISessionService
     // ── Photo en attente (questionnaire obligatoire, LAB-222) ─────────────────────────────
 
     public async Task<string> CommitPendingSessionAsync(Guid sessionId, Guid eventId, string eventName,
-        DateTime capturedAtUtc, string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null)
+        DateTime capturedAtUtc, string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
+        Guid? templateId = null)
     {
         var pendingDir     = _paths.GetPendingDirectory(sessionId);
         var eventDir       = _paths.GetEventDirectory(eventName, eventId);
@@ -57,7 +57,7 @@ public class SessionService : ISessionService
         var recorded = false;
         try
         {
-            _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, finalPhoto, finalComposite));
+            _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, finalPhoto, finalComposite, templateId));
             stageInSameTransaction?.Invoke(_db);
             await _db.SaveChangesAsync();
             recorded = true;
@@ -186,9 +186,10 @@ public class SessionService : ISessionService
     }
 
     private static SessionEntity NewSession(Guid sessionId, Guid eventId, DateTime capturedAtUtc,
-        string photoPath, string compositePath) => new()
+        string photoPath, string compositePath, Guid? templateId) => new()
     {
         Id            = sessionId,
+        TemplateId    = templateId,
         EventId       = eventId,
         CapturedAt    = capturedAtUtc,
         PhotoPath     = photoPath,
@@ -319,8 +320,8 @@ public class SessionService : ISessionService
 
     /// <summary>
     /// Identifiant de séance d'un montage rouvert depuis la galerie : celui du .share.json,
-    /// à défaut celui de la base, à défaut (photo d'avant l'enregistrement des séances) un
-    /// identifiant dérivé du chemin, stable d'une réouverture à l'autre.
+    /// à défaut celui de la base, à défaut un nouvel identifiant, que l'écran Result rattache
+    /// au montage (<see cref="AttachCompositeAsync"/>) : la réouverture suivante le retrouve.
     /// </summary>
     public async Task<Guid> ResolveSessionIdAsync(string compositePath)
     {
@@ -332,11 +333,14 @@ public class SessionService : ISessionService
             .Select(s => (Guid?)s.Id)
             .FirstOrDefaultAsync();
 
-        return fromDb ?? LegacySessionId(compositePath);
+        return fromDb ?? Guid.NewGuid();
     }
 
-    internal static Guid LegacySessionId(string compositePath)
-        => new(MD5.HashData(Encoding.UTF8.GetBytes(compositePath)));
+    public async Task<Guid?> GetSessionTemplateIdAsync(Guid sessionId)
+        => await _db.Sessions.AsNoTracking()
+            .Where(s => s.Id == sessionId)
+            .Select(s => s.TemplateId)
+            .FirstOrDefaultAsync();
 
     private Task MarkUploadedAsync(Guid sessionId)
         => _db.Sessions.Where(s => s.Id == sessionId)

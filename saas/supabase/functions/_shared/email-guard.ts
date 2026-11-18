@@ -38,7 +38,7 @@ export function parseEmailGuardConfig(get: (key: string) => string | undefined):
   return config;
 }
 
-export function isGuardActive(config: EmailGuardConfig): boolean {
+function isGuardActive(config: EmailGuardConfig): boolean {
   return Boolean(config.subjectPrefix || config.allowlist || config.redirectTo);
 }
 

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  deletableRowIds, deleteKeys, isPurgeDue, isReminderDue, isSafeObjectKey, keyFromPublicUrl,
+  deletableRowIds, deleteKeys, isPurgeDue, isReminderDue, isSafeObjectKey, keyFromPublicUrl, message,
   photoKeys, purgeCutoff, purgeEvent, remindableMedia, reminderEligible, reminderWindowEnd, remindEvent,
   type AudioRow, type MediaCount, type PhotoRow, type PurgeStore, type ReminderEvent, type ReminderStore,
 } from './logic.ts';
@@ -314,4 +314,10 @@ test('remindEvent : audio seul désactivé et aucune photo → pas de rappel', a
   const { store, sent } = reminderStore({ photos: 0, audio: 3 });
   assert.equal(await remindEvent(store, baseEvent(), NOW, { photos: true, audio: false }), 'skipped');
   assert.equal(sent.length, 0);
+});
+
+test('message : texte d’une Error, sinon valeur convertie en texte', () => {
+  assert.equal(message(new Error('délai dépassé')), 'délai dépassé');
+  assert.equal(message('refus'), 'refus');
+  assert.equal(message(42), '42');
 });

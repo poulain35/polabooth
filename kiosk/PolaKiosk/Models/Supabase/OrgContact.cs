@@ -2,7 +2,7 @@ namespace PolaKiosk.Models.Supabase;
 
 /// <summary>
 /// Fiche contact du loueur (RPC get_org_contact_by_event, ou bloc « contact » d'un fichier .pola),
-/// lue par <c>SupabaseService.ParseOrgContact</c>.
+/// lue par <c>SupabaseRpcResponses.ParseOrgContact</c>.
 /// </summary>
 /// <param name="Company">Nom de la société (contact_company, sinon le nom de l'organisation). Peut être vide.</param>
 /// <param name="Phone">Téléphone affiché sur l'écran de saisie du code, ou null.</param>

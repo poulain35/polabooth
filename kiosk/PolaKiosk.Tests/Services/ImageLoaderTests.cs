@@ -28,4 +28,29 @@ public class ImageLoaderTests
     {
         ImageLoader.LoadThumbnail(@"C:\nexistepas\photo.jpg", 240).Should().BeNull();
     }
+
+    [Fact]
+    public void FromBytes_decodes_at_the_requested_width_and_freezes()
+    {
+        var qr = QrCodeRenderer.Render("https://exemple.fr/g/ABC123", 10);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(qr));
+        using var png = new MemoryStream();
+        encoder.Save(png);
+
+        var image = ImageLoader.FromBytes(png.ToArray(), 100);
+
+        image.PixelWidth.Should().Be(100);
+        image.IsFrozen.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Qr_code_size_follows_the_pixels_per_module()
+    {
+        var small = QrCodeRenderer.Render("https://exemple.fr/g/ABC123", QrCodeRenderer.SharePixelsPerModule);
+        var large = QrCodeRenderer.Render("https://exemple.fr/g/ABC123", QrCodeRenderer.PairingPixelsPerModule);
+
+        small.IsFrozen.Should().BeTrue();
+        large.PixelWidth.Should().Be(small.PixelWidth * 2);
+    }
 }

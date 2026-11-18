@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { UploadCloud, X } from 'lucide-react';
+import { Loader2, Sticker, UploadCloud, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { Card, CardTitle } from '../../components/ui/card';
+import { IconCircle } from '../../components/ui/icon-circle';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { fetchDecorations, uploadDecoration, deleteDecoration } from '../../lib/supabase';
+import { cn } from '../../lib/utils';
+import { Spinner } from '../../components/ui/spinner';
 
 const ACCEPTED = 'image/svg+xml,image/png,image/jpeg,image/webp,image/gif';
 const ACCEPTED_EXT = /\.(svg|png|jpg|jpeg|webp|gif)$/i;
@@ -41,10 +45,7 @@ function FilePreview({ file }) {
   }, [file]);
 
   if (!src) return null;
-  const isSvg = file.name.toLowerCase().endsWith('.svg');
-  return isSvg
-    ? <img src={src} alt="" className="w-full h-full object-contain p-1" />
-    : <img src={src} alt="" className="w-full h-full object-contain p-1" />;
+  return <img src={src} alt="" className="h-full w-full object-contain p-1" />;
 }
 
 const NEW_CAT_SENTINEL = '__new__';
@@ -156,19 +157,20 @@ export default function AdminDecorations() {
     return acc;
   }, {});
 
+  const busy = queue.some((q) => q.uploading);
+  const queueCount = `${queue.length} sticker${queue.length > 1 ? 's' : ''}`;
+
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-foreground">Décorations & Stickers</h1>
-        <p className="text-sm text-muted-foreground mt-1">Uploadez vos SVG ou PNG pour les utiliser dans l'éditeur de templates.</p>
-      </div>
+    // Onglet Décorations de la Bibliothèque (titre et onglets : AdminLibrary, LAB-335).
+    <div className="flex flex-col gap-5">
+      <p className="text-[13px] text-muted-foreground">Décorations et stickers : envoyez vos SVG ou PNG pour les utiliser dans l'éditeur de cadres photo.</p>
 
       {/* Zone d'upload */}
-      <div className="bg-card border rounded-2xl p-5 mb-6 space-y-4">
+      <Card className="flex flex-col gap-4 p-card">
 
         {/* Catégorie */}
-        <div className="space-y-2">
-          <Label>Catégorie</Label>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="decoration-category">Catégorie</Label>
           <Select
             value={category}
             onValueChange={(v) => {
@@ -176,7 +178,7 @@ export default function AdminDecorations() {
               if (v !== NEW_CAT_SENTINEL) setNewCatInput('');
             }}
           >
-            <SelectTrigger><SelectValue placeholder="Catégorie" /></SelectTrigger>
+            <SelectTrigger id="decoration-category"><SelectValue placeholder="Catégorie" /></SelectTrigger>
             <SelectContent>
               {existingCategories.length === 0 && (
                 <SelectItem value="Mes stickers">Mes stickers</SelectItem>
@@ -193,37 +195,43 @@ export default function AdminDecorations() {
               value={newCatInput}
               onChange={(e) => setNewCatInput(e.target.value)}
               placeholder="Ex : Mariage, Fleurs, Noël…"
+              aria-label="Nom de la nouvelle catégorie"
             />
           )}
         </div>
 
         {/* Zone de dépôt */}
         <div
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-            dragging ? 'border-primary bg-primary/10' : 'border-gray-200 bg-gray-50 hover:border-primary hover:bg-primary/10'
-          }`}
+          role="button"
+          tabIndex={0}
+          className={cn(
+            'cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            dragging ? 'border-primary bg-soft' : 'border-input bg-muted hover:border-primary',
+          )}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); }
+          }}
         >
           <input ref={fileInputRef} type="file" accept={ACCEPTED} multiple className="hidden" onChange={handleFileInput} />
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <UploadCloud className="w-8 h-8" />
+          <div className="flex flex-col items-center gap-2">
+            <IconCircle tone="white"><UploadCloud /></IconCircle>
             <p className="text-sm font-medium text-foreground">Glissez vos fichiers ici</p>
-            <p className="text-xs">SVG, PNG, WEBP · fond transparent recommandé</p>
+            <p className="text-xs text-muted-foreground">SVG, PNG, WEBP · fond transparent recommandé</p>
           </div>
         </div>
 
         {/* File d'attente */}
         {queue.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500">Nommez vos stickers avant d'uploader :</p>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-muted-foreground">Nommez vos stickers avant d'uploader :</p>
             {queue.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+              <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-muted p-2">
                 {/* Miniature */}
-                <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-card border border-gray-200"
-                  style={{ backgroundImage: 'repeating-conic-gradient(#e5e5e5 0% 25%, #fff 0% 50%) 0 0 / 8px 8px' }}>
+                <div className="light-island h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-card ring-1 ring-border">
                   <FilePreview file={item.file} />
                 </div>
 
@@ -232,84 +240,95 @@ export default function AdminDecorations() {
                   value={item.name}
                   onChange={(e) => updateName(item.id, e.target.value)}
                   placeholder="Nom du sticker…"
+                  aria-label="Nom du sticker"
                   disabled={item.uploading}
-                  className="flex-1 h-9"
+                  className="min-w-0 flex-1"
                 />
 
                 {/* État */}
                 {item.uploading && (
-                  <div className="w-4 h-4 border-2 border-primary/100 border-t-transparent rounded-full animate-spin shrink-0" />
-                )}
-                {item.error && (
-                  <span className="text-xs text-red-500 shrink-0 max-w-[140px] truncate" title={item.error}>{item.error}</span>
+                  <Loader2 className="mx-2 size-4 shrink-0 animate-spin text-primary" aria-label="Envoi en cours" />
                 )}
 
                 {/* Supprimer de la file */}
                 {!item.uploading && (
-                  <button onClick={() => removeFromQueue(item.id)}
-                    className="text-muted-foreground/60 hover:text-destructive transition-colors shrink-0">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0 text-muted-foreground"
+                    onClick={() => removeFromQueue(item.id)}
+                    aria-label={`Retirer ${item.name || 'ce sticker'} de la liste`}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                )}
+
+                {/* Erreur : sur sa propre ligne, pour ne pas écraser le champ sur téléphone */}
+                {item.error && (
+                  <p role="alert" className="basis-full break-words px-1 text-xs text-state-red-fg">{item.error}</p>
                 )}
               </div>
             ))}
 
-            <Button
-              onClick={uploadAll}
-              disabled={queue.some((q) => q.uploading) || !effectiveCategory}
-              className="w-full mt-1"
-            >
-              {queue.some((q) => q.uploading)
-                ? 'Upload en cours…'
-                : `Uploader ${queue.length} sticker${queue.length > 1 ? 's' : ''} dans "${effectiveCategory || '…'}"`}
+            {/* Libellé court sur téléphone : un bouton ne passe pas à la ligne. */}
+            <Button onClick={uploadAll} disabled={busy || !effectiveCategory} className="mt-1 w-full">
+              {busy ? 'Upload en cours…' : (
+                <>
+                  <span className="sm:hidden">Uploader {queueCount}</span>
+                  <span className="hidden min-w-0 truncate sm:inline">
+                    {`Uploader ${queueCount} dans "${effectiveCategory || '…'}"`}
+                  </span>
+                </>
+              )}
             </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Grille par catégorie */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="w-6 h-6 border-2 border-primary/100 border-t-transparent rounded-full animate-spin" />
+          <Spinner />
         </div>
       ) : decorations.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">Aucun sticker uploadé.</p>
+        <Card className="flex flex-col items-center px-6 py-12 text-center">
+          <IconCircle tone="sky"><Sticker /></IconCircle>
+          <p className="mt-3 text-[13px] text-muted-foreground">Aucun sticker uploadé.</p>
+        </Card>
       ) : (
-        <div className="space-y-8">
-          {Object.entries(byCategory).map(([cat, items]) => (
-            <div key={cat}>
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                {cat} <span className="ml-1 font-normal text-gray-400">({items.length})</span>
-              </h2>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                {items.map((deco) => (
-                  <div key={deco.id} className="relative group">
-                    <div className="aspect-square bg-gray-50 border border-gray-200 rounded-xl overflow-hidden
-                      flex items-center justify-center"
-                      style={{ backgroundImage: 'repeating-conic-gradient(#e5e5e5 0% 25%, #fff 0% 50%) 0 0 / 10px 10px' }}>
-                      <img src={deco.url} alt={deco.name} className="w-full h-full object-contain p-1"
-                        onError={(e) => { e.target.style.opacity = '0.3'; }} />
-                    </div>
-                    {deco.name && (
-                      <p className="text-[10px] text-gray-400 truncate mt-1 text-center">{deco.name}</p>
-                    )}
-                    <button onClick={() => handleDelete(deco)} disabled={deleting.has(deco.id)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full
-                        flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100
-                        transition-opacity disabled:opacity-50" title="Supprimer">
-                      {deleting.has(deco.id)
-                        ? <div className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" />
-                        : <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                      }
-                    </button>
+        Object.entries(byCategory).map(([cat, items]) => (
+          <Card key={cat} className="p-card">
+            <CardTitle as="h2" className="mb-4">
+              {cat} <span className="ml-1 text-[13px] font-normal text-muted-foreground">({items.length})</span>
+            </CardTitle>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+              {items.map((deco) => (
+                <div key={deco.id} className="group relative min-w-0">
+                  {/* Aperçu du sticker : zone claire dans les deux modes (un sticker est dessiné pour un fond clair). */}
+                  <div className="light-island flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-muted">
+                    <img src={deco.url} alt={deco.name} className="h-full w-full object-contain p-1"
+                      onError={(e) => { e.target.style.opacity = '0.3'; }} />
                   </div>
-                ))}
-              </div>
+                  {deco.name && (
+                    <p className="mt-1 truncate text-center text-[11px] text-muted-foreground">{deco.name}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(deco)}
+                    disabled={deleting.has(deco.id)}
+                    title="Supprimer"
+                    aria-label={`Supprimer ${deco.name || 'ce sticker'}`}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
+                  >
+                    {deleting.has(deco.id)
+                      ? <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                      : <X className="size-3" strokeWidth={3} aria-hidden="true" />}
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </Card>
+        ))
       )}
     </div>
   );

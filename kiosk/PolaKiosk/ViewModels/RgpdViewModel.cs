@@ -15,8 +15,6 @@ public partial class RgpdViewModel : ObservableObject, IParameterReceiver
     private readonly IGuestJourneyService _journey;
 
     [ObservableProperty] private string _consentMessage = "";
-    [ObservableProperty] private string _homeNotice = "";
-    [ObservableProperty] private bool _showHomeNotice = false;
 
     public RgpdViewModel(INavigationService navigation, IGuestJourneyService journey)
     {
@@ -28,8 +26,6 @@ public partial class RgpdViewModel : ObservableObject, IParameterReceiver
     {
         if (parameter is not RgpdParameters p) return;
         ConsentMessage = p.Message;
-        HomeNotice     = p.HomeNotice ?? "";
-        ShowHomeNotice = !string.IsNullOrWhiteSpace(p.HomeNotice);
     }
 
     [RelayCommand]
@@ -43,12 +39,10 @@ public partial class RgpdViewModel : ObservableObject, IParameterReceiver
     internal void Refuse()
     {
         _journey.PhotoConsent = null;
-        _navigation.GoBack(); // retour HomeView
+        // Accueil explicite : l'écran précédent peut être le choix du cadre, effacé en revenant à l'accueil.
+        _navigation.NavigateTo<Views.HomeView>();
     }
 }
 
-/// <summary>
-/// Paramètres de l'écran de consentement photo : message de l'événement et, en mode questionnaire
-/// obligatoire, la mention d'accueil répétée sous le message (null sinon).
-/// </summary>
-public sealed record RgpdParameters(string Message, string? HomeNotice = null);
+/// <summary>Paramètres de l'écran de consentement photo : message de l'événement.</summary>
+public sealed record RgpdParameters(string Message);

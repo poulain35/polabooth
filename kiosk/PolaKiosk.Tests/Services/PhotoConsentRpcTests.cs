@@ -31,7 +31,7 @@ public class PhotoConsentRpcTests
     [Fact]
     public void Body_uses_exactly_the_sql_argument_names()
     {
-        var body = Parse(SupabaseService.BuildPhotoConsentBody(Record(), "MACHINE-1", "s3cret"));
+        var body = Parse(SupabaseRpcBodies.BuildPhotoConsentBody(Record(), "MACHINE-1", "s3cret"));
 
         body.Properties().Select(p => p.Name).Should().BeEquivalentTo(
             "p_code", "p_event_id", "p_machine_id", "p_secret", "p_consent_id", "p_session_id",
@@ -49,7 +49,7 @@ public class PhotoConsentRpcTests
     [Fact]
     public void Empty_consent_text_is_sent_as_is()
     {
-        var body = Parse(SupabaseService.BuildPhotoConsentBody(Record() with { ConsentText = "" }, "MACHINE-1", "s3cret"));
+        var body = Parse(SupabaseRpcBodies.BuildPhotoConsentBody(Record() with { ConsentText = "" }, "MACHINE-1", "s3cret"));
 
         body["p_consent_text"]!.Value<string>().Should().BeEmpty();
     }

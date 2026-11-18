@@ -50,7 +50,7 @@ test('pièce jointe : URL http(s) seulement, nom tiré de l\'URL si c\'est un PD
   assert.equal(deliveryAttachmentUrl('https://files.example.com/F-2026-12.pdf'), 'https://files.example.com/F-2026-12.pdf');
   assert.equal(deliveryAttachmentName('https://files.example.com/a/Facture%20n%C2%B012.pdf'), 'Facture-n-12.pdf');
   assert.equal(deliveryAttachmentName('https://files.example.com/a/F-2026-12.pdf?sig=abc'), 'F-2026-12.pdf');
-  assert.equal(deliveryAttachmentName('https://app.pennylane.com/public/invoice/pdf?token=xyz'), 'document.pdf');
+  assert.equal(deliveryAttachmentName('https://factures.exemple/public/invoice/pdf?token=xyz'), 'document.pdf');
   assert.equal(deliveryAttachmentName('pas une url'), 'document.pdf');
 });
 
@@ -91,7 +91,7 @@ test('migration : renommage de invoice_url, colonne tableau, déclencheur du liv
 test('plus aucune lecture de invoice_url après la migration (hors anciennes migrations et tests)', () => {
   const later = readdirSync(MIGRATIONS).filter((f) => f > '20261214000000_delivery_generic.sql');
   for (const f of later) assert.doesNotMatch(readFileSync(new URL(f, MIGRATIONS), 'utf8'), /\binvoice_url\b/, f);
-  for (const rel of ['./index.ts', '../_shared/email.ts', '../_shared/saas-emails.ts', '../../../src/pages/admin/AdminEventDetail.jsx']) {
+  for (const rel of ['./index.ts', '../_shared/email.ts', '../_shared/saas-emails.ts', '../../../src/pages/admin/AdminEventDetail.jsx', '../../../src/pages/admin/event/LivraisonTab.jsx']) {
     assert.doesNotMatch(read(rel), /\binvoice_url\b|invoiceUrl|hasInvoice/, rel);
   }
 });
