@@ -38,6 +38,26 @@ chaque version le dit.
 
 ---
 
+## 1.4.1 (19 novembre 2026)
+
+### À faire
+
+Rien pour le SaaS. Installez la borne **1.0.25** sur chaque PC pour le nouvel écran
+d'administration.
+
+### Borne (1.0.25)
+
+- Écran d'administration repensé pour le tactile : un menu à gauche avec quatre sections
+  (Événement, Imprimante, Caméra, Borne), une seule affichée à la fois, qui défile au doigt (plus
+  besoin de la petite barre de défilement).
+- Gros boutons et tuiles : l'imprimante, la caméra, la taille des photos du Canon et le délai de
+  nettoyage sont enregistrés dès qu'on les touche (plus de bouton « Enregistrer »). Une tuile n'est
+  choisie que si le doigt n'a pas glissé : faire défiler la page ne change pas un réglage.
+- Décalage de l'impression avec un pavé de flèches ; « Changer de SaaS » et « Quitter vers
+  Windows » regroupés dans une zone sensible, toujours avec une confirmation.
+
+---
+
 ## 1.4.0 (19 novembre 2026)
 
 ### À faire

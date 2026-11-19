@@ -186,7 +186,7 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
 2. Lancez-le. Aucun droit administrateur n'est demandé : l'application s'installe pour
    l'utilisateur Windows en cours. Elle ne démarre pas avec Windows : pour qu'elle s'ouvre
    toute seule à chaque démarrage du PC, cochez « Lancer la borne au démarrage de Windows » dans
-   l'Admin de la borne (carte « Démarrage de Windows »). Sinon, ouvrez-la avec l'icône PolaKiosk du
+   l'Admin de la borne (section Borne, carte « Démarrage de Windows »). Sinon, ouvrez-la avec l'icône PolaKiosk du
    Bureau.
 3. Branchez l'appareil photo (allumé) et l'imprimante avant de lancer la borne.
 
@@ -201,8 +201,8 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
    un PIN (4 à 8 chiffres) pour cette borne puis « Envoyer à la borne ». Sans PIN, l'administration
    de la borne reste fermée.
 4. **Imprimante et bandes coupées** (obligatoire, une seule fois) : ouvrez l'écran
-   d'administration de la borne, choisissez l'imprimante, « Enregistrer », puis « Enregistrer le
-   réglage bandes coupées » (détail en 5.3). **Sans ce réglage, les bandes 5×15 ne s'impriment pas
+   d'administration de la borne, section **Imprimante** : touchez l'imprimante (enregistrée tout de
+   suite), puis la tuile « Réglage bandes coupées » (détail en 5.3). **Sans ce réglage, les bandes 5×15 ne s'impriment pas
    correctement.** Faites-le dès l'installation, avant le premier événement.
 5. **Code événement** : tapez le code d'accès d'un événement de votre compte (affiché sur sa fiche
    dans le SaaS). Il faut un design approuvé pour l'événement. Vous pouvez aussi envoyer
@@ -210,17 +210,20 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
 
 ### 5.3 Réglages de la borne (écran d'administration)
 
-Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN.
+Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN. Le menu de gauche a quatre sections
+(Événement, Imprimante, Caméra, Borne), une seule affichée à la fois ; on fait défiler chaque section
+au doigt (borne 1.0.25). Les choix en tuiles (imprimante, caméra, taille des photos, nettoyage) sont
+enregistrés dès qu'on les touche : il n'y a plus de bouton « Enregistrer ».
 
-- **Imprimante** : choisissez l'imprimante dans la liste (ou l'imprimante par défaut de Windows),
-  puis « Enregistrer ».
-- **Bandes 5×15** (même carte) : une bande s'imprime deux fois sur une feuille 10×15 que
+- **Imprimante** (section Imprimante) : touchez l'imprimante dans la liste (ou l'imprimante par
+  défaut de Windows).
+- **Bandes 5×15** (même section) : une bande s'imprime deux fois sur une feuille 10×15 que
   l'imprimante coupe en deux. **Obligatoire dès l'installation de la borne**, sinon les bandes ne
   s'impriment pas correctement. À faire une fois par imprimante, après l'avoir enregistrée, et à
   refaire après un changement d'imprimante ou une mise à jour du pilote (la carte l'indique) :
-  1. « Enregistrer le réglage bandes coupées » : la fenêtre des préférences du pilote s'ouvre.
+  1. Tuile « Réglage bandes coupées » : la fenêtre des préférences du pilote s'ouvre.
      Cochez la coupe 2 pouces (« 2inch cut ») puis validez (OK).
-  2. « Enregistrer le réglage normal » (facultatif) : dans la même fenêtre, vérifiez que la coupe
+  2. Tuile « Réglage normal » (facultatif) : dans la même fenêtre, vérifiez que la coupe
      2 pouces est décochée puis validez. Sans ce réglage, les 10×15 partent avec le réglage par
      défaut du pilote.
   3. Faites un essai avec un cadre en bande (deux bandes coupées au milieu), puis un 10×15 (feuille
@@ -233,22 +236,24 @@ Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN.
   Sans réglage « bandes coupées », la borne envoie la bande seule au format 2x6. Si le pilote n'a
   pas ce papier (cas de la DS620), elle demande une taille personnalisée que le pilote imprime mal,
   et un avertissement est écrit dans les journaux (catégorie `print`, « Papier 2x6 introuvable »).
-- **Décalage de l'impression** (même carte, facultatif, 1.0.23) : si la marge n'est pas la même des
+- **Décalage de l'impression** (même section, facultatif, 1.0.23) : si la marge n'est pas la même des
   deux côtés (elle peut changer d'un rouleau de papier à l'autre), « Imprimer une feuille de test » :
   un trait tous les millimètres depuis chaque bord. Comptez les traits de chaque côté, puis décalez
   par pas de 0,5 mm (gauche / droite, haut / bas, 5 mm au plus) ; un léger agrandissement (5 % au
   plus) cache un bord blanc. Un seul réglage pour tous les formats, gardé par borne.
-- **Caméra** : « Détection automatique » (Canon, sinon webcam) ou une source précise ; « Tester la caméra » montre l'image et la définition.
-- **Appareil photo** (bouton de la carte Caméra, Canon seulement) : vitesse, ouverture, ISO et
+- **Caméra** (section Caméra) : « Détection automatique » (Canon, sinon webcam) ou une source
+  précise ; « Tester la caméra » montre l'image et la définition. Un changement de caméra sert au
+  prochain redémarrage de la borne.
+- **Appareil photo** (« Ouvrir les réglages » dans la section Caméra, Canon seulement) : vitesse, ouverture, ISO et
   balance des blancs, avec l'aperçu et une photo de test au flash (ni gardée ni envoyée). Molette de
   l'appareil sur M obligatoire ; au-delà de 1/200, le flash risque de ne couvrir qu'une partie de la photo.
   Les mêmes réglages se font à distance dans le SaaS, page **Bornes** (onglet État), section
   « Appareil photo » de la carte de la borne : la borne les applique dès qu'aucune séance n'est en
   cours (borne en ligne, version postérieure à 1.0.19). Le dernier réglage fait, sur la borne ou dans le SaaS, gagne.
 - **Photos du Canon** : petite, moyenne (conseillé) ou grande taille.
-- **Nettoyage du PC** : nombre de jours avant d'effacer les photos d'un événement terminé (30 par
+- **Nettoyage du PC** (section Borne) : nombre de jours avant d'effacer les photos d'un événement terminé (30 par
   défaut). Une photo pas encore envoyée n'est jamais effacée.
-- **Changer de SaaS** (carte « Adresse du SaaS ») : efface l'adresse, l'association, le PIN et l'événement chargé (pour rattacher la borne à une autre
+- **Changer de SaaS** (section Borne, « Zone sensible », avec « Quitter vers Windows ») : efface l'adresse, l'association, le PIN et l'événement chargé (pour rattacher la borne à une autre
   instance).
 
 Ces réglages restent après les mises à jour.

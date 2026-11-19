@@ -36,6 +36,8 @@ public partial class AdminViewModel
         } ?? AvailableCameras[0];
     }
 
+    partial void OnSelectedCameraChanged(CameraSourceOption? value) { if (!_loadingChoices) SaveCamera(); }
+
     [RelayCommand]
     private void SaveCamera()
     {
@@ -54,7 +56,7 @@ public partial class AdminViewModel
         };
         if (opt.Mode == "webcam") _settings.Camera.WebcamIndex = opt.WebcamIndex;
 
-        CameraStatusMsg = $"✓ Caméra : {opt.Label} — redémarrez le kiosk pour l'appliquer.";
+        CameraStatusMsg = $"✓ Caméra : {opt.Label} — redémarrez la borne pour l'appliquer.";
     }
 
     /// <summary>« Tester la caméra » : ouvre l'appareil choisi au démarrage et affiche l'aperçu.</summary>

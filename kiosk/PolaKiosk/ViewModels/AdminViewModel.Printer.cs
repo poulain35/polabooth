@@ -24,6 +24,8 @@ public partial class AdminViewModel
             : $"Imprimante par défaut de Windows : {def}";
     }
 
+    partial void OnSelectedPrinterChanged(string value) { if (!_loadingChoices) SavePrinter(); }
+
     [RelayCommand]
     private void SavePrinter()
     {
@@ -74,14 +76,14 @@ public partial class AdminViewModel
         var chosen = SelectedPrinter == SystemDefaultPrinter ? "" : SelectedPrinter;
         if (!DriverSettingCheck.SamePrinter(chosen, _settings.Kiosk.PrinterName))
         {
-            DriverSettingMsg = "✗ Enregistrez d'abord l'imprimante choisie (bouton « Enregistrer » ci-dessus), puis recommencez.";
+            DriverSettingMsg = "✗ L'imprimante choisie n'est pas enregistrée : touchez-la de nouveau dans la liste ci-dessus, puis recommencez.";
             return;
         }
 
         var printer = PrintingPrinter();
         if (string.IsNullOrWhiteSpace(printer))
         {
-            DriverSettingMsg = "✗ Aucune imprimante trouvée. Branchez l'imprimante, choisissez-la ci-dessus, enregistrez-la puis recommencez.";
+            DriverSettingMsg = "✗ Aucune imprimante trouvée. Branchez l'imprimante, choisissez-la ci-dessus puis recommencez.";
             return;
         }
 

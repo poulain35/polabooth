@@ -322,8 +322,10 @@ Home → Rgpd (si activé ; refus = retour, rien d'écrit) → Live
 Live → Questionnaire (si actif) → EffectSelect (si l'invité choisit) → Result
 Result : imprimer, email, QR code, refaire, terminer ; retour automatique
 Home → Gallery → Result (même séance, sans « Refaire »)
-Home / EventSetup → pavé PIN → Admin (événement, imprimante, caméra, taille des photos,
-  nettoyage, import .pola, changer de SaaS)
+Home / EventSetup → pavé PIN → Admin : menu à gauche, quatre sections une à la fois (Événement,
+  Imprimante, Caméra, Borne), défilement au doigt ; choix en tuiles enregistrés au toucher (tuile
+  choisie au relâcher si le doigt n'a pas glissé) ; événement, imprimante, caméra, taille des photos,
+  nettoyage, import .pola, changer de SaaS
 ```
 
 - **Accueil** (`HomeScreen.ResolveLayout`, testé) : neutre, personnalisé (nom et date), ou choix

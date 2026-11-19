@@ -34,6 +34,22 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     private readonly IWindowsStartup? _startup;
     private bool _previewRunning;
     private bool _loadingStartup; // lecture initiale de la case : rien à écrire
+    private bool _loadingChoices = true; // choix lus au démarrage de l'écran : rien à enregistrer
+
+    // ── Menu de gauche (écran tactile) : une section affichée à la fois ──
+    public const string EventSection   = "event";
+    public const string PrinterSection = "printer";
+    public const string CameraSection  = "camera";
+    public const string KioskSection   = "kiosk";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEventSection), nameof(IsPrinterSection), nameof(IsCameraSection), nameof(IsKioskSection))]
+    private string _section = EventSection;
+
+    public bool IsEventSection   => Section == EventSection;
+    public bool IsPrinterSection => Section == PrinterSection;
+    public bool IsCameraSection  => Section == CameraSection;
+    public bool IsKioskSection   => Section == KioskSection;
 
     public string AppVersion => $"Version {Services.AppVersion.Current}";
 
@@ -146,7 +162,30 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         LoadStorageSettings();
         LoadLaunchAtStartup();
         LoadPolaHistory();
+        _loadingChoices = false;
     }
+
+    /// <summary>Entrée du menu de gauche touchée. Valeur inconnue : rien ne change.</summary>
+    [RelayCommand]
+    private void ShowSection(string? section)
+    {
+        if (section is EventSection or PrinterSection or CameraSection or KioskSection) Section = section;
+    }
+
+    /// <summary>
+    /// Changement de section : l'aperçu de la caméra s'arrête quand on quitte la section Caméra, et
+    /// les confirmations en attente (quitter, changer de SaaS) sont annulées.
+    /// </summary>
+    partial void OnSectionChanged(string? oldValue, string newValue)
+    {
+        if (oldValue == CameraSection && newValue != CameraSection) _ = StopPreviewAsync();
+        IsConfirmingQuit       = false;
+        IsConfirmingSaasChange = false;
+    }
+
+    // Écran tactile : un choix touché est enregistré tout de suite, sans bouton « Enregistrer ».
+    partial void OnSelectedPhotoSizeChanged(PhotoSizeOption? value) { if (!_loadingChoices) SavePhotoSize(); }
+    partial void OnSelectedRetentionChanged(RetentionOption? value) { if (!_loadingChoices) SaveRetention(); }
 
     private void LoadLaunchAtStartup()
     {

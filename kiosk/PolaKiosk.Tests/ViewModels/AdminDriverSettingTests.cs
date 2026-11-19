@@ -115,15 +115,36 @@ public sealed class AdminDriverSettingTests : IDisposable
     }
 
     [Fact]
-    public void Printer_chosen_but_not_saved_is_asked_to_be_saved_first()
+    public void Printer_shown_but_not_saved_is_asked_to_be_touched_again()
     {
         var vm = NewViewModel();
-        vm.SelectedPrinter = "DNP RX1-HS";
+        _settings.Kiosk.PrinterName = "DNP RX1-HS"; // enregistrée ailleurs, la liste montre encore l'ancienne
 
         vm.RecordStripCutSettingCommand.Execute(null);
 
         _driver.Verify(d => d.Prompt(It.IsAny<string>(), It.IsAny<byte[]?>()), Times.Never);
-        vm.DriverSettingMsg.Should().StartWith("✗ Enregistrez d'abord l'imprimante choisie");
+        vm.DriverSettingMsg.Should().StartWith("✗ L'imprimante choisie n'est pas enregistrée");
+    }
+
+    [Fact]
+    public void Touching_a_printer_saves_it_at_once()
+    {
+        var vm = NewViewModel();
+
+        vm.SelectedPrinter = "DNP RX1-HS";
+
+        _settings.Kiosk.PrinterName.Should().Be("DNP RX1-HS");
+        new MachineSettingsService(_dir.Path).Current.PrinterName.Should().Be("DNP RX1-HS");
+        vm.PrinterStatusMsg.Should().Be("✓ Imprimante enregistrée : DNP RX1-HS");
+    }
+
+    [Fact]
+    public void Opening_the_screen_saves_nothing()
+    {
+        var vm = NewViewModel();
+
+        vm.PrinterStatusMsg.Should().BeEmpty();
+        new MachineSettingsService(_dir.Path).Current.PrinterName.Should().BeNull();
     }
 
     [Fact]
