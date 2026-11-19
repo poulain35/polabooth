@@ -4,7 +4,7 @@
 // complètes des images et des polices : la borne (ScreenLayout.Parse, ScreenCache) en garde le
 // dernier segment.
 
-import { FALLBACK_FONT, SCREEN_KINDS, liveFont } from './kioskScreenLayout.js';
+import { FALLBACK_FONT, SCREEN_IDS, homeScreenForFormat, liveFont } from './kioskScreenLayout.js';
 
 /**
  * Taille maximale d'un brouillon enregistré (JSON). Les images importées partent dans Storage
@@ -16,7 +16,13 @@ export const SCREEN_DRAFT_MAX_BYTES = 2 * 1024 * 1024;
 /** Taille maximale d'un plan publié (JSON), lu par chaque borne à chaque synchro. */
 const SCREEN_PLAN_MAX_BYTES = 64 * 1024;
 
-export const SCREEN_TITLES = Object.freeze({ home: 'Accueil', result: 'Partage' });
+export const SCREEN_TITLES = Object.freeze({
+  home: 'Accueil portrait',
+  home_landscape: 'Accueil paysage',
+  home_strip_h: 'Accueil bandelette horizontale',
+  home_strip_v: 'Accueil bandelette verticale',
+  result: 'Partage',
+});
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -260,9 +266,22 @@ export function screenStatus(row) {
   };
 }
 
-/** Lignes kiosk_screens → `{ home, result }` (null pour un écran sans ligne). */
+/**
+ * Plans publiés que reçoit une borne, comme la RPC kiosk_get_screens : `{ home, result }`, où
+ * `home` est l'accueil publié du format du cadre photo principal (`format`), sinon l'accueil
+ * portrait (`home`). `rows` : lignes `{ kind, published }` de l'organisation.
+ */
+export function publishedScreensForFormat(rows, format) {
+  const published = Object.fromEntries((rows ?? []).filter(Boolean).map((r) => [r.kind, r.published ?? null]));
+  return {
+    home: published[homeScreenForFormat(format)] ?? published.home ?? null,
+    result: published.result ?? null,
+  };
+}
+
+/** Lignes kiosk_screens → `{ home, home_landscape, …, result }` (null pour un écran sans ligne). */
 export function screensByKind(rows) {
-  const out = Object.fromEntries(SCREEN_KINDS.map((k) => [k, null]));
-  for (const row of rows ?? []) if (row && SCREEN_KINDS.includes(row.kind)) out[row.kind] = row;
+  const out = Object.fromEntries(SCREEN_IDS.map((k) => [k, null]));
+  for (const row of rows ?? []) if (row && SCREEN_IDS.includes(row.kind)) out[row.kind] = row;
   return out;
 }

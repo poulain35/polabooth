@@ -126,6 +126,8 @@ de `label` : le fichier est le même qu'avant le choix du cadre. Pas de changeme
 Les écrans de la borne composés par l'admin pour son organisation (accueil par défaut et partage,
 spec `docs/specs/ecrans-borne-admin.md`). Même valeur que la réponse de la fonction
 `kiosk_get_screens`, que la borne appelle en ligne : `{ "home": plan ou null, "result": plan ou null }`.
+`home` est l'accueil composé pour le format du cadre principal (paysage, bandelette horizontale ou
+verticale), sinon l'accueil portrait ; c'est toujours un plan de sorte `home`.
 Chaque plan est la version publiée, avec les adresses complètes de ses images (voir « Contrat du
 plan » dans la spec). Les images et les polices des textes vivants (`font_file`, TTF ou OTF,
 LAB-331) sont dans `assets`, sous `screens/{nom}` : `{nom}` est le dernier

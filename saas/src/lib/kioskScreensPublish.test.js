@@ -18,13 +18,19 @@ import {
   screenFontContentType,
   screenStatus,
   screenStoragePath,
+  publishedScreensForFormat,
+  SCREEN_TITLES,
   screensByKind,
   staleScreenFiles,
   unusedScreenAssets,
   urlLastSegment,
   withoutFonts,
 } from './kioskScreensPublish.js';
-import { buildScreenLayout, buildScreenLayoutFromState, kioskColor, normalizeScreenLayout } from './kioskScreenLayout.js';
+import {
+  buildScreenLayout, buildScreenLayoutFromState, homeScreenForFormat, homeScreenFormat, isHomeScreen, kioskColor,
+  normalizeScreenLayout, SCREEN_IDS, screenLayoutKind,
+} from './kioskScreenLayout.js';
+import { KIOSK_LOCK_ZONE_EXPORT, KIOSK_SAFE_ZONE_EXPORT, kioskFormatByKind } from '../utils/formats.js';
 import { kioskScreenTemplate } from './kioskScreenTemplates.js';
 
 const BASE = 'https://x.supabase.co/storage/v1/object/public/kiosk-backgrounds/org/o1/';
@@ -213,7 +219,9 @@ test('état des cartes : modèle, brouillon, publié, modifications non publiée
 });
 
 test('lignes par écran', () => {
-  assert.deepEqual(screensByKind([{ kind: 'result', id: 1 }, { kind: 'autre' }]), { home: null, result: { kind: 'result', id: 1 } });
+  assert.deepEqual(screensByKind([{ kind: 'result', id: 1 }, { kind: 'home_strip_v', id: 2 }, { kind: 'autre' }]), {
+    home: null, home_landscape: null, home_strip_h: null, home_strip_v: { kind: 'home_strip_v', id: 2 }, result: { kind: 'result', id: 1 },
+  });
 });
 
 test('couleur d’un texte vivant au format de la borne (#RRGGBB ou #AARRGGBB)', () => {
@@ -233,4 +241,88 @@ test('couleur d’un texte vivant au format de la borne (#RRGGBB ou #AARRGGBB)',
     objects: [{ type: 'textbox', left: 100, top: 100, width: 200, height: 40, text: '1', fontFamily: 'DM Sans', fill: 'rgba(0,0,0,1)', kioskVariable: 'copies' }],
   }, 'result');
   assert.equal(layout.texts[0].color, '#000000');
+});
+
+// ── Accueil par format du cadre photo ─────────────────────────────────────────────────────────
+
+test('accueil par format : identifiants, sorte du plan, format du cadre', () => {
+  assert.deepEqual(SCREEN_IDS, ['home', 'home_landscape', 'home_strip_h', 'home_strip_v', 'result']);
+  for (const id of SCREEN_IDS) assert.ok(SCREEN_TITLES[id], id);
+  assert.equal(screenLayoutKind('home_landscape'), 'home');
+  assert.equal(screenLayoutKind('home_strip_v'), 'home');
+  assert.equal(screenLayoutKind('result'), 'result');
+  assert.equal(isHomeScreen('home_strip_h'), true);
+  assert.equal(isHomeScreen('result'), false);
+  assert.equal(homeScreenFormat('home'), 'portrait');
+  assert.equal(homeScreenFormat('home_strip_h'), 'stripH');
+  assert.equal(homeScreenFormat('result'), null);
+  assert.equal(homeScreenForFormat('landscape'), 'home_landscape');
+  assert.equal(homeScreenForFormat('stripH'), 'home_strip_h');
+  assert.equal(homeScreenForFormat('stripV'), 'home_strip_v');
+  for (const f of ['portrait', null, undefined, '', 'toString', 'carre']) assert.equal(homeScreenForFormat(f), 'home', String(f));
+  assert.equal(kioskFormatByKind('home_strip_v'), kioskFormatByKind('home'));
+  assert.equal(kioskFormatByKind('autre'), null);
+});
+
+test('accueil par format : écran publié du format, sinon accueil portrait (même règle que kiosk_get_screens)', () => {
+  const rows = [
+    { kind: 'home', published: { tag: 'portrait' } },
+    { kind: 'home_landscape', published: { tag: 'landscape' } },
+    { kind: 'home_strip_h', published: null },
+    { kind: 'result', published: { tag: 'result' } },
+  ];
+  assert.deepEqual(publishedScreensForFormat(rows, 'landscape'), { home: { tag: 'landscape' }, result: { tag: 'result' } });
+  assert.deepEqual(publishedScreensForFormat(rows, 'stripH').home, { tag: 'portrait' });
+  assert.deepEqual(publishedScreensForFormat(rows, 'stripV').home, { tag: 'portrait' });
+  assert.deepEqual(publishedScreensForFormat(rows, 'portrait').home, { tag: 'portrait' });
+  assert.deepEqual(publishedScreensForFormat(rows, undefined).home, { tag: 'portrait' });
+  assert.deepEqual(publishedScreensForFormat([{ kind: 'home_landscape', published: { tag: 'l' } }], 'stripV'), { home: null, result: null });
+  assert.deepEqual(publishedScreensForFormat(null, 'landscape'), { home: null, result: null });
+});
+
+/** Boîte englobante d'un rectangle tourné autour de son centre (px d'export). */
+function rotatedBounds({ x, y, w, h, angle = 0 }) {
+  const rad = (angle * Math.PI) / 180;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const hw = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
+  const hh = (Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h) / 2;
+  return { x1: cx - hw, y1: cy - hh, x2: cx + hw, y2: cy + hh };
+}
+const overlaps = (a, b) => a.x1 < b.x + b.w && a.x2 > b.x && a.y1 < b.y + b.h && a.y2 > b.y;
+
+test('accueil par format : modèles publiables, cadre à droite dans la zone vue, loin du cadenas et du bouton Photos', () => {
+  const slotSizes = {};
+  for (const kind of ['home', 'home_landscape', 'home_strip_h', 'home_strip_v']) {
+    const { layout, blocking } = buildScreenLayoutFromState(kioskScreenTemplate(kind), kind, { version: 5 });
+    assert.deepEqual(blocking, [], kind);
+    assert.equal(layout.kind, 'home', kind);
+    for (const n of planImages(layout)) assert.match(n, new RegExp(`^screen-${kind}-v5-[a-z0-9_-]+\\.png$`), kind);
+    assert.ok(normalizeScreenLayout(publishedPlan(layout, urlFor)), `${kind} : plan refusé par la borne`);
+
+    assert.equal(layout.slots.length, 1, kind);
+    const [slot] = layout.slots;
+    assert.equal(slot.slot, 'last_photo', kind);
+    const b = rotatedBounds(slot);
+    const safe = KIOSK_SAFE_ZONE_EXPORT;
+    assert.ok(b.x1 >= safe.x && b.x2 <= safe.x + safe.w && b.y1 >= safe.y && b.y2 <= safe.y + safe.h, `${kind} : cadre hors de la zone vue`);
+    assert.ok(b.x1 >= 1920 / 2, `${kind} : cadre pas à droite`);
+    assert.ok(!overlaps(b, KIOSK_LOCK_ZONE_EXPORT), `${kind} : cadre sur le cadenas`);
+    const gallery = layout.buttons.find((btn) => btn.action === 'gallery');
+    assert.ok(gallery, kind);
+    assert.ok(!overlaps(b, gallery), `${kind} : cadre sur le bouton Photos`);
+    slotSizes[kind] = slot;
+  }
+  // Proportions du cadre : portrait et bandelette verticale en hauteur, paysage et bandelette horizontale en largeur.
+  assert.ok(slotSizes.home.h > slotSizes.home.w);
+  assert.ok(slotSizes.home_strip_v.h > 2.5 * slotSizes.home_strip_v.w);
+  assert.ok(slotSizes.home_landscape.w > slotSizes.home_landscape.h);
+  assert.ok(slotSizes.home_strip_h.w > 2.5 * slotSizes.home_strip_h.h);
+});
+
+test('accueil par format : une variante garde des noms de fichiers distincts de l’accueil portrait', () => {
+  const portrait = buildScreenLayoutFromState(kioskScreenTemplate('home'), 'home', { version: 1 }).layout;
+  const landscape = buildScreenLayoutFromState(kioskScreenTemplate('home_landscape'), 'home_landscape', { version: 1 }).layout;
+  const shared = planImages(portrait).filter((n) => planImages(landscape).includes(n));
+  assert.deepEqual(shared, []);
 });

@@ -80,7 +80,7 @@ test('images importées inutiles supprimées à l’enregistrement (donc aussi �
 
 test('.pola : écrans et questionnaire suivent l’org de l’événement, pas celle de l’utilisateur', () => {
   const exportFn = fnBody(pola, 'export async function exportPolaFile');
-  assert.match(exportFn, /polaScreenImages\(event\.org_id\)/);
+  assert.match(exportFn, /polaScreenImages\(event\.org_id, design\.format\)/);
   assert.match(exportFn, /from\('organizations'\)\.select\('features'\)\.eq\('id', event\.org_id\)/);
   assert.doesNotMatch(exportFn, /getOrgFeatures\(/);
 });

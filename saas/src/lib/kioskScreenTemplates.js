@@ -8,7 +8,7 @@
 // Seul écart voulu : les boutons sont agrandis à 75 px de haut sur la surface (≥ 100 px
 // d'export, taille conseillée des contrôles D11).
 
-import { VARIABLE_SAMPLES } from './kioskScreenLayout.js';
+import { VARIABLE_SAMPLES, homeScreenFormat, isHomeScreen } from './kioskScreenLayout.js';
 
 /** Couleurs de la borne (App.xaml). */
 export const KIOSK_COLORS = Object.freeze({
@@ -151,7 +151,19 @@ function brandObject({ brandName, logo }) {
   });
 }
 
+// Tirage de l'accueil par format du cadre photo (px de la surface 1280×800) : papier aux
+// proportions du tirage, photo en retrait de 12 px. La bandelette verticale s'arrête au-dessus du
+// bouton « Photos » ; les formats couchés restent dans la colonne de droite (720..1250).
+const HOME_PRINT_SIZES = Object.freeze({
+  portrait: { w: 360, h: 530 },
+  landscape: { w: 500, h: 340 },
+  stripH: { w: 510, h: 176 },
+  stripV: { w: 180, h: 540 },
+});
+const PRINT_INSET = 12;
+
 function homeObjects(opts) {
+  const paper = HOME_PRINT_SIZES[opts.format] ?? HOME_PRINT_SIZES.portrait;
   const startW = 540;
   const galleryX = 1280 - 32 - 160;
   const galleryY = 800 - 40 - 75;
@@ -185,8 +197,10 @@ function homeObjects(opts) {
         }),
       ],
     }),
-    centeredRect({ ...print, w: 360, h: 530, fill: C.paper, radius: 6, shadow: SHADOW }),
-    centeredRect({ ...print, w: 336, h: 506, fill: C.sage, radius: 4, kioskSlot: 'last_photo' }),
+    centeredRect({ ...print, w: paper.w, h: paper.h, fill: C.paper, radius: 6, shadow: SHADOW }),
+    centeredRect({
+      ...print, w: paper.w - 2 * PRINT_INSET, h: paper.h - 2 * PRINT_INSET, fill: C.sage, radius: 4, kioskSlot: 'last_photo',
+    }),
     group({
       x: galleryX, y: galleryY, w: 160, h: 75, kioskAction: 'gallery',
       children: [
@@ -269,12 +283,15 @@ function resultObjects() {
 
 /**
  * Modèle d'origine d'un écran, au format `serializeState` (objet).
- * @param {'home'|'result'} kind
+ * @param {string} kind  'result' ou une variante de l'accueil (SCREEN_IDS) : le tirage prend le
+ *   format de la variante (portrait pour 'home').
  * @param {{brandName?: string, logo?: {url: string, width: number, height: number}}} [opts]
  *   accueil : nom de la société (à défaut « Votre société ») ou son logo (taille naturelle en px).
  */
 export function kioskScreenTemplate(kind, opts = {}) {
-  if (kind === 'home') return { bg: C.cream, bgType: 'solid', bgGradient: null, objects: homeObjects(opts) };
+  if (isHomeScreen(kind)) {
+    return { bg: C.cream, bgType: 'solid', bgGradient: null, objects: homeObjects({ ...opts, format: homeScreenFormat(kind) }) };
+  }
   if (kind === 'result') return { bg: C.cream, bgType: 'solid', bgGradient: null, objects: resultObjects() };
   throw new Error(`Écran inconnu : ${kind}`);
 }

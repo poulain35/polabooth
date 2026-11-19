@@ -3,7 +3,7 @@ import {
   buildPolaBundle, polaBundleWarnings, polaDesignProblem, polaFileName, PolaExportError, polaHomeDesign,
 } from '../polaBundle.js';
 import { mainFrame } from '../clientDesigns.js';
-import { planFonts, planImages } from '../kioskScreensPublish.js';
+import { planFonts, planImages, publishedScreensForFormat } from '../kioskScreensPublish.js';
 import { isFeatureEnabled } from '../../features/catalog.js';
 import { downloadBlob } from '../download.js';
 import { supabase } from './client.js';
@@ -33,13 +33,13 @@ async function gzipString(str) {
 }
 
 // Écrans de la borne publiés par l'organisation de l'événement (LAB-298), comme la RPC
-// kiosk_get_screens, et leurs images et polices (LAB-331) en base64 par adresse (absente si non téléchargée).
-async function polaScreenImages(orgId) {
+// kiosk_get_screens (accueil du format du cadre principal, sinon portrait), et leurs images et
+// polices (LAB-331) en base64 par adresse (absente si non téléchargée).
+async function polaScreenImages(orgId, format) {
   if (!orgId) return { screens: null, screenImagesBase64: {} };
   const { data, error } = await supabase.from('kiosk_screens').select('kind, published').eq('org_id', orgId);
   if (error) throw error;
-  const screens = { home: null, result: null };
-  for (const row of data ?? []) if (row.kind in screens) screens[row.kind] = row.published ?? null;
+  const screens = publishedScreensForFormat(data, format);
   const urls = [...new Set([screens.home, screens.result].filter(Boolean).flatMap((p) => [...planImages(p), ...planFonts(p)]))];
   const images = await Promise.all(urls.map((url) => urlToBase64(url)));
   return { screens, screenImagesBase64: Object.fromEntries(urls.flatMap((url, i) => (images[i] ? [[url, images[i]]] : []))) };
@@ -89,7 +89,7 @@ export async function exportPolaFile(eventId) {
     supabase.from('organizations').select('features').eq('id', event.org_id).maybeSingle()
       .then(({ data, error }) => (error || !data ? true : isFeatureEnabled(data.features ?? {}, 'guest_form')), () => true),
   ]);
-  const { screens, screenImagesBase64 } = await polaScreenImages(event.org_id);
+  const { screens, screenImagesBase64 } = await polaScreenImages(event.org_id, design.format);
   const frameImagesBase64 = Object.fromEntries(await Promise.all(frames.map(async (frame) => (
     [frame.id, frame.final_png_url ? await urlToBase64(frame.final_png_url) : null]
   ))));

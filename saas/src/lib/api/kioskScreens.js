@@ -6,6 +6,7 @@ import {
   staleScreenFiles, unusedScreenAssets,
 } from '../kioskScreensPublish.js';
 import { kioskStorageErrorMessage } from '../kioskBackground.js';
+import { screenLayoutKind } from '../kioskScreenLayout.js';
 import { supabase } from './client.js';
 import { fetchGoogleFontFile } from './library.js';
 import { sha256Hex } from './kiosks.js';
@@ -235,7 +236,7 @@ export async function publishKioskScreen({
   orgId, kind, row, state, layout, images, fonts = [], previewDataUrl = null, keepAssets = [],
 }) {
   const version = nextScreenVersion(row);
-  if (layout?.version !== version || layout?.kind !== kind) throw new Error('Plan de l’écran incohérent : réessayez.');
+  if (layout?.version !== version || layout?.kind !== screenLayoutKind(kind)) throw new Error('Plan de l’écran incohérent : réessayez.');
   const bucket = supabase.storage.from('kiosk-backgrounds');
   const urlOf = (name) => bucket.getPublicUrl(screenStoragePath(orgId, name)).data.publicUrl;
   const plan = publishedPlan(layout, urlOf);

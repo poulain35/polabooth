@@ -1,5 +1,5 @@
-// Écrans de la borne composés par l'admin (LAB-298) : accueil et partage, communs à tous les
-// événements de l'organisation. Les deux cartes : onglet Écrans de /admin/bornes ; /admin/ecrans-borne/:kind :
+// Écrans de la borne composés par l'admin (LAB-298) : accueil (une variante par format du cadre
+// photo) et partage, communs à tous les événements de l'organisation. Les cartes : onglet Écrans de /admin/bornes ; /admin/ecrans-borne/:kind :
 // l'éditeur (format kiosk_home / kiosk_result), ?publier=1 publie dès que l'écran est chargé.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -19,7 +19,7 @@ import {
   fetchCustomFonts, fetchScreenFonts, getKioskScreen, getKioskScreensContext, kioskScreenPreviewUrl, publishKioskScreen,
   saveKioskScreenDraft, unpublishKioskScreen,
 } from '../../lib/supabase';
-import { SCREEN_KINDS, buildScreenLayoutFromState } from '../../lib/kioskScreenLayout';
+import { SCREEN_IDS, buildScreenLayoutFromState, isHomeScreen } from '../../lib/kioskScreenLayout';
 import {
   SCREEN_TITLES, fontFetchWarning, nextScreenVersion, screenAssetNames, screenStatus, withoutFonts,
 } from '../../lib/kioskScreensPublish';
@@ -31,8 +31,12 @@ import { BackLink } from '../../components/admin/AdminPage';
 import { Notice } from '../../components/admin/CardParts';
 import { Spinner } from '../../components/ui/spinner';
 
+const HOME_HELP = 'Premier écran vu par les invités : bouton pour commencer, galerie, nom de l’événement.';
 const SCREEN_HELP = {
-  home: 'Premier écran vu par les invités : bouton pour commencer, galerie, nom de l’événement.',
+  home: `${HOME_HELP} Cadre photo en portrait, et tout format sans accueil publié.`,
+  home_landscape: `${HOME_HELP} Pour les événements au cadre photo en paysage.`,
+  home_strip_h: `${HOME_HELP} Pour les événements au cadre photo en bandelette horizontale.`,
+  home_strip_v: `${HOME_HELP} Pour les événements au cadre photo en bandelette verticale.`,
   result: 'Après la prise de vue : aperçu de la photo, impression, QR code, email, Terminer.',
 };
 
@@ -74,7 +78,7 @@ function useKioskScreensContext() {
 export default function AdminKioskScreens() {
   const { kind } = useParams();
   if (kind !== undefined) {
-    return SCREEN_KINDS.includes(kind) ? <ScreenEditorView key={kind} kind={kind} /> : <UnknownScreen />;
+    return SCREEN_IDS.includes(kind) ? <ScreenEditorView key={kind} kind={kind} /> : <UnknownScreen />;
   }
   return <ScreenCards />;
 }
@@ -114,9 +118,10 @@ export function ScreenCards() {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-[13px] text-muted-foreground">
-        Composez l’accueil et l’écran de partage de vos bornes, pour tous vos événements. Le brouillon ne
-        change rien sur les bornes : elles affichent la version publiée à leur prochaine synchro. Sans écran
-        publié, elles gardent l’écran standard.
+        Composez l’accueil et l’écran de partage de vos bornes, pour tous vos événements. La borne prend
+        l’accueil du format du cadre photo de l’événement (portrait, paysage, bandelettes), sinon l’accueil
+        portrait. Le brouillon ne change rien sur les bornes : elles affichent la version publiée à leur
+        prochaine synchro. Sans écran publié, elles gardent l’écran standard.
       </p>
 
       {error ? (
@@ -127,7 +132,7 @@ export function ScreenCards() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
-          {SCREEN_KINDS.map((k) => (
+          {SCREEN_IDS.map((k) => (
             <ScreenCard key={k} kind={k} orgId={ctx.orgId} row={ctx.screens[k]} onUnpublish={() => setConfirm(k)} />
           ))}
         </div>
@@ -289,7 +294,7 @@ function ScreenEditorView({ kind }) {
       return;
     }
     let active = true;
-    (kind === 'home' ? loadLogo(ctx.logoUrl) : Promise.resolve(null)).then((logo) => {
+    (isHomeScreen(kind) ? loadLogo(ctx.logoUrl) : Promise.resolve(null)).then((logo) => {
       if (active) setInitialJson(kioskScreenTemplateJson(kind, { brandName: ctx.brandName, logo }));
     });
     return () => { active = false; };

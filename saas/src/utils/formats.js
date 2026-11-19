@@ -5,6 +5,8 @@
  * Scale factor: exportWidth / canvasWidth (6x for print formats, 2x for HOME_FORMAT).
  */
 
+import { screenLayoutKind } from '../lib/kioskScreenLayout.js';
+
 // All formats share pxPerMm = canvasWidth / physicalWidthMm = 4 px/mm.
 // Default bleed 3 mm = 12 px (standard for print).
 const PX_PER_MM = 4;
@@ -181,7 +183,7 @@ export function isKioskFormat(format) {
   return format?.kiosk === true;
 }
 
-/** Format d'un écran de la borne par son type ('home' | 'result') ; null si inconnu. */
+/** Format d'un écran de la borne par son identifiant (variantes de l'accueil comprises) ; null si inconnu. */
 export function kioskFormatByKind(kind) {
-  return KIOSK_SCREEN_FORMATS[kind] ?? null;
+  return KIOSK_SCREEN_FORMATS[screenLayoutKind(kind)] ?? null;
 }

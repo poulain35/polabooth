@@ -21,7 +21,44 @@ export const LOCK_ZONE = Object.freeze({ x: 1716, y: 32, w: 76, h: 76 });
 /** Taille conseillée d'un bouton, en px d'export (environ 74 px sur la borne). */
 export const MIN_BUTTON_SIZE = 100;
 
+/** Sortes de plan lues par la borne (`layout.kind`). */
 export const SCREEN_KINDS = Object.freeze(['home', 'result']);
+
+/**
+ * Variantes de l'accueil par format du cadre photo de l'événement : la RPC kiosk_get_screens
+ * (et l'export .pola) choisit celle du format du cadre principal, sinon `home` (portrait).
+ * Chaque variante est une ligne de kiosk_screens (`kind` = identifiant de l'écran) et publie un
+ * plan de sorte `home`.
+ */
+export const HOME_FORMAT_SCREENS = Object.freeze({
+  portrait: 'home',
+  landscape: 'home_landscape',
+  stripH: 'home_strip_h',
+  stripV: 'home_strip_v',
+});
+
+/** Écrans composés par l'admin (lignes de kiosk_screens), dans l'ordre des cartes. */
+export const SCREEN_IDS = Object.freeze(['home', 'home_landscape', 'home_strip_h', 'home_strip_v', 'result']);
+
+/** Vrai pour un écran d'accueil (toutes variantes). */
+export function isHomeScreen(id) {
+  return Object.values(HOME_FORMAT_SCREENS).includes(id);
+}
+
+/** Sorte du plan publié par un écran : 'home' pour toutes les variantes de l'accueil. */
+export function screenLayoutKind(id) {
+  return isHomeScreen(id) ? 'home' : id;
+}
+
+/** Format du cadre photo d'une variante de l'accueil ('portrait', 'landscape'…), null sinon. */
+export function homeScreenFormat(id) {
+  return Object.keys(HOME_FORMAT_SCREENS).find((f) => HOME_FORMAT_SCREENS[f] === id) ?? null;
+}
+
+/** Variante de l'accueil pour un format de cadre photo (portrait ou inconnu : 'home'). */
+export function homeScreenForFormat(format) {
+  return (Object.hasOwn(HOME_FORMAT_SCREENS, format ?? '') && HOME_FORMAT_SCREENS[format]) || 'home';
+}
 
 /** Valeurs permises par écran (identiques à `allowed` des cas de test communs). */
 export const ALLOWED = Object.freeze({
@@ -469,7 +506,8 @@ const quote = (s) => `« ${s} »`;
  * Objets de l'éditeur (sérialisés) → plan du contrat + contrôles de publication (D11).
  *
  * @param {object[]} objects  `state.objects` de `serializeState` (premier niveau du canvas).
- * @param {'home'|'result'} kind
+ * @param {string} kind  identifiant de l'écran (SCREEN_IDS) : noms des fichiers ; ses règles sont
+ *   celles de sa sorte de plan (screenLayoutKind).
  * @param {object} [opts]
  * @param {number} [opts.version=1]                 numéro de la version publiée (noms d'images).
  * @param {number} [opts.canvasWidth=960]           largeur du canvas de l'éditeur (export ×2).
@@ -493,8 +531,9 @@ const quote = (s) => `« ${s} »`;
  *   récupérer par la fonction google-font-file, custom = fichier `url` du bucket `fonts`.
  */
 export function buildScreenLayout(objects, kind, opts = {}) {
-  if (!Object.hasOwn(ALLOWED, kind)) throw new Error(`Écran inconnu : ${kind}`);
-  const allowed = ALLOWED[kind];
+  const layoutKind = screenLayoutKind(kind);
+  if (!Object.hasOwn(ALLOWED, layoutKind)) throw new Error(`Écran inconnu : ${kind}`);
+  const allowed = ALLOWED[layoutKind];
   const version = opts.version ?? 1;
   const canvasWidth = opts.canvasWidth ?? 960;
   const scale = SCREEN_SIZE.w / canvasWidth;
@@ -629,7 +668,7 @@ export function buildScreenLayout(objects, kind, opts = {}) {
         ? `L'ombre du bouton ${label} sort de la zone vue sur un écran 16:10 : réduisez-la ou rapprochez le bouton du centre.`
         : `Le bouton ${label} sort de la zone vue sur un écran 16:10 : rapprochez-le du centre.`);
     }
-    if (kind === 'home' && intersects(b, LOCK_ZONE)) {
+    if (layoutKind === 'home' && intersects(b, LOCK_ZONE)) {
       block('on_lock_zone', intersects(bare, LOCK_ZONE)
         ? `Le bouton ${label} est sur la zone du cadenas, réservée à la borne : déplacez-le.`
         : `L'ombre du bouton ${label} déborde sur la zone du cadenas, réservée à la borne : réduisez-la ou éloignez le bouton.`);
@@ -643,7 +682,7 @@ export function buildScreenLayout(objects, kind, opts = {}) {
       );
     }
   }
-  if (kind === 'result') {
+  if (layoutKind === 'result') {
     if (!slots.some((s) => s.slot === 'photo_preview')) {
       block('missing_photo_preview', 'Il manque l’emplacement « Aperçu de la photo » : les invités ne verraient pas leur photo.');
     }
@@ -681,14 +720,14 @@ export function buildScreenLayout(objects, kind, opts = {}) {
   const hasDecor = decorIndices.length > 0;
   const background = transparent && !hasDecor ? null : screenImageName(kind, version, 'bg');
   const neutralIndices = decorIndices.filter((i) => list[i].personalizedOnly !== true);
-  const needsNeutral = kind === 'home' && neutralIndices.length !== decorIndices.length;
+  const needsNeutral = layoutKind === 'home' && neutralIndices.length !== decorIndices.length;
   const backgroundNeutral = needsNeutral
     ? { name: screenImageName(kind, version, 'bg-neutral'), objectIndices: neutralIndices }
     : null;
 
   const layout = {
     version,
-    kind,
+    kind: layoutKind,
     size: { w: SCREEN_SIZE.w, h: SCREEN_SIZE.h },
     background,
     background_neutral: backgroundNeutral?.name ?? null,

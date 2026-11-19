@@ -38,6 +38,23 @@ chaque version le dit.
 
 ---
 
+## 1.3.0 (19 novembre 2026)
+
+### À faire
+
+Mettez à jour le SaaS (`npm run update-instance`) : une nouvelle migration est appliquée. Rien pour
+la borne : les bornes déjà installées affichent le nouvel accueil sans mise à jour.
+
+### SaaS
+
+- Écrans de la borne (Bornes > Écrans) : en plus de l'accueil portrait, trois accueils au format du
+  cadre photo, avec le cadre à droite aux bonnes proportions : paysage, bandelette horizontale et
+  bandelette verticale. La borne affiche celui du format du cadre principal de l'événement (le cadre
+  validé au plus petit numéro), sinon l'accueil portrait. Même règle dans le fichier `.pola`.
+  Tant que vous ne publiez pas une variante, vos événements gardent l'accueil portrait.
+
+---
+
 ## 1.2.0 (19 novembre 2026)
 
 ### À faire
