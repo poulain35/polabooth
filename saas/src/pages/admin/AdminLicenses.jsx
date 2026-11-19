@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { X, ChevronDown, ChevronRight, Camera } from 'lucide-react';
 import { supabase, fetchKioskMonitoring, updateLicense, deleteLicense,
@@ -7,8 +7,7 @@ import { supabase, fetchKioskMonitoring, updateLicense, deleteLicense,
   isAppAdmin, fetchKioskAccounts, updateOrgKioskLimit, fetchPushableEvents } from '../../lib/supabase';
 import { KioskEventPushSection } from '../../components/admin/KioskEventPush';
 import { KioskCameraSection } from '../../components/admin/KioskCameraSection';
-import KioskLogsPanel from '../../components/admin/KioskLogsPanel';
-import { kioskName, parseEventParam } from '../../lib/kioskLogs';
+import { kioskName } from '../../lib/kioskLogs';
 import { compareVersions, latestRelease } from '../../lib/kioskUpdate';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -459,10 +458,6 @@ export default function AdminLicenses() {
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
   const [pushEvents, setPushEvents] = useState([]);
   const location = useLocation();
-  // Lien des alertes « Erreurs sur la borne » (LAB-329) : /admin/bornes?event=<id> (ancienne adresse /admin/licenses redirigée).
-  const linkedEventId = parseEventParam(new URLSearchParams(location.search).get('event'));
-  const [logsLinked, setLogsLinked] = useState(false);
-  const logsScrolled = useRef(false);
 
   useEffect(() => {
     load();
@@ -485,13 +480,6 @@ export default function AdminLicenses() {
       clearInterval(timer);
     };
   }, []);
-
-  // Lien d'une alerte : journaux filtrés sur l'événement, défilement jusqu'au panneau.
-  useEffect(() => {
-    if (loading || !logsLinked || logsScrolled.current) return;
-    logsScrolled.current = true;
-    document.getElementById('journaux-bornes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [loading, logsLinked]);
 
   // Lien « Envoyer un événement sur cette borne » de /associer : défile jusqu'à la borne.
   useEffect(() => {
@@ -707,8 +695,6 @@ export default function AdminLicenses() {
         <RetiredKiosks licenses={retired} accountName={accountName} superAdmin={superAdmin} onDelete={handleDelete} />
       </section>
 
-      {/* Journaux des bornes (LAB-327) */}
-      <KioskLogsPanel licenses={licenses} initialEventId={linkedEventId} onLinkedEvent={setLogsLinked} />
     </div>
   );
 }

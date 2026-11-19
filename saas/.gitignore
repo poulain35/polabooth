@@ -35,3 +35,8 @@ eps/
 email-previews/
 
 .vercel
+
+# Mise à jour (npm run update-instance) : version installée, lien Vercel ; dossiers des CLI des hébergeurs
+.instance/
+.netlify
+.wrangler

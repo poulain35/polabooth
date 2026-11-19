@@ -1,6 +1,8 @@
 // Bornes (/admin/bornes?tab=etat|ecrans|alertes|code|versions, LAB-335 puis LAB-338) : état des
-// bornes, écrans de la borne, alertes (fonctionnalité kiosk_alerts), écran de saisie du code (admin
-// de la plateforme seulement) et versions. Une alerte précise : ?tab=alertes&alerte=<id>.
+// bornes, écrans de la borne, alertes et journaux des bornes (« Journaux » seuls sans la fonctionnalité
+// kiosk_alerts), écran de saisie du code (admin de la plateforme seulement) et versions. Une alerte
+// précise : ?tab=alertes&alerte=<id> ; journaux d'un événement : ?tab=alertes&event=<id> (?event= seul,
+// lien des emails d'alerte déjà envoyés, mène aussi à cet onglet).
 // Les modules ajoutent leurs onglets après État (`bornes.tabs`) : Matériel (stock, LAB-358) du module
 // privé « planning » (LAB-421).
 import { lazy, Suspense } from 'react';
@@ -26,7 +28,7 @@ const TABS = [
   { id: 'etat', label: 'État', Component: AdminLicenses },
   ...MODULE_TABS,
   { id: 'ecrans', label: 'Écrans', Component: ScreenCards },
-  { id: 'alertes', label: 'Alertes', Component: AlertsTab, feature: 'kiosk_alerts' },
+  { id: 'alertes', label: 'Alertes', Component: AlertsTab },
   { id: 'code', label: 'Code', Component: CodeScreenTab, appAdminOnly: true },
   { id: 'versions', label: 'Versions', Component: VersionsTab },
 ].filter((tab) => BORNES_TABS.includes(tab.id) || MODULE_TABS.includes(tab));
@@ -41,7 +43,8 @@ export default function AdminBornes() {
   const [searchParams] = useSearchParams();
   const { isAvailable, loading: featuresLoading } = useFeatures();
   const { isAdmin, loading: adminLoading } = useAppAdmin();
-  const requested = searchParams.get('tab');
+  const requested = searchParams.get('tab') ?? (searchParams.has('event') ? 'alertes' : null);
+  const alertsEnabled = isAvailable('kiosk_alerts');
 
   const tabs = TABS.filter((tab) => (!tab.feature || isAvailable(tab.feature)) && (!tab.appAdminOnly || isAdmin));
   // Onglet réservé demandé : on attend de savoir s'il est permis avant de retomber sur État.
@@ -49,6 +52,9 @@ export default function AdminBornes() {
     && TABS.some((tab) => tab.id === requested);
   const active = pickTab(requested, tabs.map((tab) => tab.id));
   const { Component } = tabs.find((tab) => tab.id === active);
+  // Onglet Alertes : on attend les fonctionnalités pour savoir s'il montre aussi les alertes.
+  const waiting = pending || (active === 'alertes' && featuresLoading);
+  const labelOf = (tab) => (tab.id === 'alertes' && !featuresLoading && !alertsEnabled ? 'Journaux' : tab.label);
 
   return (
     <PageContainer>
@@ -56,11 +62,11 @@ export default function AdminBornes() {
       <PageTabs
         label="Bornes"
         active={active}
-        tabs={tabs.map((tab) => ({ id: tab.id, label: tab.label, to: `?tab=${tab.id}` }))}
+        tabs={tabs.map((tab) => ({ id: tab.id, label: labelOf(tab), to: `?tab=${tab.id}` }))}
       />
-      {pending ? spinner : (
+      {waiting ? spinner : (
         <Suspense fallback={spinner}>
-          <Component key={active} />
+          <Component key={active} {...(active === 'alertes' ? { alertsEnabled } : {})} />
         </Suspense>
       )}
     </PageContainer>

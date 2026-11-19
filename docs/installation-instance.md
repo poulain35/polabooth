@@ -259,6 +259,24 @@ Règle indispensable : toute adresse inconnue doit renvoyer `index.html` (le sit
 Le fichier `kiosk-config.json` doit être en ligne à `https://<votre SaaS>/kiosk-config.json`. Le script
 le crée dans `dist/`, rien à faire de plus.
 
+### Mise en ligne automatique (facultatif)
+
+Pour que `npm run update-instance` (étape 10) remette le site en ligne tout seul, indiquez votre
+hébergeur dans `instance.env` :
+
+| `HOSTING` | `HOSTING_PROJECT` | Commande lancée |
+|---|---|---|
+| vide (ou `manual`) | — | aucune : vous déposez `dist/` vous-même |
+| `vercel` | inutile | `npx vercel deploy --prod`, depuis `dist/` |
+| `netlify` | nom du site (facultatif) | `npx netlify-cli deploy --prod --dir dist` |
+| `cloudflare` | nom du projet Pages (obligatoire) | `npx wrangler pages deploy dist --project-name <projet>` |
+
+La première fois, l'outil de l'hébergeur vous demande de vous connecter à votre compte et, pour Vercel
+et Netlify sans nom de site, de choisir le projet : répondez dans le terminal. Le lien avec le projet
+Vercel est gardé dans `saas/.instance/` (la construction vide `dist/`), celui du site Netlify dans
+`saas/.netlify/`, et chaque outil garde la connexion à votre compte : rien n'est redemandé les fois
+suivantes. Ces dossiers sont ignorés par Git. Le script d'installation vérifie déjà `HOSTING` et `HOSTING_PROJECT`.
+
 Vous construisez le site vous-même (par exemple sur Vercel depuis Git) ? Ajoutez la variable
 `KIOSK_SUPABASE_ANON_KEY` (clé anon au format `eyJ…`, voir étape 2) aux variables du build. Sinon,
 le fichier n'est pas créé et un avertissement s'affiche pendant la construction.
@@ -359,17 +377,50 @@ Relancez-le après chaque changement de `instance.env` (nouveau mot de passe SMT
 Il remet aussi les réglages des comptes de Supabase (étape 2) : modifiez le SMTP dans `instance.env`,
 pas dans le tableau de bord de Supabase. Gardez le jeton dans `instance.env` : chaque relance en a besoin.
 
-Pour installer une nouvelle version :
+### Être prévenu des nouvelles versions
+
+Chaque version de Polabooth a un numéro (`1.2.0`), une étiquette `saas-v1.2.0` et une page
+**Releases** sur GitHub avec ses notes : ce qui change, les correctifs de sécurité, et les actions
+« À faire » à la main s'il y en a. Pour recevoir un email à chaque version : sur la page GitHub de
+Polabooth, **Watch** › **Custom** › cochez **Releases**. Les versions de la borne (`kiosk-v…`) ont
+leurs propres pages. Le même texte est dans `CHANGELOG.md`, à la racine du dépôt.
+
+La version installée s'affiche dans l'admin, en bas du menu du compte (« Polabooth 1.2.0 (abc1234) »).
+
+### Installer une nouvelle version
+
+Une seule commande, depuis `saas/` :
 
 ```bash
 cd polabooth/saas
-git pull
-npm ci
-npm run install-instance
+npm run update-instance
 ```
 
-Le script applique les nouvelles migrations, redéploie les fonctions et reconstruit `dist/`.
-Remettez ensuite `dist/` en ligne (étape 6).
+Elle :
+
+1. vérifie que vous n'avez modifié aucun fichier du dépôt : sinon elle s'arrête **avant tout
+   changement** et liste les fichiers (remettez-les avec `git checkout -- <fichier>`, ou mettez-les
+   de côté avec `git stash`). Ne modifiez que `instance.env`, que la mise à jour ne touche jamais ;
+2. récupère la nouvelle version (`git pull`, sans fusion : s'arrête si votre copie a divergé) ;
+3. affiche la version avant et après, et les actions « À faire » des versions installées ;
+4. installe les outils (`npm ci`), puis lance `npm run install-instance` : nouvelles migrations,
+   fonctions redéployées, réglages remis, `dist/` reconstruit (email de test compris) ;
+5. remet le site en ligne si `HOSTING` est rempli (étape 6), sinon vous rappelle de déposer `dist/` ;
+6. note la version installée dans `saas/.instance/version.json` et rappelle les « À faire ».
+
+Elle s'arrête à la première erreur avec un message clair. Corrigez, puis relancez : elle reprend où
+elle s'était arrêtée (« Déjà à jour » une fois tout fait ; `--force` pour tout refaire quand même).
+
+Options (après `--`, par exemple `npm run update-instance -- --skip-deploy`) :
+
+- `--skip-deploy` : ne met pas le site en ligne ;
+- `--skip-email-test` : pas d'email de test pendant l'installation ;
+- `--force` : relance tout même si la version n'a pas changé ;
+- `--config <fichier>` : un autre fichier que `instance.env`.
+
+Dépôt téléchargé en ZIP (pas un clone Git) : la commande ne peut pas récupérer la nouvelle version.
+Téléchargez la nouvelle version, copiez votre `saas/instance.env` dans son dossier `saas`, lancez
+`npm ci` puis `npm run install-instance` et remettez `dist/` en ligne (étape 6).
 
 ---
 

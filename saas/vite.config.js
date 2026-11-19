@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { defineConfig, loadEnv, normalizePath } from 'vite'
 import react from '@vitejs/plugin-react'
 import { KIOSK_CONFIG_FILE, resolveKioskConfig } from './scripts/kiosk-config.mjs'
+import { versionLabel } from './scripts/update-instance-lib.mjs'
 
 // Construction sans modules privés (open core L2b) : VITE_PRIVATE_MODULES=none remplace le
 // registre src/modules/index.js par une liste vide. Aucun fichier de src/modules/<id>/ n'entre
@@ -106,11 +107,13 @@ function kioskConfig() {
   }
 }
 
-// Version du SaaS (demande à l'éditeur, VendorRequestDialog) : commit construit, fourni par Vercel ou lu par git.
+// Version du SaaS (menu du compte de l'admin, demande à l'éditeur) : « 1.2.0 (abc1234) », version de
+// package.json (numérotée à chaque publication publique, LAB-431) et commit construit (Vercel ou git).
 function appVersion() {
+  const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
   const sha = process.env.VERCEL_GIT_COMMIT_SHA
     || spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).stdout?.trim()
-  return sha ? sha.slice(0, 7) : ''
+  return versionLabel(version, sha)
 }
 
 // https://vite.dev/config/

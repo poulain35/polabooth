@@ -7,19 +7,23 @@ instance à jour. La plus récente est en haut.
 
 ## Comment mettre à jour
 
+Chaque version a un numéro (`1.2.0`) et sa page **Releases** sur GitHub, avec le même texte que
+ce fichier. Pour être prévenu : **Watch** › **Custom** › cochez **Releases**. La version installée
+s'affiche dans l'admin, en bas du menu du compte.
+
 **Le SaaS.** Depuis le dossier de votre copie :
 
 ```bash
 cd polabooth/saas
-git pull
-npm ci
-npm run install-instance
+npm run update-instance
 ```
 
-Le script applique les nouvelles migrations de la base, redéploie les fonctions serveur et
-reconstruit `dist/`. Remettez ensuite `dist/` en ligne (voir
-[docs/installation-instance.md](docs/installation-instance.md), sections 6 et 10). Relancer le
-script est sans risque : il ne crée ni deuxième compte ni doublon.
+La commande récupère la nouvelle version, applique les nouvelles migrations de la base, redéploie
+les fonctions serveur, reconstruit `dist/` et le remet en ligne si `HOSTING` est rempli dans
+`instance.env` (sinon, remettez `dist/` en ligne vous-même). Elle s'arrête avant tout changement si
+vous avez modifié des fichiers du dépôt : ne modifiez que `instance.env`. Voir
+[docs/installation-instance.md](docs/installation-instance.md), sections 6 et 10. La relancer est
+sans risque : elle reprend où elle s'était arrêtée, sans deuxième compte ni doublon.
 
 Ne modifiez pas les fichiers de `saas/supabase/migrations/` : le script n'applique que les migrations
 qu'il n'a pas encore vues. Une migration modifiée après coup ne serait jamais rejouée.
@@ -34,7 +38,7 @@ chaque version le dit.
 
 ---
 
-## Prochaine publication
+## 1.1.0 (19 novembre 2026)
 
 ### À faire
 
@@ -42,7 +46,11 @@ chaque version le dit.
    `SUPABASE_ACCESS_TOKEN=sbp_…`. Créez-le sur https://supabase.com/dashboard/account/tokens
    (« Generate new token ») et copiez-le tout de suite, il n'est affiché qu'une fois. Le script en
    a besoin à chaque mise à jour. Le modèle `saas/instance.env.example` l'explique.
-2. Mettez à jour le SaaS (voir plus haut). Dix-sept nouvelles migrations sont appliquées.
+2. Mettez à jour le SaaS. Cette fois-ci, la commande n'est pas encore dans votre copie : lancez
+   `git pull`, puis `npm run update-instance` depuis `saas/` (les fois suivantes, la seconde
+   suffit). Facultatif : remplissez avant `HOSTING` dans `instance.env` (`vercel`, `netlify` ou
+   `cloudflare`) pour que le site soit remis en ligne tout seul. Dix-sept nouvelles migrations sont
+   appliquées.
 3. Installez la borne **1.0.22** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
    l'imprimante dans l'Admin de la borne (voir plus bas).
 4. Facultatif : dans Supabase (Edge Functions), supprimez les fonctions `generate-background`,
@@ -61,6 +69,10 @@ script la télécharge la première fois.
 - Le script vérifie la messagerie et le stockage avant de rien modifier : email de test, fichier de
   test lu par l'adresse publique, règle CORS posée si elle manque.
 - Guide pas à pas avec formulaire : `docs/guide-installation.html`, à ouvrir par un double-clic.
+- Mise à jour en une commande : `npm run update-instance` (récupère la version, met à jour la base
+  et les fonctions, remet le site en ligne chez Vercel, Netlify ou Cloudflare Pages selon `HOSTING`).
+- Numéros de version : chaque publication a sa page Releases sur GitHub, et la version installée
+  s'affiche dans l'admin (menu du compte).
 - Construction de l'installeur de la borne en une commande (`kiosk/installer/build.ps1`), avec
   signature Authenticode facultative si vous avez un certificat de signature de code (moins
   d'alertes SmartScreen chez vos clients) : voir `kiosk/installer/README.md`.
@@ -82,6 +94,8 @@ script la télécharge la première fois.
 - Choix du cadre : jusqu'à 4 cadres par événement, l'invité choisit le sien sur la borne.
 - Galerie aux couleurs de l'événement.
 - Journal de la borne dans la fiche de l'événement.
+- Bornes > Alertes : les journaux de toutes vos bornes sous les alertes, filtrables par événement,
+  avec un sommaire pour passer d'un bloc à l'autre.
 - Réglages de l'appareil photo par borne (Bornes, fiche de la borne) : vitesse, ouverture, ISO,
   balance des blancs et température, lus sur l'appareil et appliqués par la borne quand personne ne
   fait de photo. Appareils Canon seulement.
@@ -138,6 +152,6 @@ script la télécharge la première fois.
 
 ---
 
-## 13 novembre 2026
+## 1.0.0 (13 novembre 2026)
 
 Première publication.

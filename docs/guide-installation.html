@@ -493,6 +493,13 @@ body[data-os="linux"] [data-os]:not([data-os~="linux"]) { display: none !importa
           Vous le relierez à l'hébergement à l'étape 8.</p>
         <div class="fields" data-group="saas"></div>
 
+        <details>
+          <summary>Mise en ligne automatique du site (facultatif)</summary>
+          <p>Indiquez votre hébergeur si vous voulez que <code>npm run update-instance</code> remette le site en ligne tout seul à chaque mise à jour (étape 8 et « Plus tard »).
+            Laissez vide pour déposer le dossier <code>dist</code> vous-même. Modifiable ensuite dans <code>instance.env</code>.</p>
+          <div class="fields" data-group="hebergement"></div>
+        </details>
+
         <h3>Vérification</h3>
         <ul class="check-list" id="check-list" aria-live="polite"></ul>
 
@@ -595,6 +602,8 @@ npm run install-instance</pre></div></div>
         <p>Le site est le dossier <code>dist</code>, créé par le script dans le dossier <code>saas</code>. Mettez-le en ligne à l'adresse de votre SaaS (<code data-fill>{APP_URL}</code>).
           Tout est prêt dedans : les règles de redirection pour Netlify et Cloudflare Pages (<code>_redirects</code>) et pour Vercel (<code>vercel.json</code>).</p>
         <div class="cmd"><pre data-fill data-os="windows">{SAAS_DIR}\dist</pre><pre data-fill data-os="mac linux">{SAAS_DIR}/dist</pre></div>
+        <p>Cette première mise en ligne se fait à la main, chez l'hébergeur de votre choix ci-dessous. Si vous avez choisi un hébergeur à l'étape 6 (<code>HOSTING</code>),
+          les mises à jour suivantes le remettront en ligne toutes seules (voir « Plus tard »).</p>
 
         <h3>Netlify (le plus simple)</h3>
         <p>Créez un compte, puis glissez le dossier <code>dist</code> dans la page Netlify Drop. Ajoutez ensuite votre domaine : Site configuration &gt; Domain management.</p>
@@ -681,19 +690,20 @@ npm run install-instance -- --new-admin-password</pre></div></div>
         <h2 id="h-maj">Plus tard : mettre à jour</h2>
       </header>
       <div class="step-body">
-        <p>Relancer l'installation est sans risque : rien n'est créé en double. Relancez-la après chaque changement d'<code>instance.env</code>, et pour installer une nouvelle version :</p>
-        <h3>Avec Git</h3>
+        <p>Pour être prévenu d'une nouvelle version : sur la page GitHub de Polabooth, <strong>Watch</strong> &gt; <strong>Custom</strong> &gt; cochez <strong>Releases</strong>.
+          Chaque version a ses notes (ce qui change, ce qu'il reste à faire à la main). La version installée s'affiche en bas du menu du compte, dans l'admin.</p>
+        <h3>Avec Git (une commande)</h3>
         <div data-os="windows"><div class="cmd"><pre data-fill>cd /d "{SAAS_DIR}"
-git pull
-npm ci
-npm run install-instance</pre></div></div>
+npm run update-instance</pre></div></div>
         <div data-os="mac linux"><div class="cmd"><pre data-fill>cd "{SAAS_DIR}"
-git pull
-npm ci
-npm run install-instance</pre></div></div>
+npm run update-instance</pre></div></div>
+        <p>La commande récupère la nouvelle version, s'arrête avant tout changement si vous avez modifié des fichiers du dépôt (elle les liste),
+          installe les outils, met à jour la base et les fonctions, puis remet le site en ligne si <code>HOSTING</code> est rempli (sinon, refaites l'étape 8).
+          Elle affiche la version avant et après, et les actions à faire à la main. Une erreur ? Corrigez, relancez : elle reprend où elle s'était arrêtée.</p>
+        <p class="hint">Ne modifiez que <code>instance.env</code> : il n'est jamais touché par la mise à jour. Relancer l'installation (<code>npm run install-instance</code>) reste sans risque, par exemple après un changement d'<code>instance.env</code>.</p>
         <h3>Avec un ZIP</h3>
-        <p>Téléchargez et décompressez la nouvelle version, copiez votre <code>saas/instance.env</code> dans son dossier <code>saas</code>, puis lancez son programme d'installation (étape 7).</p>
-        <p>Dans les deux cas, remettez ensuite le dossier <code>dist</code> en ligne (étape 8).</p>
+        <p>Téléchargez et décompressez la nouvelle version, copiez votre <code>saas/instance.env</code> dans son dossier <code>saas</code>, puis lancez son programme d'installation (étape 7)
+          et remettez le dossier <code>dist</code> en ligne (étape 8).</p>
       </div>
     </section>
 
@@ -750,6 +760,7 @@ var GuideLib = (function () {
     saas: 'SaaS',
     smtp: 'Envoi des emails (SMTP)',
     stockage: 'Stockage des photos et des messages audio (compatible S3)',
+    hebergement: 'Mise en ligne du site (npm run update-instance)',
   };
 
   // Clés d'instance.env, dans l'ordre du fichier. `section` : titre dans le fichier ; `group` : bloc de la page.
@@ -793,12 +804,19 @@ var GuideLib = (function () {
       help: 'À remplir avec le bucket séparé.' },
     { key: 'STORAGE_FORCE_PATH_STYLE', section: 'stockage', group: 'stockage-avance', label: 'Style des adresses S3', optional: true,
       options: [['', 'Par défaut (endpoint/bucket/fichier)'], ['true', 'true (endpoint/bucket/fichier)'], ['false', 'false (bucket.endpoint/fichier)']] },
+    { key: 'HOSTING', section: 'hebergement', group: 'hebergement', label: 'Hébergeur du site', optional: true,
+      options: [['', 'Aucun : je dépose le dossier dist moi-même'], ['vercel', 'Vercel'], ['netlify', 'Netlify'], ['cloudflare', 'Cloudflare Pages']],
+      help: 'Mise en ligne automatique par npm run update-instance.' },
+    { key: 'HOSTING_PROJECT', section: 'hebergement', group: 'hebergement', label: 'Nom du projet chez l\'hébergeur', optional: true, placeholder: 'mon-photobooth',
+      help: 'Obligatoire pour Cloudflare Pages, nom du site pour Netlify (facultatif), inutile pour Vercel.' },
   ];
   FIELDS.forEach(function (f) { f.secret = SECRET_KEYS.indexOf(f.key) >= 0; });
 
   var REF_RE = /^[a-z]{20}$/;
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   var CF_ACCOUNT_RE = /^[0-9a-f]{32}$/;
+  var HOSTS = ['vercel', 'netlify', 'cloudflare'];
+  var HOSTING_PROJECT_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
 
   function str(values, key) {
     var value = values && values[key];
@@ -875,6 +893,12 @@ var GuideLib = (function () {
     if (v('STORAGE_PHOTOS_BUCKET') && !v('STORAGE_PHOTOS_PUBLIC_URL')) {
       warnings.push({ key: 'STORAGE_PHOTOS_PUBLIC_URL', message: 'Bucket des photos rempli sans son adresse publique.' });
     }
+    // Mêmes règles que hostingConfig (saas/scripts/update-instance-lib.mjs).
+    var host = v('HOSTING').toLowerCase();
+    var hostProject = v('HOSTING_PROJECT');
+    if (host && host !== 'manual' && HOSTS.indexOf(host) < 0) add('HOSTING', 'vercel, netlify, cloudflare, ou vide.');
+    if (hostProject && !HOSTING_PROJECT_RE.test(hostProject)) add('HOSTING_PROJECT', 'Lettres, chiffres et tirets seulement.');
+    if (host === 'cloudflare' && !hostProject) add('HOSTING_PROJECT', 'À remplir pour Cloudflare Pages : le nom du projet (Workers & Pages).');
     return { errors: errors, warnings: warnings };
   }
 

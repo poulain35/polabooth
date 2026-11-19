@@ -1,7 +1,7 @@
 {
   "name": "photobooth-editor",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
     "test": "node --test \"supabase/functions/**/*.test.ts\" \"src/lib/**/*.test.js\" \"src/features/**/*.test.js\" \"src/modules/**/*.test.js\" \"scripts/**/*.test.mjs\"",
     "check:functions": "node scripts/check-functions.mjs",
     "check:open-build": "node scripts/check-open-build.mjs",
-    "install-instance": "node scripts/install-instance.mjs"
+    "install-instance": "node scripts/install-instance.mjs",
+    "update-instance": "node scripts/update-instance.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",

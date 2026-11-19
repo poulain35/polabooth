@@ -6,7 +6,8 @@ import {
   fetchKioskMachineHistory, fetchNewKioskLogs, fetchRecentEventsForLogs,
 } from '../../lib/supabase';
 import {
-  CONTEXT_GROUPS, DEFAULT_FILTERS, LEVELS, PERIODS, acceptLinkedEvent,
+  CONTEXT_GROUPS, DEFAULT_FILTERS, LEVELS, LOG_PAGE_SIZE, LOG_PAGE_SIZES, LOG_PAGE_SIZE_KEY, PERIODS,
+  acceptLinkedEvent, parseLogPageSize,
   buildLogFilters, buildLogsText, countText, describeFilters, eventLabel, eventOptions, explainLog,
   formatExactTime, formatTimeRange, groupBySession, groupLogs, kioskOptions, kioskText, kioskWindows,
   latestCreatedAt, logCursor, logsFileName, mergeLogs, missingEventIds, resolveKiosk, sessionLabel, timeAgo,
@@ -249,11 +250,18 @@ function SessionBlock({ session, windows, events, onSession, activeSession, surf
   );
 }
 
+/** Taille de page enregistrée sur cet appareil (25 par défaut, stockage illisible compris). */
+function readStoredPageSize() {
+  try { return parseLogPageSize(window.localStorage.getItem(LOG_PAGE_SIZE_KEY)); } catch { return parseLogPageSize(null); }
+}
+
 export default function KioskLogsPanel({
   licenses = [], eventId = null, initialEventId = null, onLinkedEvent = null, title = 'Journaux des bornes',
   bySession = false, embedded = false, eventName = null,
 }) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  // Panneau de la page Bornes : taille de page au choix ; fiche de l'événement (embedded) : 100 (séances).
+  const [pageSize, setPageSize] = useState(() => (embedded ? LOG_PAGE_SIZE : readStoredPageSize()));
   const [searchInput, setSearchInput] = useState('');
   const [logs, setLogs] = useState([]);
   const [cursor, setCursor] = useState(null);
@@ -336,7 +344,7 @@ export default function KioskLogsPanel({
     setLoading(true);
     setError(null);
     try {
-      const page = await fetchKioskLogsPage(built);
+      const page = await fetchKioskLogsPage(built, { limit: pageSize });
       if (req !== reqRef.current) return;
       setLogs(page.logs);
       setCursor(logCursor(page.logs));
@@ -348,7 +356,7 @@ export default function KioskLogsPanel({
     }
     // filterKey résume filters, windows et eventId pour la requête.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey]);
+  }, [filterKey, pageSize]);
 
   useEffect(() => {
     if (historyReady && linkReady) reload();
@@ -367,7 +375,7 @@ export default function KioskLogsPanel({
     const req = reqRef.current;
     setLoadingMore(true);
     try {
-      const page = await fetchKioskLogsPage(built, { cursor });
+      const page = await fetchKioskLogsPage(built, { cursor, limit: pageSize });
       if (req !== reqRef.current) return;
       setLogs((prev) => mergeLogs(prev, page.logs));
       setCursor(logCursor(page.logs) ?? cursor);
@@ -416,6 +424,12 @@ export default function KioskLogsPanel({
       .then((found) => setEvents((prev) => ({ ...prev, ...found })))
       .catch(() => ids.forEach((id) => requestedEvents.current.delete(id)));
   }, [logs, events]);
+
+  function changePageSize(value) {
+    const size = parseLogPageSize(value, pageSize);
+    setPageSize(size);
+    try { window.localStorage.setItem(LOG_PAGE_SIZE_KEY, String(size)); } catch { /* choix non gardé */ }
+  }
 
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   const resetFilters = () => { setFilters(DEFAULT_FILTERS); setSearchInput(''); };
@@ -665,6 +679,17 @@ export default function KioskLogsPanel({
               <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'Chargement…' : 'Voir plus'}
               </Button>
+            )}
+            {!embedded && (
+              <span className="inline-flex items-center gap-2">
+                Par page
+                <SegmentedControl
+                  aria-label="Journaux par page"
+                  value={String(pageSize)}
+                  onValueChange={changePageSize}
+                  options={LOG_PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) }))}
+                />
+              </span>
             )}
           </div>
         </>

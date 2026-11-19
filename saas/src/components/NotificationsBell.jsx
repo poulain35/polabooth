@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { IconCircle } from './ui/icon-circle';
 import { StatusPill } from './ui/status-pill';
+import { kioskLogsHref } from '../lib/kioskAlerts';
 import {
   supabase, dismissKioskAlert, dismissNotification, fetchKioskAlerts, fetchNotifications, markNotificationRead,
 } from '../lib/supabase';
@@ -32,9 +33,9 @@ const ALERT_META = {
 // Cloche : bouton du haut, et icône des notifications dont la sorte n'est pas connue (rond jamais vide).
 const BELL_ICON = 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9';
 
-// Page Kiosks ; les erreurs de la borne ouvrent ses journaux sur l'événement (LAB-329).
+// Page Bornes ; les erreurs de la borne ouvrent ses journaux sur l'événement (LAB-329, onglet Alertes).
 const alertTarget = (a) => (a.alert_type === 'kiosk_errors' && a.event_id
-  ? `/admin/bornes?event=${encodeURIComponent(a.event_id)}`
+  ? kioskLogsHref(a.event_id)
   : '/admin/bornes');
 
 // Notifications commerciales (pipeline de vente). type libre côté base.

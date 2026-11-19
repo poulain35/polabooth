@@ -78,7 +78,8 @@ configuration et indique les commandes à lancer ; le programme d'installation
 (`saas/installer.cmd` sous Windows, `saas/installer.sh` sous macOS et Linux) fait le reste.
 
 1. Le SaaS : [docs/installation-instance.md](docs/installation-instance.md). Un script
-   (`npm run install-instance`) crée la base, déploie les fonctions et construit le site.
+   (`npm run install-instance`) crée la base, déploie les fonctions et construit le site. Pour les
+   versions suivantes, `npm run update-instance` fait toute la mise à jour (section 10 du guide).
 2. La borne : [docs/installation-borne.md](docs/installation-borne.md). Matériel, installeur prêt
    à l'emploi (onglet **Releases**, kit Canon inclus) ou construit par vous, mise en service.
 

@@ -83,6 +83,13 @@ test('validateInstanceEnv : configuration valide normalisée', () => {
   assert.equal(config.companyPhone, null);
   assert.equal(config.storage.STORAGE_ENDPOINT, 'https://s3.fr-par.scw.cloud');
   assert.equal(config.storage.STORAGE_PUBLIC_URL, 'https://medias.s3.fr-par.scw.cloud');
+  assert.deepEqual(config.hosting, { host: null, project: null }, 'HOSTING vide : mise en ligne à la main');
+});
+
+test('validateInstanceEnv : HOSTING vérifié dès l\'installation (LAB-432)', () => {
+  assert.deepEqual(validateInstanceEnv({ ...validEnv, HOSTING: 'netlify', HOSTING_PROJECT: 'mon-site' }).config.hosting, { host: 'netlify', project: 'mon-site' });
+  assert.match(validateInstanceEnv({ ...validEnv, HOSTING: 'ftp' }).errors.join(' '), /HOSTING invalide/);
+  assert.match(validateInstanceEnv({ ...validEnv, HOSTING: 'cloudflare' }).errors.join(' '), /HOSTING_PROJECT est vide/);
 });
 
 test('validateInstanceEnv : messages clairs pour chaque erreur', () => {

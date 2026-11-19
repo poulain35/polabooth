@@ -111,6 +111,8 @@ const MOBILE_TABS = {
 
 // Choix du thème dans le menu du compte (LAB-340).
 const THEME_ICONS = { light: Sun, dark: Moon, system: SunMoon };
+// Version installée (« 1.2.0 (abc1234) », vite.config.js), en bas du menu du compte (LAB-431).
+const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
 const SHORTCUT = shortcutLabel(typeof navigator === 'undefined' ? '' : navigator.userAgentData?.platform || navigator.platform);
 
@@ -280,6 +282,11 @@ export default function AdminLayout() {
         <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:text-destructive">
           <LogOut className="w-4 h-4" />Déconnexion
         </DropdownMenuItem>
+        {APP_VERSION && (
+          <p className="px-2 pt-2 pb-1 text-xs text-muted-foreground select-text" title="Version installée (CHANGELOG.md du dépôt)">
+            Polabooth {APP_VERSION}
+          </p>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

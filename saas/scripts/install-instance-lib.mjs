@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import { PASSWORD_MIN_LENGTH } from '../src/lib/passwordRules.js';
 import { isJwt } from './kiosk-config.mjs';
+import { hostingConfig } from './update-instance-lib.mjs';
 
 export { isJwt };
 
@@ -165,6 +166,11 @@ export function validateInstanceEnv(values, { local = false, fallbackToken = '' 
   if (config.storage.STORAGE_FORCE_PATH_STYLE && !['true', 'false'].includes(config.storage.STORAGE_FORCE_PATH_STYLE)) {
     errors.push(`STORAGE_FORCE_PATH_STYLE invalide (« ${v('STORAGE_FORCE_PATH_STYLE')} ») : true ou false (ou laissez vide).`);
   }
+
+  // Mise en ligne par npm run update-instance (LAB-432) : vérifiée dès l'installation.
+  const hosting = hostingConfig(values);
+  errors.push(...hosting.errors);
+  config.hosting = { host: hosting.host, project: hosting.project };
 
   return { config, errors };
 }

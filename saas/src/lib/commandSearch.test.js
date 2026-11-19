@@ -176,9 +176,12 @@ test('buildPageCommands : filtrées comme le menu', () => {
   const open = buildPageCommands({ isAvailable: (id) => id === 'core', isAppAdmin: false, salesTabs: [], hiddenSettings: ['offres'] });
   const openIds = open.map((i) => i.id);
   // Version ouverte (LAB-421) : ni Calendrier ni Matériel, fournis par le module privé « planning ».
-  for (const id of ['page:ventes', 'page:events:calendrier', 'page:bornes:materiel', 'page:bornes:alertes', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
+  for (const id of ['page:ventes', 'page:events:calendrier', 'page:bornes:materiel', 'page:bornes:code', 'page:reglages:offres', 'page:templates', 'page:aide']) {
     assert.ok(!openIds.includes(id), id);
   }
+  // Journaux des bornes toujours accessibles : l'onglet Alertes ne garde qu'eux sans kiosk_alerts.
+  assert.equal(open.find((i) => i.id === 'page:bornes:alertes')?.title, 'Journaux des bornes');
+  assert.equal(all.find((i) => i.id === 'page:bornes:alertes').title, 'Alertes et journaux des bornes');
   assert.ok(openIds.includes('page:bornes:etat'));
   assert.ok(openIds.includes('page:reglages:entreprise'));
 });

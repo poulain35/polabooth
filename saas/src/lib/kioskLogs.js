@@ -4,6 +4,15 @@
 import { countLabel } from './format.js';
 
 export const LOG_PAGE_SIZE = 100;
+// Journaux par page au choix (Bornes › Alertes) ; 25 par défaut, choix gardé par appareil.
+export const LOG_PAGE_SIZES = [25, 50, 100];
+export const LOG_PAGE_SIZE_KEY = 'pola-kiosk-logs-page-size';
+
+/** Nombre de journaux par page tiré d'une valeur enregistrée : une des tailles proposées, sinon `fallback`. */
+export function parseLogPageSize(value, fallback = LOG_PAGE_SIZES[0]) {
+  const n = Number(value);
+  return LOG_PAGE_SIZES.includes(n) ? n : fallback;
+}
 export const LOG_EXPORT_MAX = 5000;
 export const LOG_EXPORT_CHUNK = 1000;
 // Nouveaux journaux lus d'un coup (temps réel ou relecture périodique) ; au-delà, on recharge.

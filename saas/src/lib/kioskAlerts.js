@@ -51,6 +51,12 @@ export function alertsTabHref(alertId) {
   return id ? `/admin/bornes?tab=alertes&alerte=${id}` : '/admin/bornes?tab=alertes';
 }
 
+/** Journaux des bornes (onglet Alertes), filtrés sur un événement si `eventId` est donné. */
+export function kioskLogsHref(eventId) {
+  const id = String(eventId ?? '').trim();
+  return id ? `/admin/bornes?tab=alertes&event=${encodeURIComponent(id)}` : '/admin/bornes?tab=alertes';
+}
+
 /** Durée pendant laquelle une alerte résolue reste affichée. */
 export const RESOLVED_DAYS = 7;
 
@@ -73,7 +79,7 @@ export function alertLinks(alert) {
   if (alert?.event_id) {
     const id = encodeURIComponent(alert.event_id);
     links.push({ label: "Voir l'événement", to: `/admin/events/${id}?tab=jour-j` });
-    if (alert.alert_type === 'kiosk_errors') links.push({ label: 'Voir les journaux', to: `/admin/bornes?tab=etat&event=${id}` });
+    if (alert.alert_type === 'kiosk_errors') links.push({ label: 'Voir les journaux', to: kioskLogsHref(alert.event_id) });
   }
   return links;
 }

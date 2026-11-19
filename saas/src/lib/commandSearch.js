@@ -238,7 +238,11 @@ export function licenseCommand(lic) {
 const BORNES_TAB_DEFS = {
   etat: { label: 'État des bornes', keywords: ['licences', 'en ligne', 'association'] },
   ecrans: { label: 'Écrans de la borne', keywords: ['accueil par défaut', 'écran de partage'] },
-  alertes: { label: 'Alertes des bornes', keywords: ['imprimante', 'papier'], feature: 'kiosk_alerts' },
+  // Toujours là : sans la fonctionnalité kiosk_alerts, l'onglet ne montre que les journaux.
+  alertes: {
+    label: 'Alertes et journaux des bornes', keywords: ['imprimante', 'papier', 'journaux', 'logs', 'erreurs'],
+    labelWithout: { feature: 'kiosk_alerts', label: 'Journaux des bornes' },
+  },
   code: { label: 'Écran du code', keywords: ['saisie du code'], appAdminOnly: true },
   versions: { label: 'Versions de la borne', keywords: ['mise à jour'] },
 };
@@ -328,7 +332,8 @@ export function buildPageCommands(ctx = {}) {
     for (const tab of BORNES_TABS) {
       const def = BORNES_TAB_DEFS[tab];
       if (!def || (def.feature && !isAvailable(def.feature)) || (def.appAdminOnly && !ctx.isAppAdmin)) continue;
-      items.push(page(`bornes:${tab}`, def.label, `/admin/bornes?tab=${tab}`, { subtitle: 'Bornes', keywords: def.keywords }));
+      const label = def.labelWithout && !isAvailable(def.labelWithout.feature) ? def.labelWithout.label : def.label;
+      items.push(page(`bornes:${tab}`, label, `/admin/bornes?tab=${tab}`, { subtitle: 'Bornes', keywords: def.keywords }));
       if (tab !== 'etat') continue;
       for (const extra of ctx.bornesTabs ?? []) {
         items.push(page(`bornes:${extra.id}`, extra.label, `/admin/bornes?tab=${extra.id}`, { subtitle: 'Bornes', keywords: extra.keywords }));

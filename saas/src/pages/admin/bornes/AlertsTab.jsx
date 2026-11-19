@@ -1,8 +1,11 @@
 // Onglet Alertes de la page Bornes (/admin/bornes?tab=alertes, LAB-338) : alertes en cours et
-// récentes, puis réglage des alertes envoyées par email (déplacé de Paramètres sans changer
-// l'enregistrement). Une alerte précise : ?tab=alertes&alerte=<id> (défilement et surbrillance).
-// Visible avec la fonctionnalité kiosk_alerts. Logique pure : lib/kioskAlerts.js.
-import { useEffect, useState } from 'react';
+// récentes, journaux des bornes (déplacés de l'onglet État), puis réglage des alertes envoyées par
+// email. Une alerte précise : ?tab=alertes&alerte=<id> (défilement et surbrillance). Journaux d'un
+// événement : ?tab=alertes&event=<id> (lien « Voir les journaux », LAB-329 ; défilement jusqu'au panneau).
+// Sans la fonctionnalité kiosk_alerts, l'onglet s'appelle « Journaux » et n'affiche que les journaux
+// (alertsEnabled = false). Sommaire collant à droite (SectionRail) vers les trois blocs.
+// Logique pure : lib/kioskAlerts.js, lib/kioskLogs.js.
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { supabase, fetchKioskAlerts, fetchLicenses } from '../../../lib/supabase';
@@ -24,6 +27,9 @@ import { toast } from 'sonner';
 import { useOwnOrganization } from '../reglages/useOwnOrganization';
 import { formatDateTime } from '../../../lib/dates';
 import { Notice } from '../../../components/admin/CardParts';
+import KioskLogsPanel from '../../../components/admin/KioskLogsPanel';
+import { parseEventParam } from '../../../lib/kioskLogs';
+import SectionRail from '../../../components/admin/SectionRail';
 
 const ALERT_COLUMNS = 'id, event_id, machine_id, alert_type, detail, sent_at, resolved_at, events(name)';
 const ALERTS_LIMIT = 100;
@@ -223,7 +229,7 @@ function AlertRow({ alert, licenses, highlighted }) {
 }
 
 /** Alertes en cours et résolues récemment, relues en temps réel. */
-function AlertsList({ targetId }) {
+function AlertsList({ targetId, onOpenCount }) {
   const [alerts, setAlerts] = useState([]);
   const [licenses, setLicenses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -262,6 +268,8 @@ function AlertsList({ targetId }) {
   }, [loading, targetId]);
 
   const { open, resolved } = splitAlerts(alerts, { keepId: targetId });
+  const openCount = open.length;
+  useEffect(() => { onOpenCount?.(openCount); }, [openCount, onOpenCount]);
 
   return (
     <section aria-labelledby="alertes-en-cours">
@@ -299,17 +307,60 @@ function AlertsList({ targetId }) {
   );
 }
 
-export default function AlertsTab() {
+/** Journaux de toutes les bornes ; lien `?event=` : filtrés sur l'événement, défilement jusqu'au panneau. */
+function LogsSection({ linkedEventId }) {
+  const [licenses, setLicenses] = useState([]);
+  // Événement du lien une fois sa première page de journaux affichée (null sinon).
+  const [linked, setLinked] = useState(null);
+  const scrolled = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetchLicenses({ includeRetired: true }).then((l) => { if (alive) setLicenses(l); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!linked || linked !== linkedEventId || scrolled.current === linked) return;
+    scrolled.current = linked;
+    document.getElementById('journaux-bornes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [linked, linkedEventId]);
+
+  // Nouveau lien (« Voir les journaux » d'une autre alerte) : le panneau repart avec ce filtre.
+  return (
+    <KioskLogsPanel key={linkedEventId ?? 'tous'} licenses={licenses} initialEventId={linkedEventId}
+      onLinkedEvent={(ok) => setLinked(ok ? linkedEventId : null)} />
+  );
+}
+
+export default function AlertsTab({ alertsEnabled = true }) {
   const [searchParams] = useSearchParams();
   const targetId = parseAlertParam(searchParams.get('alerte'));
+  const linkedEventId = parseEventParam(searchParams.get('event'));
   const { org, loading } = useOwnOrganization();
+  const [openCount, setOpenCount] = useState(0);
+
+  const sections = alertsEnabled
+    ? [
+      { id: 'bloc-alertes', label: 'Alertes en cours', count: openCount },
+      { id: 'bloc-journaux', label: 'Journaux des bornes' },
+      { id: 'bloc-reglages', label: 'Réglages des alertes' },
+    ]
+    : [{ id: 'bloc-journaux', label: 'Journaux des bornes' }];
 
   return (
-    <div className="flex flex-col gap-5">
-      <AlertsList targetId={targetId} />
-      {loading
-        ? <Skeleton className="h-40 rounded-card" />
-        : org && <AlertsSection org={org} />}
-    </div>
+    <SectionRail sections={sections}>
+      <div className="flex flex-col gap-5">
+        {alertsEnabled && (
+          <div id="bloc-alertes" className="scroll-mt-6"><AlertsList targetId={targetId} onOpenCount={setOpenCount} /></div>
+        )}
+        <div id="bloc-journaux" className="scroll-mt-6"><LogsSection linkedEventId={linkedEventId} /></div>
+        {alertsEnabled && (
+          <div id="bloc-reglages" className="scroll-mt-6">
+            {loading ? <Skeleton className="h-40 rounded-card" /> : org && <AlertsSection org={org} />}
+          </div>
+        )}
+      </div>
+    </SectionRail>
   );
 }

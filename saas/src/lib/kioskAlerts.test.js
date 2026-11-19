@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ALERT_DEFAULT, ALERT_TYPES, alertConfigForm, alertDetailText, alertLabel, alertLinks, alertMachineName,
-  alertsTabHref, parseAlertParam, splitAlerts,
+  alertsTabHref, kioskLogsHref, parseAlertParam, splitAlerts,
 } from './kioskAlerts.js';
 
 const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
@@ -67,7 +67,9 @@ test('alertLinks : événement, et journaux pour les erreurs', () => {
   assert.deepEqual(alertLinks({ alert_type: 'paper_low', event_id: EVENT }).map((l) => l.to),
     [`/admin/events/${EVENT}?tab=jour-j`]);
   assert.deepEqual(alertLinks({ alert_type: 'kiosk_errors', event_id: EVENT }).map((l) => l.to),
-    [`/admin/events/${EVENT}?tab=jour-j`, `/admin/bornes?tab=etat&event=${EVENT}`]);
+    [`/admin/events/${EVENT}?tab=jour-j`, `/admin/bornes?tab=alertes&event=${EVENT}`]);
+  assert.equal(kioskLogsHref(), '/admin/bornes?tab=alertes');
+  assert.equal(kioskLogsHref('ev 1'), '/admin/bornes?tab=alertes&event=ev%201');
 });
 
 test('alertDetailText : HTML du serveur en texte brut', () => {

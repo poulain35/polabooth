@@ -487,3 +487,13 @@ test('buildLogsText et logsFileName : export de la fiche de l’événement', ()
   assert.equal(logsFileName(NOW, { eventName: 'Été à Noël !!' }), 'journaux-borne-ete-a-noel-2026-11-15.txt');
   assert.equal(logsFileName(NOW, { eventName: '   ' }), 'journaux-bornes-2026-11-15.txt');
 });
+
+test('parseLogPageSize : une des tailles proposées, 25 par défaut', async () => {
+  const { parseLogPageSize, LOG_PAGE_SIZES } = await import('./kioskLogs.js');
+  assert.deepEqual(LOG_PAGE_SIZES, [25, 50, 100]);
+  assert.equal(parseLogPageSize(null), 25);
+  assert.equal(parseLogPageSize('50'), 50);
+  assert.equal(parseLogPageSize(100), 100);
+  assert.equal(parseLogPageSize('30'), 25);
+  assert.equal(parseLogPageSize('abc', 100), 100);
+});

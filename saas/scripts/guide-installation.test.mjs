@@ -47,6 +47,8 @@ const VALID = {
   STORAGE_PHOTOS_BUCKET: '',
   STORAGE_PHOTOS_PUBLIC_URL: '',
   STORAGE_FORCE_PATH_STYLE: '',
+  HOSTING: 'netlify',
+  HOSTING_PROJECT: 'mon-photobooth',
 };
 
 const exampleKeys = () => Object.keys(parseEnvFile(readFileSync(`${saasDir}/instance.env.example`, 'utf8')).values);
@@ -56,6 +58,20 @@ test('les champs de la page couvrent instance.env.example plus SUPABASE_ACCESS_T
   assert.equal(new Set(pageKeys).size, pageKeys.length, 'clé en double');
   const expected = [...new Set([...exampleKeys(), 'SUPABASE_ACCESS_TOKEN'])].sort();
   assert.deepEqual([...pageKeys].sort(), expected);
+});
+
+test('HOSTING : mêmes règles que hostingConfig (LAB-432)', () => {
+  const keys = (change) => [...L.validate({ ...VALID, ...change }).errors.map((e) => e.key)];
+  assert.deepEqual(keys({ HOSTING: '', HOSTING_PROJECT: '' }), []);
+  assert.deepEqual(keys({ HOSTING: 'Vercel', HOSTING_PROJECT: '' }), []);
+  assert.deepEqual(keys({ HOSTING: 'manual' }), []);
+  assert.deepEqual(keys({ HOSTING: 'ftp' }), ['HOSTING']);
+  assert.deepEqual(keys({ HOSTING: 'cloudflare', HOSTING_PROJECT: '' }), ['HOSTING_PROJECT']);
+  assert.deepEqual(keys({ HOSTING_PROJECT: 'mon site' }), ['HOSTING_PROJECT']);
+  for (const change of [{ HOSTING: 'ftp' }, { HOSTING: 'cloudflare', HOSTING_PROJECT: '' }, { HOSTING_PROJECT: 'mon site' }]) {
+    const { values } = parseEnvFile(L.buildInstanceEnv({ ...VALID, ...change }));
+    assert.ok(validateInstanceEnv(values).errors.length > 0, JSON.stringify(change));
+  }
 });
 
 test('les champs secrets sont déclarés et marqués comme tels', () => {
