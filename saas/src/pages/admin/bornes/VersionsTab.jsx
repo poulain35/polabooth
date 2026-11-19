@@ -2,10 +2,10 @@
 // chaque borne, demande de mise à jour (LAB-200 : uniquement sur demande d'ici) et, pour le
 // super-admin, publication des versions. Déplacé de l'onglet État sans changer les appels.
 import { useEffect, useState } from 'react';
-import { Camera, Trash2 } from 'lucide-react';
+import { Camera, Check, Copy, Download, Trash2 } from 'lucide-react';
 import { supabase, fetchLicenses, fetchKioskReleases, uploadKioskRelease, deleteKioskRelease,
   requestKioskUpdate, isAppAdmin, fetchKioskAccounts } from '../../../lib/supabase';
-import { compareVersions, kioskUpdateStatus, latestRelease } from '../../../lib/kioskUpdate';
+import { compareVersions, kioskInstallerAddress, kioskUpdateStatus, latestRelease } from '../../../lib/kioskUpdate';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
@@ -19,6 +19,7 @@ import { StatusPill } from '../../../components/ui/status-pill';
 import { toast } from 'sonner';
 import { formatDateTime } from '../../../lib/dates';
 import { kioskName } from '../../../lib/kioskLogs';
+import { useCopy } from '../../../hooks/useCopy';
 
 // ── Mise à jour de la borne (LAB-200 : uniquement sur demande d'ici) ─────────
 function UpdateStatusLine({ status }) {
@@ -97,6 +98,37 @@ function KioskUpdate({ lic, releases, onUpdateChange }) {
   );
 }
 
+// ── Nouvelle borne : adresse courte de l'installeur ──────────────────────────
+
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+/** Adresse courte et publique (/installer-borne) qui télécharge toujours la dernière version. */
+function NewKioskCard({ latestVersion }) {
+  const { copied, copy } = useCopy();
+  const address = kioskInstallerAddress(APP_URL);
+  return (
+    <Card className="p-card">
+      <CardTitle as="h2">Installer une nouvelle borne</CardTitle>
+      <p className="mt-1 text-[13px] text-muted-foreground">
+        Sur le PC de la borne, ouvrez le navigateur et tapez cette adresse : la dernière version
+        (v{latestVersion}) se télécharge, sans connexion. L'adresse ne change pas d'une version à l'autre.
+      </p>
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-soft px-3 py-2">
+        <a href={address} target="_blank" rel="noreferrer"
+          className="min-w-0 flex-1 truncate font-mono text-sm text-foreground hover:underline">
+          {address.replace(/^https?:\/\//, '')}
+        </a>
+        <Button type="button" variant="ghost" size="icon-sm"
+          onClick={async () => { if (!(await copy(address, 'installer'))) toast.error('Copie impossible'); }}
+          title={copied === 'installer' ? 'Adresse copiée' : "Copier l'adresse"}
+          aria-label="Copier l'adresse de l'installeur">
+          {copied === 'installer' ? <Check /> : <Copy />}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 // ── Versions kiosk (déploiement, super-admin seulement) ──────────────────────
 
 function ReleasesPanel({ releases, loading, onChanged }) {
@@ -105,6 +137,7 @@ function ReleasesPanel({ releases, loading, onChanged }) {
   const [file,     setFile]     = useState(null);
   const [busy,     setBusy]     = useState(false);
   const [progress, setProgress] = useState(null);
+  const { copied, copy } = useCopy();
 
   async function handlePublish(e) {
     e.preventDefault();
@@ -133,6 +166,7 @@ function ReleasesPanel({ releases, loading, onChanged }) {
       <p className="mt-1 text-[13px] text-muted-foreground">
         Publiez une version, puis demandez-la borne par borne avec « Mettre à jour » sur chaque PC.
         Une borne ne se met jamais à jour d'elle-même. Pour revenir en arrière, demandez une version antérieure.
+        Une version précise pour une borne : téléchargez son installeur, ou copiez son lien.
       </p>
 
       {/* Publier une version */}
@@ -184,6 +218,22 @@ function ReleasesPanel({ releases, loading, onChanged }) {
                   </p>
                 )}
               </div>
+              {rel.exe_url && (
+                <>
+                  <Button asChild variant="outline" size="sm">
+                    <a href={rel.exe_url} download={`setup-polakiosk-${rel.version}.exe`}
+                      aria-label={`Télécharger l'installeur de la version ${rel.version}`}>
+                      <Download /><span className="hidden sm:inline">Télécharger</span>
+                    </a>
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm"
+                    onClick={async () => { if (!(await copy(rel.exe_url, rel.id))) toast.error('Copie impossible'); }}
+                    title={copied === rel.id ? 'Lien copié' : "Copier le lien de l'installeur"}
+                    aria-label={`Copier le lien de l'installeur de la version ${rel.version}`}>
+                    {copied === rel.id ? <Check /> : <Copy />}
+                  </Button>
+                </>
+              )}
               <Button type="button" variant="ghost" size="icon-sm" onClick={() => handleDelete(rel)} title="Supprimer"
                 aria-label={`Supprimer la version ${rel.version}`}
                 className="text-muted-foreground hover:bg-state-red hover:text-state-red-fg">
@@ -262,6 +312,8 @@ export default function VersionsTab() {
         Une borne ne se met jamais à jour d'elle-même : choisissez la version à installer, borne par borne.
         {latestVersion && <> Dernière version publiée : <span className="font-mono font-medium text-foreground">v{latestVersion}</span>.</>}
       </p>
+
+      {latestVersion && <NewKioskCard latestVersion={latestVersion} />}
 
       {/* Versions de la borne (publication, super-admin) */}
       {superAdmin && <ReleasesPanel releases={releases} loading={relLoading} onChanged={loadReleases} />}

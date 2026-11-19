@@ -20,7 +20,31 @@ export function latestRelease(releases) {
   );
 }
 
-const time = (iso) => (iso ? new Date(iso).getTime() : NaN);
+/** Adresse courte et publique qui télécharge toujours la dernière version de la borne. */
+export const KIOSK_INSTALLER_PATH = '/installer-borne';
+
+/** Adresse complète de l'installeur à partir de l'adresse du SaaS (VITE_APP_URL ou l'origine). */
+export function kioskInstallerAddress(appUrl) {
+  return `${String(appUrl ?? '').trim().replace(/\/+$/, '')}${KIOSK_INSTALLER_PATH}`;
+}
+
+/**
+ * Installeur renvoyé par la RPC get_latest_kiosk_installer : { version, exeUrl } si l'adresse est en
+ * https, null sinon (aucune version, réponse inattendue). Jamais de redirection vers autre chose.
+ */
+export function kioskInstallerTarget(data) {
+  const version = typeof data?.version === 'string' ? data.version.trim() : '';
+  const raw = typeof data?.exe_url === 'string' ? data.exe_url.trim() : '';
+  if (!version || !raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' ? { version, exeUrl: url.href } : null;
+  } catch {
+    return null;
+  }
+}
+
+const time = (iso) =>(iso ? new Date(iso).getTime() : NaN);
 
 /**
  * État de la dernière demande de mise à jour d'une borne :

@@ -110,6 +110,8 @@ Ne les mettez jamais dans le dépôt git.
 > Côté SaaS, ce fichier n'est pas versionné : le build le génère depuis `KIOSK_SUPABASE_ANON_KEY`
 > (et `KIOSK_SUPABASE_URL`), voir `saas/CLAUDE.md`, « Variables d'environnement ».
 
+> **Nouvelle borne.** Bornes › Versions affiche l'adresse courte `<adresse du SaaS>/installer-borne` (bouton « Copier ») : ouverte dans le navigateur du PC de la borne, elle télécharge la dernière version publiée, sans connexion (page publique, RPC `get_latest_kiosk_installer` ouverte à anon, qui ne renvoie que le numéro et l'adresse de l'installeur). Chaque version a aussi « Télécharger » et « Copier le lien ».
+
 ## Déployer une mise à jour (depuis le SaaS)
 
 Une borne ne se met **jamais** à jour d'elle-même : uniquement quand on le demande depuis le SaaS.

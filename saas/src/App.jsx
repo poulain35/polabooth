@@ -12,6 +12,7 @@ import { isProductScreenPath } from './lib/theme';
 import { PolaboothLoader } from './components/PolaboothBrand';
 import { useInAdminLayout } from './pages/admin/adminLayoutContext';
 import RouteError from './components/RouteError';
+import { KIOSK_INSTALLER_PATH } from './lib/kioskUpdate';
 
 // Seul point d'entrée chargé immédiatement : l'accueil public, léger.
 import Landing     from './pages/Landing';
@@ -42,6 +43,7 @@ const AdminDashboard     = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminPair          = lazy(() => import('./pages/AdminPair'));
 const AdminResetPassword = lazy(() => import('./pages/AdminResetPassword'));
 const EventReport        = lazy(() => import('./pages/EventReport'));
+const KioskInstaller     = lazy(() => import('./pages/KioskInstaller'));
 
 /**
  * Chargement plein écran (session, fonctionnalités, téléchargement d'une page). Écrans du logiciel :
@@ -172,6 +174,8 @@ const routes = [
   { path: '/aide',         element: L(<Assistance />) },
   { path: '/aide/:code',   element: L(<Assistance />) },
   { path: '/rapport/:token', element: P(<EventReport />) },
+  // Adresse courte et publique : télécharge la dernière version de la borne (PC neuf, sans connexion).
+  { path: KIOSK_INSTALLER_PATH, element: L(<KioskInstaller />) },
   // Pages des modules : galerie audio, récap de réservation à jeton, CGL, désinscription…
   ...publicModuleRoutes,
   ...clientModuleRoutes,

@@ -13,6 +13,10 @@ service central n'est nécessaire.
 
 ![Polabooth en 30 secondes : créer un événement, le cadre photo créé par le client, le partage sur la borne, le bilan de la soirée et le suivi des bornes](docs/polabooth-presentation.gif)
 
+**Licence en bref :** gratuit pour votre propre activité de location de photobooth, même
+commerciale. Vous ne pouvez pas le vendre, le louer ou l'héberger pour d'autres loueurs. Licence
+PolyForm Shield 1.0.0 avec une permission en plus, détaillée dans [Licence](#licence).
+
 > **In English.** Polabooth is a photo booth software suite for photo booth rental businesses: a
 > web app (events, clients, photo designs, online galleries, kiosk fleet) and a Windows kiosk app
 > (Canon or webcam capture, printing, QR code and email sharing, offline mode). You host

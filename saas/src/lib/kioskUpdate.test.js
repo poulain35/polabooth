@@ -1,7 +1,7 @@
 // LAB-200 : mise à jour d'une borne uniquement sur demande depuis la page Licences.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareVersions, kioskUpdateStatus, latestRelease, pendingKioskUpdate } from './kioskUpdate.js';
+import { compareVersions, kioskInstallerAddress, kioskInstallerTarget, kioskUpdateStatus, latestRelease, pendingKioskUpdate } from './kioskUpdate.js';
 
 const REQ = '2026-11-03T10:00:00.123456+00:00';
 const lic = (over = {}) => ({
@@ -97,4 +97,23 @@ test('pendingKioskUpdate : une demande échouée laisse la borne comptée', () =
     update_requested_at: REQ, update_failed_at: '2026-11-03T11:00:00Z', update_error: 'x',
   };
   assert.deepEqual(pendingKioskUpdate([failed], releases, 'o1'), { version: '1.0.19', count: 1 });
+});
+
+test('adresse courte de l\'installeur : /installer-borne après l\'adresse du SaaS, sans double barre', () => {
+  assert.equal(kioskInstallerAddress('https://photobooth.exemple.fr'), 'https://photobooth.exemple.fr/installer-borne');
+  assert.equal(kioskInstallerAddress('https://exemple.fr/ '), 'https://exemple.fr/installer-borne');
+  assert.equal(kioskInstallerAddress('https://exemple.fr//'), 'https://exemple.fr/installer-borne');
+});
+
+test('installeur : adresse https seulement, version obligatoire, sinon null', () => {
+  assert.deepEqual(
+    kioskInstallerTarget({ version: '1.0.22', exe_url: 'https://pub-x.r2.dev/kiosk/PolaKiosk-Setup-1.0.22.exe' }),
+    { version: '1.0.22', exeUrl: 'https://pub-x.r2.dev/kiosk/PolaKiosk-Setup-1.0.22.exe' },
+  );
+  assert.equal(kioskInstallerTarget(null), null);
+  assert.equal(kioskInstallerTarget({}), null);
+  assert.equal(kioskInstallerTarget({ version: '1.0.22', exe_url: 'http://exemple.fr/a.exe' }), null);
+  assert.equal(kioskInstallerTarget({ version: '1.0.22', exe_url: 'javascript:alert(1)' }), null);
+  assert.equal(kioskInstallerTarget({ version: '1.0.22', exe_url: 'pas une adresse' }), null);
+  assert.equal(kioskInstallerTarget({ version: '', exe_url: 'https://exemple.fr/a.exe' }), null);
 });

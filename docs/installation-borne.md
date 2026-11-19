@@ -178,7 +178,11 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
 
 ### 5.1 Installer
 
-1. Copiez `setup-polakiosk.exe` sur le PC de la borne (clé USB, ou téléchargement).
+1. Copiez `setup-polakiosk.exe` sur le PC de la borne (clé USB, ou téléchargement). Le plus simple :
+   sur le PC de la borne, ouvrez le navigateur à l'adresse `https://<votre-saas>/installer-borne`.
+   Elle télécharge toujours la dernière version publiée dans Bornes › Versions, sans connexion
+   (adresse publique, affichée avec un bouton « Copier » dans cet onglet ; RPC
+   `get_latest_kiosk_installer`, migration `20270115000000`). Aucune version publiée : la page le dit.
 2. Lancez-le. Aucun droit administrateur n'est demandé : l'application s'installe pour
    l'utilisateur Windows en cours. Elle ne démarre pas avec Windows : pour qu'elle s'ouvre
    toute seule à chaque démarrage du PC, cochez « Lancer la borne au démarrage de Windows » dans

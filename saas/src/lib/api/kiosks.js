@@ -102,6 +102,16 @@ export async function updateOrgKioskLimit(orgId, limit) {
 
 // ── Versions kiosk (déploiement) ──────────────────────────────────────────────
 
+/**
+ * Dernière version de la borne et adresse de son installeur, pour la page publique /installer-borne
+ * (RPC get_latest_kiosk_installer, ouverte à anon). Null si aucune version n'est publiée.
+ */
+export async function getLatestKioskInstaller() {
+  const { data, error } = await supabase.rpc('get_latest_kiosk_installer');
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function fetchKioskReleases() {
   const { data, error } = await supabase
     .from('kiosk_releases')
