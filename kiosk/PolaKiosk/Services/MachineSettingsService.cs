@@ -91,6 +91,13 @@ public class MachineSettingsService : IMachineSettingsService
         Save();
     }
 
+    public void SetPrintAdjustment(PrintAdjustment adjustment)
+    {
+        var clean = PrintAdjust.Normalize(adjustment);
+        _current = _current with { PrintAdjustment = PrintAdjust.IsZero(clean) ? null : clean };
+        Save();
+    }
+
     private MachineSettings Load()
     {
         try

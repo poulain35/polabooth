@@ -27,7 +27,8 @@ public class PrintService : IPrintService
     public PrintService(AppDbContext db, IPrintLogSyncService printLogs, IKioskLogService? log = null,
         IMachineSettingsService? machine = null, IPrinterDriver? driver = null)
         : this(db, printLogs,
-            request => PrepareSystemPrint(request, log, machine?.Current.PrinterDriverSettings, driver),
+            request => PrepareSystemPrint(request, log, machine?.Current.PrinterDriverSettings, driver,
+                machine?.Current.PrintAdjustment),
             DefaultTimeout, SharedGate) { }
 
     internal PrintService(AppDbContext db, IPrintLogSyncService printLogs, Func<PrintRequest, IPrintJob> prepare,
@@ -54,6 +55,38 @@ public class PrintService : IPrintService
         if (!File.Exists(compositePath))
             throw new FileNotFoundException("Fichier composite introuvable.", compositePath);
 
+        await SendAsync(new PrintRequest(compositePath, printerName, paperFormat, copies), async () =>
+        {
+            // Compté à l'envoi, avant d'attendre l'imprimante : une impression qui sort après
+            // le délai est bien décomptée.
+            await RecordPrintAsync(sessionId, eventId, copies, compositeUrl, machineId);
+
+            // Envoi à Supabase sans attendre la boucle de 2 minutes, en arrière-plan (ne lève pas).
+            _printLogs.SendSoon();
+        });
+    }
+
+    /// <summary>
+    /// Feuille de test du décalage (LAB-433) : imprimée comme un cadre 10x15, avec le réglage de la borne,
+    /// jamais comptée ni envoyée au SaaS.
+    /// </summary>
+    public async Task PrintTestSheetAsync(string printerName, PrintAdjustment? adjustment)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"pola-feuille-test-{Guid.NewGuid():N}.png");
+        try
+        {
+            await Task.Run(() => PrintTestSheet.Render(path, adjustment));
+            await SendAsync(new PrintRequest(path, printerName, PrintTestSheet.PaperFormat, 1), () => Task.CompletedTask);
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { /* fichier temporaire : sans conséquence */ }
+        }
+    }
+
+    /// <summary>Prépare, puis envoie un travail : un seul à la fois, délai d'attente borné.</summary>
+    private async Task SendAsync(PrintRequest request, Func<Task> beforeSend)
+    {
         // Un travail précédent jugé perdu après le délai peut encore sortir : pas de nouvel envoi
         // tant qu'il n'est pas terminé, sinon la photo serait imprimée deux fois.
         if (!_gate.TryEnter())
@@ -63,21 +96,16 @@ public class PrintService : IPrintService
         try
         {
             // Imprimante invalide ou format introuvable : erreur levée ici, rien n'est compté.
-            var prepared = await Task.Run(() => _prepare(new PrintRequest(compositePath, printerName, paperFormat, copies)));
+            var prepared = await Task.Run(() => _prepare(request));
             try
             {
-                // Compté à l'envoi, avant d'attendre l'imprimante : une impression qui sort après
-                // le délai est bien décomptée.
-                await RecordPrintAsync(sessionId, eventId, copies, compositeUrl, machineId);
+                await beforeSend();
             }
             catch
             {
                 prepared.Dispose();
                 throw;
             }
-
-            // Envoi à Supabase sans attendre la boucle de 2 minutes, en arrière-plan (ne lève pas).
-            _printLogs.SendSoon();
 
             // La garde se libère à la fin réelle du travail, avant que l'appelant n'en soit informé.
             job = Task.Run(() =>
@@ -234,7 +262,7 @@ public class PrintService : IPrintService
         => PrintFormats.FindOrDefault(templateFormat).Paper;
 
     private static IPrintJob PrepareSystemPrint(PrintRequest request, IKioskLogService? log,
-        IReadOnlyList<PrinterDriverSetting>? driverSettings, IPrinterDriver? driver)
+        IReadOnlyList<PrinterDriverSetting>? driverSettings, IPrinterDriver? driver, PrintAdjustment? adjustment)
     {
         var pd = new PrintDocument();
         try
@@ -290,12 +318,29 @@ public class PrintService : IPrintService
             // Toujours imposé : un réglage enregistré peut porter un autre nombre de copies.
             pd.PrinterSettings.Copies = (short)Math.Clamp(request.Copies, 1, 99);
 
+            // Décalage et agrandissement de la borne (LAB-433), réglés dans le sens d'une photo en portrait.
+            var pageAdjust = PrintAdjust.IsZero(adjustment) ? default(PageAdjustment?) : PrintAdjust.ForPage(adjustment,
+                referenceLandscape: paperSize != null && PaperSizeChooser.NeedsLandscape(
+                    PrintTestSheet.Width, PrintTestSheet.Height, paperSize.Width, paperSize.Height),
+                pageLandscape: pd.DefaultPageSettings.Landscape,
+                landscapeAngle: ReadLandscapeAngle(pd.PrinterSettings));
+
             pd.PrintPage += (_, e) =>
             {
                 if (e.Graphics == null) return;
                 using var image = Image.FromFile(request.CompositePath);
                 var pb = e.PageBounds;
                 e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+
+                // Toute la page bouge et grandit d'un bloc (autour de son centre) : la coupe des bandes
+                // doublées reste au milieu de l'image, et les découpes (SetClip) suivent.
+                if (pageAdjust is { IsIdentity: false } t)
+                {
+                    float cx = pb.X + pb.Width / 2f, cy = pb.Y + pb.Height / 2f;
+                    e.Graphics.TranslateTransform(cx + (float)t.OffsetX, cy + (float)t.OffsetY);
+                    e.Graphics.ScaleTransform((float)t.Scale, (float)t.Scale);
+                    e.Graphics.TranslateTransform(-cx, -cy);
+                }
 
                 if (setup.DoubleStrip)
                 {
@@ -329,6 +374,13 @@ public class PrintService : IPrintService
             pd.Dispose();
             throw;
         }
+    }
+
+    // 90 par défaut (valeur courante des pilotes) si le pilote ne répond pas.
+    private static int ReadLandscapeAngle(PrinterSettings settings)
+    {
+        try { return settings.LandscapeAngle; }
+        catch { return 90; }
     }
 
     private static int ReadDevModeSize(IPrinterDriver? driver, string printer)

@@ -216,6 +216,70 @@
 
                     <TextBlock Text="{Binding DriverSettingMsg}" Style="{StaticResource AdminHint}" Margin="0,12,0,0"
                                Visibility="{Binding DriverSettingMsg, Converter={StaticResource BoolToVisibility}}"/>
+
+                    <!-- Décalage de l'impression (LAB-433) : un seul réglage par borne, dans le sens d'une photo en portrait -->
+                    <TextBlock Text="Décalage de l'impression" Margin="0,22,0,6" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource KioskOnDarkBrush}"/>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,0,0,12"
+                               Text="D'un rouleau de papier à l'autre, l'image peut tomber un peu à côté. Imprimez la feuille de test, tenez-la avec « HAUT » en haut, puis décalez par pas de 0,5 mm. Le réglage vaut pour tous les cadres (10x15, paysage, bandes) et reste sur cette borne."/>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="240"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Gauche / droite" VerticalAlignment="Center" FontSize="15"
+                                   Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="1" Command="{Binding MoveLeftCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="← Gauche"/>
+                        <TextBlock Grid.Column="2" Text="{Binding OffsetXLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="3" Command="{Binding MoveRightCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="Droite →"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="240"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Haut / bas" VerticalAlignment="Center" FontSize="15"
+                                   Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="1" Command="{Binding MoveUpCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="↑ Haut"/>
+                        <TextBlock Grid.Column="2" Text="{Binding OffsetYLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="3" Command="{Binding MoveDownCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="Bas ↓"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="240"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Agrandissement" VerticalAlignment="Center" FontSize="15"
+                                   Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="1" Command="{Binding EnlargeLessCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="−"/>
+                        <TextBlock Grid.Column="2" Text="{Binding EnlargeLabel}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource KioskOnDarkBrush}"/>
+                        <Button Grid.Column="3" Command="{Binding EnlargeMoreCommand}" Style="{StaticResource AdminButton}"
+                                Width="120" Height="64" Padding="0" FontSize="20" Content="+"/>
+                    </Grid>
+                    <TextBlock Style="{StaticResource AdminHint}" Margin="0,0,0,12"
+                               Text="Un bord blanc apparaît après un décalage ? Agrandissez un peu : l'image couvre de nouveau toute la feuille."/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Command="{Binding PrintTestSheetCommand}" Style="{StaticResource AdminButton}"
+                                Margin="0,0,12,0" Content="Imprimer une feuille de test"/>
+                        <Button Command="{Binding ResetPrintAdjustmentCommand}" Style="{StaticResource AdminButton}"
+                                Content="Remettre à zéro"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding PrintAdjustMsg}" Style="{StaticResource AdminHint}" Margin="0,8,0,0"
+                               Visibility="{Binding PrintAdjustMsg, Converter={StaticResource BoolToVisibility}}"/>
                 </StackPanel>
             </Border>
 

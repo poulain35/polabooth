@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <!-- Version de l'app — incrémenter à chaque release. Lue au runtime pour les MAJ. -->
-    <Version>1.0.22</Version>
+    <Version>1.0.23</Version>
     <!-- Icône Polabooth de l'exe : raccourcis, barre des tâches, liste des programmes -->
     <ApplicationIcon>Assets\Brand\polabooth.ico</ApplicationIcon>
   </PropertyGroup>

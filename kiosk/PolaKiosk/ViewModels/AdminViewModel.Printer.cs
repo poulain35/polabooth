@@ -115,4 +115,65 @@ public partial class AdminViewModel
             : $"✓ Réglage « normal » enregistré pour « {printer} ». Faites un essai avec un cadre 10x15 : la feuille ne doit pas être coupée.";
         RefreshDriverSettingStatus();
     }
+
+    // ── Décalage de l'impression (LAB-433) ──────────────────────────────────
+
+    private PrintAdjustment CurrentAdjustment => PrintAdjust.Normalize(_machine.Current.PrintAdjustment);
+
+    private void RefreshPrintAdjustment()
+    {
+        var a = CurrentAdjustment;
+        OffsetXLabel = PrintAdjust.OffsetXLabel(a.OffsetXMm);
+        OffsetYLabel = PrintAdjust.OffsetYLabel(a.OffsetYMm);
+        EnlargeLabel = PrintAdjust.EnlargeLabel(a.EnlargePercent);
+    }
+
+    // Enregistré à chaque appui : pris en compte dès l'impression suivante, sans redémarrer.
+    private void SaveAdjustment(PrintAdjustment next)
+    {
+        var before = CurrentAdjustment;
+        _machine.SetPrintAdjustment(next);
+        RefreshPrintAdjustment();
+        PrintAdjustMsg = CurrentAdjustment == before
+            ? "Limite atteinte : 5 mm de décalage et 5 % d'agrandissement au plus."
+            : "✓ Enregistré. Imprimez une feuille de test pour vérifier.";
+    }
+
+    [RelayCommand] private void MoveLeft()     => SaveAdjustment(PrintAdjust.StepX(CurrentAdjustment, -1));
+    [RelayCommand] private void MoveRight()    => SaveAdjustment(PrintAdjust.StepX(CurrentAdjustment, +1));
+    [RelayCommand] private void MoveUp()       => SaveAdjustment(PrintAdjust.StepY(CurrentAdjustment, -1));
+    [RelayCommand] private void MoveDown()     => SaveAdjustment(PrintAdjust.StepY(CurrentAdjustment, +1));
+    [RelayCommand] private void EnlargeLess()  => SaveAdjustment(PrintAdjust.StepEnlarge(CurrentAdjustment, -1));
+    [RelayCommand] private void EnlargeMore()  => SaveAdjustment(PrintAdjust.StepEnlarge(CurrentAdjustment, +1));
+
+    [RelayCommand]
+    private void ResetPrintAdjustment()
+    {
+        _machine.SetPrintAdjustment(PrintAdjust.Zero);
+        RefreshPrintAdjustment();
+        PrintAdjustMsg = "✓ Réglage remis à zéro : l'impression est centrée.";
+    }
+
+    private bool CanPrintTestSheet() => !IsPrintingTestSheet;
+
+    /// <summary>Feuille de test sur l'imprimante utilisée par la borne, avec le réglage actuel. Jamais comptée.</summary>
+    [RelayCommand(CanExecute = nameof(CanPrintTestSheet))]
+    private async Task PrintTestSheetAsync()
+    {
+        IsPrintingTestSheet = true;
+        PrintAdjustMsg = "Impression de la feuille de test…";
+        try
+        {
+            await _print.PrintTestSheetAsync(_settings.Kiosk.PrinterName, CurrentAdjustment);
+            PrintAdjustMsg = "✓ Feuille de test envoyée à l'imprimante.";
+        }
+        catch (Exception ex)
+        {
+            PrintAdjustMsg = $"✗ La feuille de test n'a pas été imprimée : {ex.Message}";
+        }
+        finally
+        {
+            IsPrintingTestSheet = false;
+        }
+    }
 }

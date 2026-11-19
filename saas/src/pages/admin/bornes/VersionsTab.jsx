@@ -211,7 +211,7 @@ function ReleasesPanel({ releases, loading, onChanged }) {
             <li key={rel.id} className="flex items-center gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <span className="font-mono text-sm font-medium text-foreground">v{rel.version}</span>
-                {rel.notes && <p className="mt-0.5 truncate text-[13px] text-muted-foreground" title={rel.notes}>{rel.notes}</p>}
+                {rel.notes && <p className="mt-0.5 whitespace-pre-line break-words text-[13px] text-muted-foreground">{rel.notes}</p>}
                 {rel.sha256 && (
                   <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground" title={`SHA-256 : ${rel.sha256}`}>
                     SHA-256 {rel.sha256.slice(0, 16)}…

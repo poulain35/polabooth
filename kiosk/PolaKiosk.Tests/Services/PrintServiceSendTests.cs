@@ -105,6 +105,53 @@ public class PrintServiceSendTests
         gate.IsBusy.Should().BeFalse();
     }
 
+    [Fact]
+    public async Task Test_sheet_is_printed_on_4x6_without_being_counted_and_its_file_is_removed()
+    {
+        using var db = new TestDb();
+        var gate = new PrintGate();
+        var job = new FakeJob(blocking: false);
+        PrintRequest? request = null;
+        (int W, int H)? size = null;
+        var print = new PrintService(db.NewContext(), _printLogs.Object, r =>
+        {
+            request = r;
+            using var image = System.Drawing.Image.FromFile(r.CompositePath);
+            size = (image.Width, image.Height);
+            return job;
+        }, ShortTimeout, gate);
+
+        await print.PrintTestSheetAsync("Imprimante", new PrintAdjustment { OffsetXMm = 1.5 });
+
+        request.Should().NotBeNull();
+        request!.PrinterName.Should().Be("Imprimante");
+        request.PaperFormat.Should().Be("4x6");
+        request.Copies.Should().Be(1);
+        size.Should().Be((PrintTestSheet.Width, PrintTestSheet.Height));
+        job.SendCount.Should().Be(1);
+        File.Exists(request.CompositePath).Should().BeFalse();
+        (await print.GetEventPrintCountAsync(EventId)).Should().Be(0);
+        db.NewContext().PrintLogs.Count().Should().Be(0);
+        _printLogs.Verify(p => p.SendSoon(), Times.Never);
+        gate.IsBusy.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Test_sheet_is_refused_while_a_print_is_running()
+    {
+        using var db = new TestDb();
+        var gate = new PrintGate();
+        gate.TryEnter().Should().BeTrue();
+        var prepared = 0;
+        var print = new PrintService(db.NewContext(), _printLogs.Object, _ => { prepared++; return new FakeJob(false); },
+            ShortTimeout, gate);
+
+        await FluentActions.Awaiting(() => print.PrintTestSheetAsync("Imprimante", null))
+            .Should().ThrowAsync<PrintBusyException>();
+        prepared.Should().Be(0);
+        gate.Exit();
+    }
+
     private static string CreateComposite(TempDir dir)
     {
         var path = dir.File("composite.jpg");

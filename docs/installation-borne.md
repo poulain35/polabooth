@@ -233,6 +233,11 @@ Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN.
   Sans réglage « bandes coupées », la borne envoie la bande seule au format 2x6. Si le pilote n'a
   pas ce papier (cas de la DS620), elle demande une taille personnalisée que le pilote imprime mal,
   et un avertissement est écrit dans les journaux (catégorie `print`, « Papier 2x6 introuvable »).
+- **Décalage de l'impression** (même carte, facultatif, 1.0.23) : si la marge n'est pas la même des
+  deux côtés (elle peut changer d'un rouleau de papier à l'autre), « Imprimer une feuille de test » :
+  un trait tous les millimètres depuis chaque bord. Comptez les traits de chaque côté, puis décalez
+  par pas de 0,5 mm (gauche / droite, haut / bas, 5 mm au plus) ; un léger agrandissement (5 % au
+  plus) cache un bord blanc. Un seul réglage pour tous les formats, gardé par borne.
 - **Caméra** : « Détection automatique » (Canon, sinon webcam) ou une source précise ; « Tester la caméra » montre l'image et la définition.
 - **Appareil photo** (bouton de la carte Caméra, Canon seulement) : vitesse, ouverture, ISO et
   balance des blancs, avec l'aperçu et une photo de test au flash (ni gardée ni envoyée). Molette de

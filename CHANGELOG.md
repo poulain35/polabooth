@@ -38,6 +38,23 @@ chaque version le dit.
 
 ---
 
+## 1.2.0 (19 novembre 2026)
+
+### À faire
+
+Rien pour le SaaS. Installez la borne **1.0.23** sur chaque PC (facultatif).
+
+### Borne (1.0.23)
+
+- Décalage de l'impression dans l'Admin de la borne (carte Imprimante) : gauche / droite et haut /
+  bas par pas de 0,5 mm (5 mm au plus), et léger agrandissement (5 % au plus) pour cacher un bord
+  blanc. Utile quand la marge change d'un rouleau de papier à l'autre. Un seul réglage pour tous les
+  formats, gardé par borne.
+- « Imprimer une feuille de test » : un trait tous les millimètres depuis chaque bord, pour voir
+  de combien décaler. Elle ne compte pas dans les tirages de l'événement.
+
+---
+
 ## 1.1.0 (19 novembre 2026)
 
 ### À faire

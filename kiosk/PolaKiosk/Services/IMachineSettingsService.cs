@@ -44,6 +44,9 @@ public interface IMachineSettingsService
     /// de session. <paramref name="changedAt"/> sert à « le dernier gagne » avec le SaaS.
     /// </summary>
     void SetCameraExposure(CameraExposureValues values, DateTimeOffset changedAt);
+
+    /// <summary>Décalage et agrandissement de l'impression (LAB-433), bornés par <see cref="PrintAdjust.Normalize"/>.</summary>
+    void SetPrintAdjustment(PrintAdjustment adjustment);
 }
 
 public record MachineSettings
@@ -82,6 +85,9 @@ public record MachineSettings
 
     /// <summary>Vitesse, ouverture, ISO, balance des blancs choisies dans Admin › Appareil photo (LAB-427).</summary>
     public SavedCameraExposure? CameraExposure { get; init; }
+
+    /// <summary>Décalage et agrandissement de l'impression réglés dans Admin › Imprimante (LAB-433) ; null = aucun.</summary>
+    public PrintAdjustment? PrintAdjustment { get; init; }
 
     [JsonIgnore] public int WebcamWidthOrDefault  => WebcamWidth  is > 0 ? WebcamWidth.Value  : WebcamCameraService.DefaultWidth;
     [JsonIgnore] public int WebcamHeightOrDefault => WebcamHeight is > 0 ? WebcamHeight.Value : WebcamCameraService.DefaultHeight;

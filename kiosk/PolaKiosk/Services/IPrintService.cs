@@ -21,6 +21,12 @@ public interface IPrintService
     Task<bool> CanPrintAsync(Guid eventId, int? maxPrintsPerEvent, Guid sessionId, int? maxPrintsPerPhoto);
 
     /// <summary>Liste les imprimantes disponibles sur le système.</summary>
+    /// <summary>
+    /// Imprime la feuille de test du décalage (LAB-433) sur <paramref name="printerName"/> (vide = imprimante
+    /// par défaut), avec le réglage donné. Jamais comptée. Mêmes erreurs que <see cref="PrintAsync"/>.
+    /// </summary>
+    Task PrintTestSheetAsync(string printerName, PrintAdjustment? adjustment);
+
     List<string> GetAvailablePrinters();
 
     /// <summary>Nom de l'imprimante par défaut de Windows (chaîne vide si aucune).</summary>

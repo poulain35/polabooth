@@ -56,6 +56,15 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     [ObservableProperty] private string _normalSettingStatus   = "";
     [ObservableProperty] private string _driverSettingMsg      = "";
 
+    // Décalage de l'impression (LAB-433)
+    [ObservableProperty] private string _offsetXLabel   = "";
+    [ObservableProperty] private string _offsetYLabel   = "";
+    [ObservableProperty] private string _enlargeLabel   = "";
+    [ObservableProperty] private string _printAdjustMsg = "";
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PrintTestSheetCommand))]
+    private bool _isPrintingTestSheet;
+
     public ObservableCollection<CameraSourceOption> AvailableCameras { get; } = new();
     [ObservableProperty] private CameraSourceOption? _selectedCamera;
     [ObservableProperty] private string _cameraStatusMsg = "";
@@ -132,6 +141,7 @@ public partial class AdminViewModel : ObservableObject, IReleasable
 
         LoadPrinters();
         RefreshDriverSettingStatus();
+        RefreshPrintAdjustment();
         LoadCameras();
         LoadStorageSettings();
         LoadLaunchAtStartup();
