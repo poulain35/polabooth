@@ -3,7 +3,7 @@ import { ACTION_LABELS, ACTION_BUTTON_TEXTS, VARIABLE_LABELS, VARIABLE_SAMPLES }
 import { KIOSK_COLORS, KIOSK_FONT_TITLE, KIOSK_FONT_TEXT } from '../../lib/kioskScreenTemplates';
 import { ensureKioskFonts } from '../../utils/kioskFonts';
 import { findPhotoZones } from '../../lib/photoZones';
-import { maxImagePx } from '../../lib/designImages';
+import { importedImagePlacement, maxImagePx } from '../../lib/designImages';
 import { isCompactViewport } from '../../lib/editorMobile';
 import { createPhotoZoneRect } from './canvasStyle';
 import { preparePhoto } from './imageTools';
@@ -95,6 +95,15 @@ export function useObjectActions({
     }));
   }
 
+  // Image aux proportions de la page : pleine page (importedImagePlacement), sinon réduite à 60 %.
+  function placeImportedImage(imgEl) {
+    const fabricImg = new fabric.Image(imgEl);
+    const { left, top, scale } = importedImagePlacement(fabricImg.width, fabricImg.height, currentFormat);
+    fabricImg.set({ left, top, scaleX: scale, scaleY: scale });
+    fabricImg.setCoords();
+    return fabricImg;
+  }
+
   function handleImageUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -102,10 +111,7 @@ export function useObjectActions({
       // LAB-348 : photo réduite à la résolution d'export avant l'ajout (puis l'envoi au stockage).
       e.target.value = '';
       preparePhoto(file, maxImagePx(currentFormat)).then((imgEl) => {
-        const fabricImg = new fabric.Image(imgEl, { left: 50, top: 50 });
-        const maxW = currentFormat.canvasWidth * 0.6;
-        if (fabricImg.width > maxW) fabricImg.scaleToWidth(maxW);
-        addObjectToCanvas(fabricImg);
+        addObjectToCanvas(placeImportedImage(imgEl));
       }).catch((err) => console.error('Import de photo impossible :', err));
       return;
     }
@@ -113,10 +119,7 @@ export function useObjectActions({
     reader.onload = (ev) => {
       const imgEl = new Image();
       imgEl.onload = () => {
-        const fabricImg = new fabric.Image(imgEl, { left: 50, top: 50 });
-        const maxW = currentFormat.canvasWidth * 0.6;
-        if (fabricImg.width > maxW) fabricImg.scaleToWidth(maxW);
-        addObjectToCanvas(fabricImg);
+        addObjectToCanvas(placeImportedImage(imgEl));
       };
       imgEl.src = ev.target.result;
     };

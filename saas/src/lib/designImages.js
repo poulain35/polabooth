@@ -129,6 +129,28 @@ export function maxImagePx(format) {
   return Math.max(Number(format?.exportWidth) || 0, Number(format?.exportHeight) || 0) || 3600;
 }
 
+/** Écart de proportions toléré pour qu'une image importée soit posée en pleine page (2 %). */
+export const FULL_PAGE_RATIO_TOLERANCE = 0.02;
+
+/**
+ * Position d'une image importée sur le canvas (unités canvas, origine en haut à gauche) :
+ * - image aux proportions de la page (cadre préparé à 2400×3600 pour un 10×15, par exemple) :
+ *   pleine page, centrée, qui couvre toute la page ; ses pixels sont gardés, donc l'export reste net ;
+ * - sinon, comme avant : en haut à gauche, réduite à 60 % de la largeur si elle est plus large.
+ */
+export function importedImagePlacement(width, height, format) {
+  const w = Math.max(1, Number(width) || 1);
+  const h = Math.max(1, Number(height) || 1);
+  const W = Number(format?.canvasWidth) || w;
+  const H = Number(format?.canvasHeight) || h;
+  if (Math.abs((w / h) / (W / H) - 1) <= FULL_PAGE_RATIO_TOLERANCE) {
+    const scale = Math.max(W / w, H / h);
+    return { left: (W - w * scale) / 2, top: (H - h * scale) / 2, scale, fullPage: true };
+  }
+  const maxW = W * 0.6;
+  return { left: 50, top: 50, scale: w > maxW ? maxW / w : 1, fullPage: false };
+}
+
 /**
  * Que faire d'une photo importée avant de l'ajouter au modèle :
  * - `keep` : fichier d'origine gardé tel quel (PNG/JPEG/WebP, pas trop grand ni trop lourd) ;

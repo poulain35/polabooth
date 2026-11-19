@@ -6,8 +6,11 @@ namespace PolaKiosk.Services;
 
 public class CompositeService : ICompositeService
 {
-    // Mitchell = traduction exacte de l'ancien SKFilterQuality.High (rendu identique au pixel près).
-    private static readonly SKSamplingOptions HighQuality = new(SKCubicResampler.Mitchell);
+    // Catmull-Rom : plus net que Mitchell (ancien SKFilterQuality.High), qui adoucissait la photo.
+    private static readonly SKSamplingOptions HighQuality = new(SKCubicResampler.CatmullRom);
+
+    /// <summary>Qualité JPEG du montage : imprimé, envoyé et partagé tel quel.</summary>
+    public const int CompositeJpegQuality = 92;
 
     private readonly IKioskLogService? _log;
     private readonly object _zonesLock = new();
@@ -44,7 +47,7 @@ public class CompositeService : ICompositeService
         IReadOnlyList<PhotoZone> zones,
         string format,
         string compositesDirectory,
-        int dpi = 300)
+        int? dpi = null)
     {
         return Task.Run(() =>
         {
@@ -52,8 +55,11 @@ public class CompositeService : ICompositeService
                 throw new ArgumentException("Aucune photo à assembler.", nameof(photoPaths));
 
             // Calcul des dimensions d'impression en pixels + échelle canvas→impression (lèvent si format inconnu)
-            var (printW, printH) = PrintPixelSize(format, dpi);
-            float scale = CanvasToPrintScale(format, dpi);
+            // Par défaut à la taille du PNG du SaaS (2400×3600 en portrait) : le cadre n'est pas
+            // redimensionné et le pilote ne réduit qu'une fois, à sa résolution. À 300 dpi, le montage
+            // perdait la moitié de la définition du cadre et de la photo, puis était réagrandi.
+            var (printW, printH) = dpi is int d ? PrintPixelSize(format, d) : ExportPixelSize(format);
+            float scale = printW / (float)PrintFormats.Get(format).CanvasWidth;
 
             // Modèle sans zone photo : sans repli, le décor serait imprimé sans la photo.
             bool fullFrame = zones.Count == 0;
@@ -102,7 +108,7 @@ public class CompositeService : ICompositeService
             // Superposition du template par-dessus les photos
             DrawTemplate(cvs, templatePngPath, printW, printH, fullFrame);
 
-            return SaveJpeg(bitmap, compositesDirectory, 85);
+            return SaveJpeg(bitmap, compositesDirectory, CompositeJpegQuality);
         });
     }
 
@@ -110,7 +116,7 @@ public class CompositeService : ICompositeService
         string photoPath,
         string compositesDirectory,
         int maxDimension = 2400,
-        int jpegQuality = 85)
+        int jpegQuality = CompositeJpegQuality)
     {
         return Task.Run(() =>
         {
@@ -141,21 +147,24 @@ public class CompositeService : ICompositeService
             return;
         }
 
-        using var scaled = template.Resize(new SKImageInfo(printW, printH), HighQuality);
-        if (scaled == null)
+        // Cadre déjà à la taille du montage (cas normal) : dessiné tel quel, sans perte.
+        bool sameSize = template.Width == printW && template.Height == printH;
+        using var scaled = sameSize ? null : template.Resize(new SKImageInfo(printW, printH), HighQuality);
+        var decor = sameSize ? template : scaled;
+        if (decor == null)
         {
             _ = _log?.LogWarningAsync("composite", $"Redimensionnement du décor impossible : {templatePngPath}");
             return;
         }
 
         // Photo en plein cadre : un décor sans partie transparente la masquerait entièrement.
-        if (fullFrame && !HasTransparentArea(scaled))
+        if (fullFrame && !HasTransparentArea(decor))
         {
             _ = _log?.LogWarningAsync("composite", "Décor opaque sans zone photo : photo imprimée sans le décor.");
             return;
         }
 
-        cvs.DrawBitmap(scaled, 0, 0);
+        cvs.DrawBitmap(decor, 0, 0);
     }
 
     private static SKImage DecodeImage(string path)
@@ -168,8 +177,7 @@ public class CompositeService : ICompositeService
     private string SaveJpeg(SKBitmap bitmap, string compositesDirectory, int quality)
     {
         string outputPath;
-        using (var image = SKImage.FromBitmap(bitmap))
-        using (var data = image.Encode(SKEncodedImageFormat.Jpeg, quality)
+        using (var data = KioskJpeg.Encode(bitmap, quality)
             ?? throw new InvalidOperationException("Encodage JPEG du montage impossible."))
         {
             outputPath = Path.Combine(compositesDirectory, UniqueFileName.Create("composite", ".jpg"));
@@ -194,6 +202,13 @@ public class CompositeService : ICompositeService
         var physical = PrintFormats.Get(format);
         const float mmPerInch = 25.4f;
         return ((int)(physical.WidthMm / mmPerInch * dpi), (int)(physical.HeightMm / mmPerInch * dpi));
+    }
+
+    /// <summary>Taille du montage par défaut : celle du PNG exporté par le SaaS (canvas × 6).</summary>
+    internal static (int W, int H) ExportPixelSize(string format)
+    {
+        var f = PrintFormats.Get(format);
+        return (f.ExportWidth, f.ExportHeight);
     }
 
     /// <summary>Échelle de conversion coordonnées canvas SaaS → pixels d'impression.</summary>

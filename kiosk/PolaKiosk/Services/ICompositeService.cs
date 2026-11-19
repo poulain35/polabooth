@@ -21,7 +21,7 @@ public interface ICompositeService
         IReadOnlyList<PhotoZone> zones,
         string format,
         string compositesDirectory,
-        int dpi = 300);
+        int? dpi = null);
 
     /// <summary>
     /// Finalise une photo brute (sans template) dans le dossier composites : redimensionne
@@ -32,5 +32,5 @@ public interface ICompositeService
         string photoPath,
         string compositesDirectory,
         int maxDimension = 2400,
-        int jpegQuality = 85);
+        int jpegQuality = CompositeService.CompositeJpegQuality);
 }

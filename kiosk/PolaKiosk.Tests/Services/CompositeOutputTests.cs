@@ -55,6 +55,31 @@ public class CompositeOutputTests
     }
 
     [Fact]
+    public async Task CreateCompositeAsync_by_default_keeps_the_size_of_the_saas_png()
+    {
+        // Montage à la taille du PNG du cadre photo (2400×3600) : ni le cadre ni la photo ne perdent
+        // en définition avant le pilote de l'imprimante.
+        using var dir = new TempDir();
+        var photo = WriteImage(dir.File("photo.jpg"), 300, 200, PhotoColor, SKEncodedImageFormat.Jpeg);
+        string template = dir.File("template.png");
+        using (var decor = new SKBitmap(2400, 3600))
+        {
+            decor.Erase(SKColors.Transparent);
+            // Filet d'un pixel du décor : il doit rester net, au même endroit.
+            for (int y = 0; y < 3600; y++) decor.SetPixel(1200, y, DecorColor);
+            Save(decor, template, SKEncodedImageFormat.Png);
+        }
+        var svc = new CompositeService();
+
+        var path = await svc.CreateCompositeAsync([photo], template, [new PhotoZone(0, 0, 400, 600)], "portrait", dir.File("out"));
+
+        using var result = SKBitmap.Decode(path);
+        (result.Width, result.Height).Should().Be((2400, 3600));
+        IsClose(result.GetPixel(1200, 1800), DecorColor).Should().BeTrue();
+        IsClose(result.GetPixel(1203, 1800), PhotoColor).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task CreateCompositeAsync_gives_each_composite_its_own_file()
     {
         using var dir = new TempDir();

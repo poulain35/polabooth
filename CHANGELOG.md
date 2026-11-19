@@ -38,6 +38,33 @@ chaque version le dit.
 
 ---
 
+## 1.4.0 (19 novembre 2026)
+
+### À faire
+
+1. Mettez à jour le SaaS (`npm run update-instance`) : aucune migration, seul l'éditeur change.
+2. Installez la borne **1.0.24** sur chaque PC pour des tirages plus nets.
+
+### SaaS
+
+- Éditeur : une image importée aux proportions de la page (2400 × 3600 pour un 10 × 15 portrait,
+  par exemple) couvre toute la page au lieu d'être réduite à 60 % de la largeur. Ses pixels sont
+  gardés, l'export reste net.
+
+### Borne (1.0.24)
+
+- Tirages plus nets : le montage est assemblé à la taille du PNG du cadre photo exporté par le SaaS
+  (2400 × 3600 pour un 10 × 15 portrait, au lieu de 1181 × 1771). Le décor n'est plus réduit puis
+  agrandi : textes et traits fins restent nets, seul le pilote de l'imprimante réduit à sa
+  résolution.
+- Photos agrandies avec un filtre plus net (Catmull-Rom) et JPEG en qualité 92 avec les couleurs en
+  pleine définition (4:4:4) : moins de bavures sur les contours colorés. Un montage pèse environ 2
+  à 3 Mo (envoi des photos un peu plus long avec une connexion lente).
+- Réglez la qualité d'image du Canon sur M ou L (Admin de la borne) : en S, la photo est agrandie
+  d'environ un quart pour remplir la zone d'un portrait.
+
+---
+
 ## 1.3.0 (19 novembre 2026)
 
 ### À faire

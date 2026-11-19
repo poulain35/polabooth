@@ -78,7 +78,8 @@ Les zones photo du `canvas_json` sont en pixels du canvas du SaaS :
 | stripV | 200 × 600 | 5 × 15 cm |
 | stripH | 600 × 200 | 15 × 5 cm |
 
-La borne convertit vers la définition d'impression (300 dpi) : `scale = printWidthPx / canvasWidthPx`.
+La borne assemble le montage à la taille du PNG exporté par le SaaS (canvas × 6, par exemple
+2400 × 3600 pour le portrait) : `scale = printWidthPx / canvasWidthPx`.
 Une zone est un objet marqué `isPhotoZone: true`, y compris dans un groupe. La même géométrie est
 codée des deux côtés (`saas/src/lib/photoZones.js`, `CompositeService.ParsePhotoZones`) et testée
 avec les mêmes cas.

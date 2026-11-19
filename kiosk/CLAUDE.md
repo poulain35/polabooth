@@ -144,20 +144,22 @@ ordre d'empilement. Même géométrie côté SaaS (`saas/src/lib/photoZones.js`)
 côtés partagent les mêmes cas.
 
 ### Formats et conversion
-| Format | Canvas SaaS (px) | Impression (mm, 300 dpi) | Papier |
-|---|---|---|---|
-| portrait | 400 × 600 | 100 × 150 | 4x6 |
-| landscape | 600 × 400 | 150 × 100 | 4x6 |
-| stripV | 200 × 600 | 50 × 150 | 2x6 |
-| stripH | 600 × 200 | 150 × 50 | 2x6 |
+| Format | Canvas SaaS (px) | Montage (px) | Impression (mm) | Papier |
+|---|---|---|---|---|
+| portrait | 400 × 600 | 2400 × 3600 | 100 × 150 | 4x6 |
+| landscape | 600 × 400 | 3600 × 2400 | 150 × 100 | 4x6 |
+| stripV | 200 × 600 | 1200 × 3600 | 50 × 150 | 2x6 |
+| stripH | 600 × 200 | 3600 × 1200 | 150 × 50 | 2x6 |
 
-`scale = printWidthPx / canvasWidthPx`
+`scale = printWidthPx / canvasWidthPx`. Le montage est à la taille du PNG exporté par le SaaS
+(canvas × 6, `PrintFormats.ExportScale`) : le décor est dessiné tel quel, sans redimensionnement,
+et seul le pilote de l'imprimante réduit à sa résolution.
 
 ### Assemblage (`CompositeService`, SkiaSharp)
 1. Chaque photo est recadrée en « cover » dans sa zone (moins de photos que de zones : la dernière
    est répétée). Modèle sans zone : la photo occupe tout le cadre.
-2. Le PNG du design est dessiné par-dessus, au format d'impression.
-3. Export JPEG (qualité 85), nom unique `composite_…_{guid8}.jpg`, écriture atomique.
+2. Le PNG du design est dessiné par-dessus, à sa taille (photos agrandies en Catmull-Rom).
+3. Export JPEG (qualité 92, couleurs en pleine définition 4:4:4, `KioskJpeg`), nom unique `composite_…_{guid8}.jpg`, écriture atomique.
 4. Vignette 320 px dans `composites\thumbs\` pour la galerie.
 
 SkiaSharp alloue des ressources natives : toujours `using` / `Dispose()`.

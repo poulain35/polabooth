@@ -86,7 +86,7 @@ public static class PhotoEffectService
             DrawVignette(canvas, bitmap.Width, bitmap.Height);
 
         using var image = surface.Snapshot();
-        using var data  = image.Encode(SKEncodedImageFormat.Jpeg, 92)
+        using var data  = KioskJpeg.Encode(image, CompositeService.CompositeJpegQuality)
             ?? throw new InvalidOperationException("Encodage JPEG impossible.");
         return data.ToArray();
     }

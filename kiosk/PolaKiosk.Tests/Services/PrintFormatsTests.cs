@@ -19,6 +19,19 @@ public class PrintFormatsTests
         PrintService.PaperFormatFromTemplateFormat(key).Should().Be(paper);
     }
 
+    [Theory]
+    [InlineData("portrait", 2400, 3600)]
+    [InlineData("landscape", 3600, 2400)]
+    [InlineData("stripV", 1200, 3600)]
+    [InlineData("stripH", 3600, 1200)]
+    public void Export_size_matches_the_png_exported_by_the_saas(string key, int w, int h)
+    {
+        // saas/src/utils/formats.js : exportWidth × exportHeight (canvas × 6).
+        var format = PrintFormats.Get(key);
+        (format.ExportWidth, format.ExportHeight).Should().Be((w, h));
+        CompositeService.ExportPixelSize(key).Should().Be((w, h));
+    }
+
     [Fact]
     public void Unknown_format_falls_back_to_portrait_for_display_only()
     {

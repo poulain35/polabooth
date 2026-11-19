@@ -73,7 +73,7 @@ réponse de la fonction `kiosk_get_approved_design`.
 | `label` | texte ou null | non | Nom du cadre sur la borne (24 caractères au plus). Écrit seulement quand `frames` est présent ; `null` = pas de nom. |
 
 Les zones photo sont en pixels du canevas. La borne les convertit vers la taille d'impression
-(300 dpi) avec `échelle = largeur d'impression en px / largeur du canevas en px` :
+(PNG du cadre photo, canvas × 6, environ 600 dpi) avec `échelle = largeur d'impression en px / largeur du canevas en px` :
 
 | Format | Canevas (px) | Impression (px) | Papier |
 |---|---|---|---|

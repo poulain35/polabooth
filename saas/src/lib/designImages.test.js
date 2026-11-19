@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createImageStore, dataUrlToBytes, imageSourcesToStore, isDataImage, isEphemeralImageUrl, maxImagePx,
+  createImageStore, dataUrlToBytes, imageSourcesToStore, importedImagePlacement, isDataImage, isEphemeralImageUrl, maxImagePx,
   planPhotoEncoding, replaceImageSources, withCrossOrigin, PHOTO_KEEP_MAX_BYTES,
 } from './designImages.js';
 
@@ -140,4 +140,24 @@ test('magasin : une réponse qui n’est pas une adresse https est un échec', a
   assert.equal(await store.store(png), null);
   const noFetch = createImageStore({ upload: async () => stored });
   assert.equal(await noFetch.store(replicate), null, 'adresse temporaire sans fetchBytes : laissée');
+});
+
+test('image importée aux proportions de la page : pleine page, pixels gardés', () => {
+  const portrait = { canvasWidth: 400, canvasHeight: 600, exportWidth: 2400, exportHeight: 3600 };
+  const full = importedImagePlacement(2400, 3600, portrait);
+  assert.deepEqual(full, { left: 0, top: 0, scale: 400 / 2400, fullPage: true });
+  // À l'export (×6), l'image fait exactement 2400×3600 : aucun agrandissement.
+  assert.equal(2400 * full.scale * (portrait.exportWidth / portrait.canvasWidth), 2400);
+  // 1 % d'écart : couvre toute la page, centrée.
+  const near = importedImagePlacement(2400, 3636, portrait);
+  assert.equal(near.fullPage, true);
+  assert.ok(near.left === 0 && near.top < 0 && 3636 * near.scale >= 600);
+  assert.equal(importedImagePlacement(1200, 3600, { canvasWidth: 200, canvasHeight: 600 }).fullPage, true);
+});
+
+test('image importée d’autres proportions : réduite à 60 % de la largeur, comme avant', () => {
+  const portrait = { canvasWidth: 400, canvasHeight: 600 };
+  assert.deepEqual(importedImagePlacement(1000, 1000, portrait), { left: 50, top: 50, scale: 0.24, fullPage: false });
+  assert.deepEqual(importedImagePlacement(100, 50, portrait), { left: 50, top: 50, scale: 1, fullPage: false });
+  assert.equal(importedImagePlacement(3600, 2400, portrait).fullPage, false);
 });

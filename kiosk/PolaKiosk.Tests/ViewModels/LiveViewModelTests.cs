@@ -342,7 +342,7 @@ public sealed class LiveViewModelTests : IDisposable
             new(20, 20, 360, 170), new(20, 210, 360, 170), new(20, 400, 360, 170),
         });
         _composite.Setup(c => c.CreateCompositeAsync(It.IsAny<IReadOnlyList<string>>(), png, It.IsAny<IReadOnlyList<PhotoZone>>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>()))
                   .ReturnsAsync("composite.jpg");
     }
 
@@ -560,7 +560,7 @@ public sealed class LiveViewModelTests : IDisposable
             new(10, 10, 180, 180), new(10, 210, 180, 180), new(10, 410, 180, 180),
         });
         _composite.Setup(c => c.CreateCompositeAsync(It.IsAny<IReadOnlyList<string>>(), strip.ThumbnailPath, It.IsAny<IReadOnlyList<PhotoZone>>(),
-                "stripV", It.IsAny<string>(), It.IsAny<int>()))
+                "stripV", It.IsAny<string>(), It.IsAny<int?>()))
                   .ReturnsAsync("composite.jpg");
         _camera.Setup(c => c.CaptureAsync(It.IsAny<string>())).ReturnsAsync("photo.jpg");
         var selection = new Mock<IFrameSelection>();

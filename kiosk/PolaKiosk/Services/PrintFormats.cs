@@ -5,6 +5,16 @@ namespace PolaKiosk.Services;
 /// </summary>
 public sealed record PrintFormat(string Key, int CanvasWidth, int CanvasHeight, float WidthMm, float HeightMm, string Paper)
 {
+    /// <summary>
+    /// Agrandissement de l'export du SaaS (`exportWidth / canvasWidth` de saas/src/utils/formats.js) :
+    /// le PNG du cadre photo fait canvas × 6 (2400×3600 en portrait), environ 600 dpi.
+    /// </summary>
+    public const int ExportScale = 6;
+
+    /// <summary>Taille du PNG exporté par le SaaS, en px : taille du montage imprimé.</summary>
+    public int ExportWidth  => CanvasWidth  * ExportScale;
+    public int ExportHeight => CanvasHeight * ExportScale;
+
     /// <summary>Zone couvrant tout le canvas (modèle sans zone photo, aperçus).</summary>
     public PhotoZone Canvas => new(0, 0, CanvasWidth, CanvasHeight);
 }
