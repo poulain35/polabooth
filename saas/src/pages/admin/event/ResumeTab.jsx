@@ -137,7 +137,7 @@ export default function ResumeTab({ event, setEvent, steps, emailLogs, setEmailL
 
   const accessLinks = [
     ...(isAvailable('client_design') ? [{
-      key: 'template', label: 'Cadre photo', url: `${APP_URL}/e/${event.access_code}`, Icon: Image, tone: 'sky',
+      key: 'template', label: 'Cadre photo', url: `${APP_URL}/e/${event.access_code}`, Icon: Image, tone: 'sand',
     }] : []),
     ...(isAvailable('gallery') ? [{
       key: 'photos', label: 'Photos', url: `${APP_URL}/photos/${event.access_code}`, Icon: Camera, tone: 'mint',
@@ -185,7 +185,7 @@ export default function ResumeTab({ event, setEvent, steps, emailLogs, setEmailL
             <CardHeading
               as="h3"
               icon={<Mail />}
-              tone="lilac"
+              tone="navy"
               title="Email de création du cadre photo"
               description={<span className="block truncate">{event.client_email ?? 'Aucun email renseigné'}</span>}
             />
@@ -345,13 +345,13 @@ export default function ResumeTab({ event, setEvent, steps, emailLogs, setEmailL
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FeatureCard
               iconPath="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-              label="Photo" descOn="Capture photo active" tone="sky"
+              label="Photo" descOn="Capture photo active" tone="sand"
               checked={true} onChange={() => {}} locked={false}
             />
             <FeatureCard
               iconPath="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
               label="Email" descOn="Envoi par email activé" descOff="Envoi par email désactivé"
-              tone="lilac"
+              tone="navy"
               checked={kioskCfg?.email?.enabled ?? false}
               onChange={v => setKiosk('email.enabled', v)}
             />

@@ -79,7 +79,7 @@ function PairingDone({ code, result, pinWarning, onAgain }) {
       ) : (
         <div className="text-center space-y-2">
           {follow === 'waiting'
-            ? <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin" />
+            ? <Loader2 className="w-10 h-10 mx-auto text-primary-ink animate-spin" />
             : <Monitor className="w-10 h-10 mx-auto text-muted-foreground" />}
           <h2 className="text-lg font-medium text-foreground">
             C'est fait : la borne affiche le nom « {result.label} » dans quelques secondes

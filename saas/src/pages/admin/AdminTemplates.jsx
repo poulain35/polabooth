@@ -216,7 +216,7 @@ export default function AdminTemplates() {
         </div>
       ) : templates.length === 0 ? (
         <Card className="flex flex-col items-center px-6 py-14 text-center">
-          <IconCircle tone="sky"><LayoutGrid /></IconCircle>
+          <IconCircle tone="sand"><LayoutGrid /></IconCircle>
           <h2 className="mt-3 font-medium text-foreground">Aucun cadre photo</h2>
           <p className="mb-5 mt-1 text-[13px] text-muted-foreground">Créez votre premier cadre photo depuis l'éditeur.</p>
           <CreateButton to="/admin/templates/new">Créer un cadre photo</CreateButton>

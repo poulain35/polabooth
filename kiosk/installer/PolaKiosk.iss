@@ -1,6 +1,8 @@
 ﻿; Installeur PolaKiosk — Inno Setup 6+
 ; Installation PAR UTILISATEUR (aucun droit admin) → les mises à jour silencieuses
-; fonctionnent sans UAC. Le watchdog est lancé via le dossier Démarrage de l'utilisateur.
+; fonctionnent sans UAC. Lancement au démarrage de Windows : désactivé à l'installation, réglé
+; dans l'Admin de la borne (raccourci « PolaKiosk Watchdog » du dossier Démarrage, posé par l'app).
+; Une borne installée avant la 1.0.22 garde son raccourci (la mise à jour ne le retire pas).
 ;
 ; Construction : installer\build.ps1 (publication .NET, signature facultative, compilation ; voir
 ; installer\README.md). À la main : d'abord
@@ -81,10 +83,8 @@ Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{userprograms}\{#AppName}";        Filename: "{app}\{#ExeName}"
 Name: "{autodesktop}\{#AppName}";         Filename: "{app}\{#ExeName}"; Tasks: desktopicon
-; Watchdog au démarrage de session (lance + surveille l'app), en session utilisateur
-Name: "{userstartup}\{#AppName} Watchdog"; Filename: "powershell.exe"; \
-  Parameters: "-WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\scripts\watchdog.ps1"" -ExePath ""{app}\{#ExeName}"""; \
-  WorkingDir: "{app}"
+; Plus de raccourci du watchdog dans {userstartup} : l'app le pose si la case « Lancer la borne au
+; démarrage de Windows » de l'Admin est cochée (WindowsStartup.cs), même nom qu'avant.
 
 [Run]
 ; Démarrer le watchdog tout de suite après une installation manuelle (sans attendre le
@@ -104,3 +104,5 @@ Filename: "powershell.exe"; \
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\scripts"
+; Raccourci du lancement au démarrage de Windows, posé par l'app (case de l'Admin)
+Type: files; Name: "{userstartup}\{#AppName} Watchdog.lnk"

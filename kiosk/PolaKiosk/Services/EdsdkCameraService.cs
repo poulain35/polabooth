@@ -6,7 +6,7 @@ using PolaKiosk.EDSDK;
 namespace PolaKiosk.Services;
 
 // EDSDK doit être appelé depuis un thread STA dédié
-public class EdsdkCameraService : ICameraService, ICanonCameraList
+public partial class EdsdkCameraService : ICameraService, ICanonCameraList
 {
     // Délai pendant lequel le thread STA pompe les événements en attendant la photo.
     private static readonly TimeSpan CaptureDeadline = TimeSpan.FromSeconds(15);
@@ -95,6 +95,7 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
                 ConfigureSaveToHost();
                 ConfigureImageQuality();
                 DisableExposureSimulation();
+                ReapplySavedExposure();
                 tcs.SetResult();
             }
             catch (Exception ex)
@@ -218,6 +219,10 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
                         // Pomper les événements EDSDK : sans ça, l'EVF ne passe jamais à « prêt »
                         // et EdsDownloadEvfImage renvoie indéfiniment OBJECT_NOTREADY (0xA102).
                         EdsApi.EdsGetEvent();
+
+                        // Réglages d'exposition demandés pendant le live view (Admin › Appareil photo) :
+                        // la boucle occupe la file du fil STA, ils passent donc ici entre deux images.
+                        DrainPropertyQueue();
 
                         var frame = DownloadEvfFrame(out var result);
                         if (frame != null)
@@ -579,6 +584,8 @@ public class EdsdkCameraService : ICameraService, ICanonCameraList
             "EdsSetObjectEventHandler");
         ThrowIfError(EdsApi.EdsSetCameraStateEventHandler(_camera, EdsStateEvent.All, _stateEventHandler, IntPtr.Zero),
             "EdsSetCameraStateEventHandler");
+
+        RegisterPropertyEvents();
     }
 
     /// <summary>

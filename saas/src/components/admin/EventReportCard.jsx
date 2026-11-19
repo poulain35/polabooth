@@ -155,7 +155,7 @@ export default function EventReportCard({ event, org, appUrl }) {
       <CardHeading
         as="h3"
         icon={<BarChart3 />}
-        tone="lilac"
+        tone="navy"
         titleClassName="flex flex-wrap items-center gap-2"
         title={<>
           Bilan client

@@ -7,8 +7,8 @@ namespace PolaKiosk;
 
 /// <summary>
 /// Tâches de fond de la borne (LAB-405, sorties de App) : cycle de 2 minutes, lecture de l'événement envoyé
-/// depuis le SaaS (20 s), mise à jour demandée, licence refusée, et leur reprise au retour sur un écran
-/// sûr. Une seule mise à jour et un seul chargement d'événement à la fois, quel que soit l'appelant
+/// depuis le SaaS (20 s), réglages de l'appareil photo demandés (LAB-428), mise à jour demandée, licence
+/// refusée, et leur reprise au retour sur un écran sûr. Une seule mise à jour et un seul chargement d'événement à la fois, quel que soit l'appelant
 /// (démarrage, boucles, navigation). Les erreurs passent par le journal de App (fatal.log puis kiosk).
 /// </summary>
 internal sealed class KioskBackgroundTasks
@@ -29,6 +29,7 @@ internal sealed class KioskBackgroundTasks
     private int _updateRunning;
     private UpdateRequest? _pendingUpdate; // demande reçue du SaaS, pas encore installée (modifiée sous _updateRunning)
     private int _eventPushRunning;
+    private int _cameraSyncRunning;
 
     /// <param name="shutdown">Fermeture de l'app (mise à jour lancée), appelée sur le fil d'affichage.</param>
     /// <param name="isRunning">Faux après la fermeture de l'hôte : les boucles s'arrêtent.</param>
@@ -53,7 +54,8 @@ internal sealed class KioskBackgroundTasks
     /// Demande reçue pendant une séance invité : elle s'installe dès le retour sur un écran sûr
     /// (accueil, saisie du code), sans attendre le prochain cycle de fond.
     /// </summary>
-    public void WatchNavigation(INavigationService navigation, INetworkMonitorService networkMonitor, IEventPushService eventPush)
+    public void WatchNavigation(INavigationService navigation, INetworkMonitorService networkMonitor, IEventPushService eventPush,
+        ICameraSettingsSync cameraSync)
     {
         navigation.Navigated += (_, _) =>
         {
@@ -70,6 +72,10 @@ internal sealed class KioskBackgroundTasks
             // Événement envoyé depuis le SaaS pendant une séance invité (LAB-245) : chargé au retour à l'accueil.
             if (networkMonitor.IsOnline && eventPush.HasPending && UpdateCoordinator.CanApplyNow(navigation.CurrentViewType))
                 _ = RunEventPushAsync(poll: false, showLoadingScreen: true, CancellationToken.None);
+
+            // Réglages de l'appareil demandés pendant une séance invité (LAB-428) : appliqués au retour à l'accueil.
+            if (networkMonitor.IsOnline && cameraSync.HasPending && UpdateCoordinator.CanApplyNow(navigation.CurrentViewType))
+                _ = RunCameraSyncAsync(poll: false, CancellationToken.None);
 
             if (networkMonitor.IsOnline && Volatile.Read(ref _pendingUpdate) != null
                 && UpdateCoordinator.CanApplyNow(navigation.CurrentViewType))
@@ -92,6 +98,7 @@ internal sealed class KioskBackgroundTasks
         var cleanup        = services.GetRequiredService<IEventCleanupService>();
         var printLogs      = services.GetRequiredService<IPrintLogSyncService>();
         var kioskLogs      = services.GetRequiredService<IKioskLogService>();
+        var cameraSync     = services.GetRequiredService<ICameraSettingsSync>();
         _ = Task.Run(async () =>
         {
             try { await cleanup.RunIfDueAsync(); }
@@ -105,6 +112,10 @@ internal sealed class KioskBackgroundTasks
                 // Étapes isolées : l'échec de l'une n'empêche pas les autres (nouvel essai au prochain cycle).
                 // Heartbeat en premier : un long envoi de photos ne retarde pas le « vu à ». Les envois en
                 // attente qu'il annonce sont ceux restant après le cycle précédent (2 min de décalage).
+                // Rapport de l'appareil (LAB-428) relu juste avant, sur un écran sûr seulement.
+                try { await _dispatcher.InvokeAsync(() => cameraSync.RefreshReportIfDueAsync()).Task.Unwrap(); }
+                catch (Exception ex) { _logError(CameraSettingsSyncService.LogContext, ex); }
+
                 try { await licenseService.SendHeartbeatAsync(); }
                 catch (Exception ex) { _logError("heartbeat", ex); }
 
@@ -137,6 +148,10 @@ internal sealed class KioskBackgroundTasks
                 // Seul un refus du serveur compte ; une coupure réseau ne renvoie jamais à cet écran.
                 try { await CheckLicenseStillValidAsync(licenseService, navigation); }
                 catch (Exception ex) { _logError("license", ex); }
+
+                // Réglages de l'appareil demandés depuis le SaaS (LAB-428), hors accueil compris.
+                using (var cts = new CancellationTokenSource(UpdatePollTimeout))
+                    await RunCameraSyncAsync(poll: true, cts.Token);
 
                 // Impressions (LAB-230) : avant les séances, plus longues à envoyer (photos).
                 try { await printLogs.SendPendingAsync(); }
@@ -180,8 +195,12 @@ internal sealed class KioskBackgroundTasks
                     var current = await _dispatcher.InvokeAsync(() => navigation.CurrentViewType);
                     if (!EventPushService.ShouldPollQuickly(current, networkMonitor.IsOnline)) continue;
 
-                    using var cts = new CancellationTokenSource(UpdatePollTimeout);
-                    await RunEventPushAsync(poll: true, showLoadingScreen: true, cts.Token);
+                    using (var cts = new CancellationTokenSource(UpdatePollTimeout))
+                        await RunEventPushAsync(poll: true, showLoadingScreen: true, cts.Token);
+
+                    // Réglages de l'appareil (LAB-428) : même rythme sur l'accueil, appliqués aussitôt.
+                    using (var cts = new CancellationTokenSource(UpdatePollTimeout))
+                        await RunCameraSyncAsync(poll: true, cts.Token);
                 }
                 catch (Exception ex) { _logError(EventPushService.LogContext, ex); }
             }
@@ -288,6 +307,33 @@ internal sealed class KioskBackgroundTasks
             return false;
         }
         finally { Volatile.Write(ref _eventPushRunning, 0); }
+    }
+
+    /// <summary>
+    /// LAB-428 : réglages de l'appareil photo demandés depuis le SaaS. <paramref name="poll"/> = relit
+    /// d'abord la demande (kiosk_get_camera_request) ; sinon applique celle déjà lue. Appliquée seulement
+    /// sur un écran sûr, sinon au prochain. Une seule synchro à la fois. Ne lève jamais.
+    /// </summary>
+    internal async Task RunCameraSyncAsync(bool poll, CancellationToken pollToken)
+    {
+        if (Interlocked.Exchange(ref _cameraSyncRunning, 1) == 1) return;
+        try
+        {
+            var sync = _services.GetRequiredService<ICameraSettingsSync>();
+            if (poll) await sync.PollAsync(pollToken);
+            if (!sync.HasPending) return;
+            await _dispatcher.InvokeAsync(() => sync.TryApplyAsync()).Task.Unwrap();
+        }
+        catch (OperationCanceledException) when (pollToken.IsCancellationRequested)
+        {
+            // lecture trop lente : nouvel essai au prochain cycle
+        }
+        catch (Exception ex) when (SyncService.IsNetworkUnavailable(ex, pollToken))
+        {
+            // réseau coupé : pas de journal toutes les 20 s, nouvel essai au prochain cycle
+        }
+        catch (Exception ex) { _logError(CameraSettingsSyncService.LogContext, ex); }
+        finally { Volatile.Write(ref _cameraSyncRunning, 0); }
     }
 
     internal async Task OnNetworkRestoredAsync(IOnlineSyncService onlineSync)

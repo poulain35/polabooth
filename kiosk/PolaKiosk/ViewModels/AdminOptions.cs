@@ -4,7 +4,7 @@ using PolaKiosk.Services;
 namespace PolaKiosk.ViewModels;
 
 /// <summary>Option de la liste déroulante caméra. Mode null = détection automatique.</summary>
-public record CameraOption(string Label, string? Mode, int WebcamIndex);
+public record CameraSourceOption(string Label, string? Mode, int WebcamIndex);
 
 /// <summary>Taille des photos du Canon (valeur <see cref="CanonPhotoSize"/>).</summary>
 public record PhotoSizeOption(string Label, string Size);

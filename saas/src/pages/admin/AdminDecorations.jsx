@@ -247,7 +247,7 @@ export default function AdminDecorations() {
 
                 {/* État */}
                 {item.uploading && (
-                  <Loader2 className="mx-2 size-4 shrink-0 animate-spin text-primary" aria-label="Envoi en cours" />
+                  <Loader2 className="mx-2 size-4 shrink-0 animate-spin text-primary-ink" aria-label="Envoi en cours" />
                 )}
 
                 {/* Supprimer de la file */}
@@ -292,7 +292,7 @@ export default function AdminDecorations() {
         </div>
       ) : decorations.length === 0 ? (
         <Card className="flex flex-col items-center px-6 py-12 text-center">
-          <IconCircle tone="sky"><Sticker /></IconCircle>
+          <IconCircle tone="sand"><Sticker /></IconCircle>
           <p className="mt-3 text-[13px] text-muted-foreground">Aucun sticker uploadé.</p>
         </Card>
       ) : (

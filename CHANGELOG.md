@@ -42,8 +42,8 @@ chaque version le dit.
    `SUPABASE_ACCESS_TOKEN=sbp_…`. Créez-le sur https://supabase.com/dashboard/account/tokens
    (« Generate new token ») et copiez-le tout de suite, il n'est affiché qu'une fois. Le script en
    a besoin à chaque mise à jour. Le modèle `saas/instance.env.example` l'explique.
-2. Mettez à jour le SaaS (voir plus haut). Quatorze nouvelles migrations sont appliquées.
-3. Installez la borne **1.0.19** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
+2. Mettez à jour le SaaS (voir plus haut). Quinze nouvelles migrations sont appliquées.
+3. Installez la borne **1.0.22** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
    l'imprimante dans l'Admin de la borne (voir plus bas).
 4. Facultatif : dans Supabase (Edge Functions), supprimez les fonctions `generate-background`,
    `remove-background`, `assistant-chat` et `gcal-sync`, qui ne sont plus livrées (voir plus bas).
@@ -82,6 +82,9 @@ script la télécharge la première fois.
 - Choix du cadre : jusqu'à 4 cadres par événement, l'invité choisit le sien sur la borne.
 - Galerie aux couleurs de l'événement.
 - Journal de la borne dans la fiche de l'événement.
+- Réglages de l'appareil photo par borne (Bornes, fiche de la borne) : vitesse, ouverture, ISO,
+  balance des blancs et température, lus sur l'appareil et appliqués par la borne quand personne ne
+  fait de photo. Appareils Canon seulement.
 - Ménage quotidien des images des modèles qui ne servent plus.
 - Croix pour retirer une notification de la cloche.
 - Page d'aide (`/aide`) aux couleurs des pages client.
@@ -101,7 +104,7 @@ script la télécharge la première fois.
   restent dans la base, sans effet ; rien à faire de votre côté. Le code publié le 13 novembre 2026
   reste disponible sous sa licence.
 
-### Borne (1.0.17 à 1.0.19)
+### Borne (1.0.17 à 1.0.22)
 
 - Affiche les écrans composés dans le SaaS et l'écran d'accueil créé par le client.
 - Choix du cadre par l'invité.
@@ -116,6 +119,17 @@ script la télécharge la première fois.
 - La barre des tâches de Windows reste cachée en sortant de l'Admin.
 - Mise à jour plus sûre : installeur téléchargé en https seulement, empreinte vérifiée, fichiers
   reçus contrôlés avant d'être lus (1.0.19).
+- Réglages de l'appareil photo Canon dans l'Admin de la borne (vitesse, ouverture, ISO, balance des
+  blancs, appareil en mode M), gardés d'un événement à l'autre et remis à chaque connexion de
+  l'appareil ; réglages demandés depuis le SaaS appliqués sur l'accueil, jamais pendant une prise de
+  vue (1.0.20).
+- « Quitter vers Windows » dans l'Admin de la borne : elle se ferme sans être relancée par le
+  watchdog, et repart à la prochaine ouverture de session Windows (1.0.21). Le nouveau watchdog
+  prend effet à l'ouverture de session qui suit l'installation.
+- Lancement au démarrage de Windows au choix : case « Lancer la borne au démarrage de Windows » dans
+  l'Admin de la borne (1.0.22). Une nouvelle installation ne démarre plus avec Windows tant que la
+  case n'est pas cochée ; une borne déjà installée garde son démarrage automatique. Ouverte à la
+  main, la borne se relance quand même après un plantage ou une mise à jour.
 
 ---
 

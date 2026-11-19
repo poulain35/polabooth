@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PolaKiosk.Models;
 using PolaKiosk.Models.LocalDb;
 using PolaKiosk.Models.Supabase;
 using static PolaKiosk.Services.ApprovedDesignReader;
@@ -249,6 +250,18 @@ public class SupabaseService : ISupabaseService
         => CallRpcAsync("kiosk_ack_event_request",
             BuildEventPushAckBody(_credentials.MachineId, _credentials.Secret, eventId, requestedAt, error),
             "Confirmation de l'événement envoyé",
+            body => string.Equals(body.Trim(), "true", StringComparison.OrdinalIgnoreCase), ct, LicenseRefusal);
+
+    // LAB-428 : réglages de l'appareil photo demandés depuis le SaaS (Bornes › État › Appareil photo).
+    public Task<CameraSettingsRequest?> GetCameraRequestAsync(CancellationToken ct = default)
+        => CallRpcAsync("kiosk_get_camera_request", BuildCredentialsBody(_credentials.MachineId, _credentials.Secret),
+            "Lecture des réglages de l'appareil demandés", ParseCameraRequestResponse, ct, LicenseRefusal);
+
+    public Task<bool> AckCameraRequestAsync(string requestedAt, string status, CameraExposureValues? values, string? error,
+        CancellationToken ct = default)
+        => CallRpcAsync("kiosk_ack_camera_request",
+            BuildCameraAckBody(_credentials.MachineId, _credentials.Secret, requestedAt, status, values, error),
+            "Confirmation des réglages de l'appareil",
             body => string.Equals(body.Trim(), "true", StringComparison.OrdinalIgnoreCase), ct, LicenseRefusal);
 
     // LAB-225 : réponse au questionnaire, même contrôle de licence que kiosk_record_photo. Le corps

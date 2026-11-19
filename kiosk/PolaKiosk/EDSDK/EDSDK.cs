@@ -45,6 +45,11 @@ public static class EdsApi
     [DllImport(DllPath)] public static extern uint EdsGetPropertyData(
         IntPtr inRef, uint inPropertyID, int inParam, uint inPropertySize, IntPtr outPropertyData);
 
+    // Valeurs permises d'une propriété à cet instant (EDSDK.h : EdsGetPropertyDesc) : l'ouverture dépend
+    // de l'objectif et du zoom, les ISO du boîtier ; liste vide si la propriété n'est pas réglable.
+    [DllImport(DllPath)] public static extern uint EdsGetPropertyDesc(
+        IntPtr inRef, uint inPropertyID, out EdsPropertyDesc outPropertyDesc);
+
     // Live view
     [DllImport(DllPath)] public static extern uint EdsCreateEvfImageRef(IntPtr inStreamRef, out IntPtr outEvfImageRef);
     [DllImport(DllPath)] public static extern uint EdsDownloadEvfImage(IntPtr inCameraRef, IntPtr inEvfImageRef);

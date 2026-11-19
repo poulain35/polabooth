@@ -25,8 +25,8 @@ const METRICS = [
 // pour qu'un statut ait la même couleur ici et dans les listes.
 const STATUSES = {
   unplanned: { label: 'À planifier', color: 'hsl(var(--state-amber-fg))', dot: 'bg-state-amber-fg' },
-  upcoming: { label: 'À venir', color: 'hsl(var(--state-blue-fg))', dot: 'bg-state-blue-fg' },
-  ongoing: { label: 'En cours', color: 'hsl(var(--state-violet-fg))', dot: 'bg-state-violet-fg' },
+  upcoming: { label: 'À venir', color: 'hsl(var(--state-navy-fg))', dot: 'bg-state-navy-fg' },
+  ongoing: { label: 'En cours', color: 'hsl(var(--state-orange-fg))', dot: 'bg-state-orange-fg' },
   finished: { label: 'Terminé', color: 'hsl(var(--state-green-fg))', dot: 'bg-state-green-fg' },
   archived: { label: 'Archivé', color: 'hsl(var(--state-gray-fg))', dot: 'bg-state-gray-fg' },
 };
@@ -205,7 +205,7 @@ export default function ActivitySection({ stats, statusCounts, salesData, salesL
                 <li key={print.id}>
                   <Link to={`/admin/events/${print.event_id}`}
                     className="-mx-3 flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <IconCircle size="sm" tone="lilac"><Printer /></IconCircle>
+                    <IconCircle size="sm" tone="navy"><Printer /></IconCircle>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-foreground">{print.events?.name ?? '—'}</span>
                       <span className="block truncate text-[13px] text-muted-foreground">

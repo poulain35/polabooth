@@ -16,7 +16,7 @@ export function Toggle({ checked, onChange }) {
 export { CardHeading, Notice } from '../../../components/admin/CardParts';
 
 // ── Rond à cocher ────────────────────────────────────────────────────────────
-// `state` : done (vert, coche), current (bleu, flèche) ou todo (gris, vide).
+// `state` : done (vert, coche), current (jaune, flèche) ou todo (gris, vide).
 const CHECK_TONES = {
   done: 'bg-state-green text-state-green-fg',
   current: 'bg-primary text-primary-foreground',
@@ -34,7 +34,7 @@ export function CheckMark({ state = 'todo' }) {
 }
 
 // ── Étapes numérotées ────────────────────────────────────────────────────────
-// Ronds reliés par un trait : étape faite (fond fort et coche), en cours (bleu et numéro), à venir (gris et
+// Ronds reliés par un trait : étape faite (fond fort et coche), en cours (jaune et numéro), à venir (gris et
 // numéro). L'étape en cours est la première qui n'est pas faite. La barre défile à l'horizontale quand elle
 // ne tient pas (téléphone) : la page ne déborde pas.
 const STEP_TONES = {
@@ -75,7 +75,7 @@ export function EventSteps({ steps, label = 'Étapes de l’événement' }) {
 
 // ── Carte d'option à interrupteur ────────────────────────────────────────────
 // Tuile à poser dans une carte. `tone` : pastel du rond d'icône ; option coupée : rond blanc.
-export function FeatureCard({ iconPath, label, descOn, descOff, tone = 'sky', checked, onChange, locked }) {
+export function FeatureCard({ iconPath, label, descOn, descOff, tone = 'sand', checked, onChange, locked }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-muted p-3.5">
       <IconCircle tone={checked ? tone : 'white'}>

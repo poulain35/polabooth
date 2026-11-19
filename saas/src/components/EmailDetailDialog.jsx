@@ -17,8 +17,8 @@ import { useCopy } from '../hooks/useCopy';
 // Point de la frise : même couleur que la pastille du statut correspondant.
 const DOT = {
   sent: 'bg-state-gray-fg',
-  delivered: 'bg-state-blue-fg',
-  opened: 'bg-state-violet-fg',
+  delivered: 'bg-state-navy-fg',
+  opened: 'bg-state-orange-fg',
   click: 'bg-state-green-fg',
 };
 

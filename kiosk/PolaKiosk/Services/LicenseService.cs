@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace PolaKiosk.Services;
 
@@ -12,6 +13,7 @@ public class LicenseService : ILicenseService
     private readonly IAdminPinService _adminPin;
     private readonly IPendingUploadsCounter _pendingUploads;
     private readonly ICameraHealthService? _cameraHealth;
+    private readonly ICameraSettingsSync? _cameraSync;
     private readonly LicenseCache _cache;
 
     public string MachineId => _credentials.MachineId;
@@ -19,9 +21,10 @@ public class LicenseService : ILicenseService
 
     public LicenseService(SupabaseService supabase, AppSettings settings,
         IKioskCredentials credentials, IAdminPinService adminPin, IPendingUploadsCounter pendingUploads, string dataDir,
-        ICameraHealthService? cameraHealth = null)
+        ICameraHealthService? cameraHealth = null, ICameraSettingsSync? cameraSync = null)
     {
         _cameraHealth   = cameraHealth;
+        _cameraSync     = cameraSync;
         _supabase       = supabase;
         _settings       = settings;
         _credentials    = credentials;
@@ -115,10 +118,14 @@ public class LicenseService : ILicenseService
 
             var pending       = await _pendingUploads.CountAsync();
 
+            // Réglages de l'appareil (LAB-428) : envoyés seulement s'ils ont changé (ou toutes les 30 minutes).
+            var report        = _cameraSync?.ReportForHeartbeat();
+
             // RPC kiosk_heartbeat (SECURITY DEFINER) : met à jour le monitoring si (machine_id, secret) valide.
             var body = BuildHeartbeatBody(MachineId, _credentials.Secret, AppVersion.Current,
-                printerStatus, printerName ?? "", pending, _cameraHealth?.HeartbeatValue);
-            using var _ = await _supabase.PostRpcAsync("kiosk_heartbeat", body);
+                printerStatus, printerName ?? "", pending, _cameraHealth?.HeartbeatValue, report);
+            using var response = await _supabase.PostRpcAsync("kiosk_heartbeat", body);
+            if (response.IsSuccessStatusCode && report != null) _cameraSync!.MarkReportSent(report);
         }
         catch { /* non bloquant */ }
     }
@@ -128,9 +135,12 @@ public class LicenseService : ILicenseService
     /// = la borne n'a pas pu compter : envoyé tel quel (inconnu côté serveur), jamais remplacé par 0.
     /// <paramref name="cameraStatus"/> (LAB-263) : "ok", "disconnected", ou null si l'état n'est pas connu
     /// (vérification pas encore faite ou expirée) ; null ne modifie pas l'état gardé par le serveur.
+    /// <paramref name="cameraReportJson"/> (LAB-428) : rapport JSON des réglages de l'appareil, envoyé comme
+    /// objet ; null ne modifie pas le rapport gardé par le serveur.
     /// </summary>
     internal static string BuildHeartbeatBody(string machineId, string secret, string appVersion,
-        string printerStatus, string printerName, int? pendingUploads, string? cameraStatus = null)
+        string printerStatus, string printerName, int? pendingUploads, string? cameraStatus = null,
+        string? cameraReportJson = null)
         => JsonConvert.SerializeObject(new
         {
             p_machine_id      = machineId,
@@ -140,6 +150,7 @@ public class LicenseService : ILicenseService
             p_printer_name    = printerName,
             p_pending_uploads = pendingUploads,
             p_camera_status   = cameraStatus,
+            p_camera_report   = cameraReportJson == null ? null : new JRaw(cameraReportJson),
         });
 
     private Task UpdateLastSeenAsync() => SendHeartbeatAsync();

@@ -57,7 +57,7 @@ function alsoMessage(changed, enable) {
 
 function KeepChoices({ saving, onKeep }) {
   return (
-    <Card tone="sky" className="flex flex-col gap-3 p-card sm:flex-row sm:items-center">
+    <Card tone="sand" className="flex flex-col gap-3 p-card sm:flex-row sm:items-center">
       <IconCircle tone="white" className="hidden sm:inline-flex"><CheckCircle2 /></IconCircle>
       <div className="min-w-0 flex-1">
         <CardTitle as="p">Ces choix vous conviennent ?</CardTitle>

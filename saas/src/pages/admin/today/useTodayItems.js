@@ -15,7 +15,7 @@ import { SETUP_CARD_KEY, buildSetupSteps, isSetupCardHidden, setupTodayItems } f
 import { useFeatures } from '../../../hooks/useFeatures';
 import { useAppAdmin } from '../../../hooks/useAppAdmin';
 import { isFeatureEnabled } from '../../../features/catalog';
-import { INSTALLED_MODULES, moduleHook } from '../../../features/modules';
+import { INSTALLED_MODULES, moduleHook, moduleHooks } from '../../../features/modules';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Relecture au changement de page, au plus une fois par période.
@@ -116,6 +116,8 @@ export function useTodayItems() {
   const [guestReminders, setGuestReminders] = useState([]);
   const [licenses, setLicenses] = useState([]);
   const [sales, setSales] = useState(null);
+  // Lignes des modules par le crochet 'today.items' : [{ feature, items }].
+  const [hookItems, setHookItems] = useState([]);
   const [dismissals, setDismissals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -160,6 +162,7 @@ export function useTodayItems() {
   const reload = useCallback(async () => {
     lastLoad.current = Date.now();
     const salesLoad = moduleHook('dashboard.load');
+    const itemHooks = moduleHooks('today.items');
     const results = await Promise.allSettled([
       fetchOpenAlerts(),
       fetchSubmittedDesigns(),
@@ -169,9 +172,10 @@ export function useTodayItems() {
       salesLoad ? salesLoad.run() : Promise.resolve(null),
       fetchTodayDismissals(),
       fetchSetupInputs(),
+      Promise.all(itemHooks.map(async (hook) => ({ feature: hook.feature, items: (await hook.run()) ?? [] }))),
     ]);
     if (!alive.current) return;
-    const [a, d, e, g, l, s, h, si] = results.map((r) => (r.status === 'fulfilled' ? r.value : undefined));
+    const [a, d, e, g, l, s, h, si, mi] = results.map((r) => (r.status === 'fulfilled' ? r.value : undefined));
     if (a) setAlerts(a);
     if (d) setDesigns(d);
     if (e) setEventsWithoutBorne(e);
@@ -179,6 +183,7 @@ export function useTodayItems() {
     if (l) setLicenses(l);
     if (s !== undefined) setSales(s);
     if (h) setDismissals(h);
+    if (mi) setHookItems(mi);
     const failed = results.filter((r) => r.status === 'rejected');
     setError(failed.length ? 'Une partie de la liste n’a pas pu être chargée.' : '');
     setLoading(false);
@@ -293,13 +298,16 @@ export function useTodayItems() {
 
   const allItems = useMemo(() => {
     const itemsHook = moduleHook('dashboard.items');
-    const moduleItems = itemsHook && isAvailable(itemsHook.feature) ? itemsHook.run(sales, isAvailable) : [];
+    const moduleItems = [
+      ...(itemsHook && isAvailable(itemsHook.feature) ? itemsHook.run(sales, isAvailable) : []),
+      ...hookItems.filter((h) => isAvailable(h.feature)).flatMap((h) => h.items),
+    ];
     const setupItems = setupHidden ? setupTodayItems(setup) : [];
     return buildTodayItems(
       { alerts, licenses, designs, eventsWithoutBorne, guestReminders, moduleItems, setupItems },
       { isAvailable },
     );
-  }, [alerts, licenses, designs, eventsWithoutBorne, guestReminders, sales, isAvailable, setupHidden, setup]);
+  }, [alerts, licenses, designs, eventsWithoutBorne, guestReminders, sales, hookItems, isAvailable, setupHidden, setup]);
 
   const { visible: items, hidden: hiddenItems } = useMemo(
     () => splitDismissed(allItems, dismissals),

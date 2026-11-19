@@ -14,7 +14,7 @@ const buttonVariants = cva(
         outline: "border border-input bg-card hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary admin:text-primary-ink underline-offset-4 hover:underline",
       },
       // Échelle unique des boutons : ne pas fixer de hauteur (h-*) ni d'arrondi par className, choisir une taille.
       // La hauteur de `sm` et l'arrondi de base viennent de variables de index.css (pages client : 32 px et

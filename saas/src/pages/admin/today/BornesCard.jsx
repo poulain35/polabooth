@@ -30,7 +30,7 @@ function BorneRow({ license }) {
     <li>
       <Link to="/admin/bornes"
         className="-mx-3 flex items-start gap-3.5 rounded-xl px-3 py-3 transition-colors hover:bg-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <IconCircle tone="sky"><Camera /></IconCircle>
+        <IconCircle tone="sand"><Camera /></IconCircle>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="min-w-0 max-w-full truncate text-sm font-medium text-foreground">{license.label ?? license.machine_id}</span>

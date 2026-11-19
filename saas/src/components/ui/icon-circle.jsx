@@ -10,8 +10,8 @@ const iconCircleVariants = cva(
       tone: {
         peach: "bg-pastel-peach text-pastel-peach-ink",
         mint: "bg-pastel-mint text-pastel-mint-ink",
-        sky: "bg-pastel-sky text-pastel-sky-ink",
-        lilac: "bg-pastel-lilac text-pastel-lilac-ink",
+        sand: "bg-pastel-sand text-pastel-sand-ink",
+        navy: "bg-pastel-navy text-pastel-navy-ink",
         lemon: "bg-pastel-lemon text-pastel-lemon-ink",
         rose: "bg-pastel-rose text-pastel-rose-ink",
         white: "bg-card text-foreground",
@@ -22,7 +22,7 @@ const iconCircleVariants = cva(
         default: "h-[42px] w-[42px] [&_svg]:size-5",
       },
     },
-    defaultVariants: { tone: "sky", size: "default" },
+    defaultVariants: { tone: "sand", size: "default" },
   }
 );
 

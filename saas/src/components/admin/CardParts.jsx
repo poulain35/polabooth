@@ -28,7 +28,7 @@ const NOTICE_TONES = {
   green: 'bg-state-green text-state-green-fg',
   amber: 'bg-state-amber text-state-amber-fg',
   red: 'bg-state-red text-state-red-fg',
-  blue: 'bg-state-blue text-state-blue-fg',
+  navy: 'bg-state-navy text-state-navy-fg',
   gray: 'bg-state-gray text-state-gray-fg',
 };
 

@@ -58,6 +58,7 @@ public sealed class ServiceRegistrationTests : IDisposable
     [InlineData(typeof(IKioskLogContext))]
     [InlineData(typeof(IGuestJourneyService))]
     [InlineData(typeof(ICameraHealthService))]
+    [InlineData(typeof(ICameraSettingsSync))]
     [InlineData(typeof(IPrinterDriver))]
     public void Service_resolves(Type type)
     {

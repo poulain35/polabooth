@@ -232,7 +232,7 @@ export default function NotificationsBell() {
                   <button
                     onClick={() => handleClick(item)}
                     className={`w-full text-left flex items-start gap-3 pl-4 pr-12 py-3 hover:bg-soft transition-colors ${item.unread ? '' : 'opacity-60'}`}>
-                    <IconCircle size="sm" tone={item.unread ? 'lilac' : 'muted'}>
+                    <IconCircle size="sm" tone={item.unread ? 'navy' : 'muted'}>
                       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={item.meta.icon} />
                       </svg>

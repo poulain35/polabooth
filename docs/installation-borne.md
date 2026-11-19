@@ -23,7 +23,7 @@ en service.
 
 | Élément | Conseillé | Remarques |
 |---|---|---|
-| PC | Windows 10 ou 11 (64 bits), 8 Go de RAM, SSD | Mini-PC ou portable. Un seul compte Windows, avec ouverture de session automatique (la borne démarre à la connexion de l'utilisateur). |
+| PC | Windows 10 ou 11 (64 bits), 8 Go de RAM, SSD | Mini-PC ou portable. Un seul compte Windows, avec ouverture de session automatique si la borne doit démarrer toute seule (case de l'Admin, voir 5.1). |
 | Écran | Écran tactile | L'interface est faite pour le tactile (gros boutons, clavier à l'écran). Testée sur un 12 pouces. |
 | Appareil photo | Canon compatible EDSDK, en USB (testé : EOS R100) | Sans Canon, la borne prend la première webcam. Le kit EDSDK de Canon est inclus dans l'installeur prêt à l'emploi ; pour construire le vôtre, voir 3.2. |
 | Imprimante | Imprimante photo avec pilote Windows (testé : DNP DS620, RX1-HS) | Formats 10×15 et bandes 5×15. Tout pilote Windows fonctionne s'il propose ces formats (nom « 4x6 », « 10x15 », « 2x6 »… ou taille exacte). Pour imprimer deux bandes par feuille 10×15, le pilote doit savoir couper la feuille en deux (DNP : coupe 2 pouces, voir 5.3). |
@@ -31,6 +31,10 @@ en service.
 
 L'appareil photo doit être réglé en mode photo (pas vidéo), sans mise en veille automatique, et
 alimenté sur secteur si possible (adaptateur secteur Canon) : une batterie vide arrête la borne.
+
+Mettez la molette de l'appareil sur **M** (manuel) : la borne ne règle la vitesse, l'ouverture, les
+ISO et la balance des blancs qu'en mode M (administration › Caméra › « Appareil photo », voir 5.3).
+Les réglages choisis sont gardés sur la borne et remis chaque fois qu'elle ouvre l'appareil.
 
 Réglez l'exposition du Canon pour le flash, comme pour une photo normale. Sur les Canon EOS R, la
 borne désactive d'elle-même la « simulation d'exposition » : l'aperçu à l'écran reste clair même si
@@ -176,7 +180,10 @@ Tests (facultatif) : `dotnet test PolaKiosk.slnx`.
 
 1. Copiez `setup-polakiosk.exe` sur le PC de la borne (clé USB, ou téléchargement).
 2. Lancez-le. Aucun droit administrateur n'est demandé : l'application s'installe pour
-   l'utilisateur Windows en cours et démarre avec sa session.
+   l'utilisateur Windows en cours. Elle ne démarre pas avec Windows : pour qu'elle s'ouvre
+   toute seule à chaque démarrage du PC, cochez « Lancer la borne au démarrage de Windows » dans
+   l'Admin de la borne (carte « Démarrage de Windows »). Sinon, ouvrez-la avec l'icône PolaKiosk du
+   Bureau.
 3. Branchez l'appareil photo (allumé) et l'imprimante avant de lancer la borne.
 
 ### 5.2 Premier démarrage
@@ -223,6 +230,12 @@ Ouvrez-le avec le cadenas de l'écran d'accueil, puis le PIN.
   pas ce papier (cas de la DS620), elle demande une taille personnalisée que le pilote imprime mal,
   et un avertissement est écrit dans les journaux (catégorie `print`, « Papier 2x6 introuvable »).
 - **Caméra** : « Détection automatique » (Canon, sinon webcam) ou une source précise ; « Tester la caméra » montre l'image et la définition.
+- **Appareil photo** (bouton de la carte Caméra, Canon seulement) : vitesse, ouverture, ISO et
+  balance des blancs, avec l'aperçu et une photo de test au flash (ni gardée ni envoyée). Molette de
+  l'appareil sur M obligatoire ; au-delà de 1/200, le flash risque de ne couvrir qu'une partie de la photo.
+  Les mêmes réglages se font à distance dans le SaaS, page **Bornes** (onglet État), section
+  « Appareil photo » de la carte de la borne : la borne les applique dès qu'aucune séance n'est en
+  cours (borne en ligne, version postérieure à 1.0.19). Le dernier réglage fait, sur la borne ou dans le SaaS, gagne.
 - **Photos du Canon** : petite, moyenne (conseillé) ou grande taille.
 - **Nettoyage du PC** : nombre de jours avant d'effacer les photos d'un événement terminé (30 par
   défaut). Une photo pas encore envoyée n'est jamais effacée.
@@ -275,6 +288,7 @@ Détails techniques (watchdog, journaux, rollback) : `kiosk/installer/README.md`
 | Les QR codes ou l'association mènent au site d'une autre entreprise | `appsettings.Instance.json` contient encore les adresses d'une autre entreprise (3.1). Corrigez-le ou supprimez-le, puis reconstruisez l'installeur. |
 | « Problème technique » sur l'accueil | L'appareil photo n'est pas détecté : vérifiez le câble USB, l'alimentation, le mode photo. Le SaaS est prévenu (carte de la borne). |
 | La borne prend la webcam au lieu du Canon | Installeur construit sans les DLL EDSDK (3.2 ; l'installeur prêt à l'emploi les contient), ou caméra forcée sur webcam dans l'administration. |
+| « Mettez la molette de l'appareil sur M » dans « Appareil photo » | La molette du Canon est sur un autre mode : tournez-la sur M. Les réglages gardés sont remis la prochaine fois que la borne ouvre l'appareil (journaux, catégorie `camera`). |
 | Administration fermée | Définissez et envoyez le PIN depuis le SaaS (5.2, point 3). La borne doit avoir du réseau pour le recevoir. |
 | Rien ne s'imprime | Imprimante choisie dans l'administration ? Papier et ruban chargés ? Testez une impression depuis Windows. |
 | Bandes imprimées une seule fois, ou feuille non coupée | Réglage « bandes coupées » absent ou refusé (autre imprimante, pilote changé) : la carte Imprimante de l'administration l'indique, comme les journaux (catégorie `print`). Enregistrez-le à nouveau (5.3) et vérifiez que la coupe 2 pouces est cochée. |
@@ -285,5 +299,8 @@ Détails techniques (watchdog, journaux, rollback) : `kiosk/installer/README.md`
 Journaux de la borne : `%LocalAppData%\PolaKiosk\` (`fatal.log`, `watchdog.log`, `update.log`).
 Les erreurs sont aussi envoyées au SaaS (journaux de la borne).
 
-Pour quitter l'application sur la borne : écran d'administration (le mode kiosk bloque le clavier
-tant qu'il est actif). Pour la désinstaller : Paramètres Windows > Applications > PolaKiosk.
+Pour quitter l'application sur la borne : écran d'administration, « Quitter vers Windows » (le mode
+kiosk bloque le clavier tant qu'il est actif). La borne ne se relance pas toute seule ; elle repart en
+lançant PolaKiosk à la main, ou à la prochaine ouverture de session Windows si la case « Lancer la
+borne au démarrage de Windows » est cochée. Fermée autrement (plantage,
+fenêtre fermée), elle est relancée par le watchdog en 15 secondes au plus. Pour la désinstaller : Paramètres Windows > Applications > PolaKiosk.

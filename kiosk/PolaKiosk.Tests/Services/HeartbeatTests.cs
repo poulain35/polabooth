@@ -29,7 +29,7 @@ public sealed class HeartbeatTests : IDisposable
 
         body.Properties().Select(p => p.Name).Should().BeEquivalentTo(
             "p_machine_id", "p_secret", "p_app_version", "p_printer_status", "p_printer_name", "p_pending_uploads",
-            "p_camera_status");
+            "p_camera_status", "p_camera_report");
         body["p_pending_uploads"]!.Value<int>().Should().Be(4);
         body["p_app_version"]!.ToString().Should().Be("1.0.20");
     }
@@ -83,7 +83,59 @@ public sealed class HeartbeatTests : IDisposable
         _http.Calls.Should().AllSatisfy(c => JObject.Parse(c.Body)["p_camera_status"]!.Type.Should().Be(JTokenType.Null));
     }
 
-    private LicenseService NewLicense(IPendingUploadsCounter counter, ICameraHealthService? cameraHealth = null)
+    // ── LAB-428 : rapport des réglages de l'appareil (p_camera_report) ─────────
+
+    [Fact]
+    public void Camera_report_is_sent_as_an_object_and_null_without_one()
+    {
+        var withReport = JObject.Parse(LicenseService.BuildHeartbeatBody("MACHINE-1", "s3cret", "1.0.20", "ready", "DNP", 0,
+            cameraReportJson: """{"model":"Canon EOS R100","mode":"M"}"""));
+        var without = JObject.Parse(LicenseService.BuildHeartbeatBody("MACHINE-1", "s3cret", "1.0.20", "ready", "DNP", 0));
+
+        withReport["p_camera_report"]!.Type.Should().Be(JTokenType.Object);
+        withReport["p_camera_report"]!["mode"]!.ToString().Should().Be("M");
+        without["p_camera_report"]!.Type.Should().Be(JTokenType.Null);
+    }
+
+    [Fact]
+    public async Task Heartbeat_sends_the_camera_report_and_marks_it_sent()
+    {
+        const string report = """{"model":"Canon EOS R100","mode":"M","at":"2026-11-19T10:00:00Z"}""";
+        var sync = new Mock<ICameraSettingsSync>();
+        sync.Setup(s => s.ReportForHeartbeat()).Returns(report);
+
+        await NewLicense(Mock.Of<IPendingUploadsCounter>(), cameraSync: sync.Object).SendHeartbeatAsync();
+
+        JObject.Parse(_http.Calls.Single().Body)["p_camera_report"]!["model"]!.ToString().Should().Be("Canon EOS R100");
+        sync.Verify(s => s.MarkReportSent(report), Times.Once);
+    }
+
+    [Fact]
+    public async Task Refused_heartbeat_does_not_mark_the_camera_report_sent()
+    {
+        _http.Status = HttpStatusCode.InternalServerError;
+        var sync = new Mock<ICameraSettingsSync>();
+        sync.Setup(s => s.ReportForHeartbeat()).Returns("""{"model":"Canon EOS R100"}""");
+
+        await NewLicense(Mock.Of<IPendingUploadsCounter>(), cameraSync: sync.Object).SendHeartbeatAsync();
+
+        sync.Verify(s => s.MarkReportSent(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Unchanged_camera_report_is_not_resent()
+    {
+        var sync = new Mock<ICameraSettingsSync>();
+        sync.Setup(s => s.ReportForHeartbeat()).Returns((string?)null);
+
+        await NewLicense(Mock.Of<IPendingUploadsCounter>(), cameraSync: sync.Object).SendHeartbeatAsync();
+
+        JObject.Parse(_http.Calls.Single().Body)["p_camera_report"]!.Type.Should().Be(JTokenType.Null);
+        sync.Verify(s => s.MarkReportSent(It.IsAny<string>()), Times.Never);
+    }
+
+    private LicenseService NewLicense(IPendingUploadsCounter counter, ICameraHealthService? cameraHealth = null,
+        ICameraSettingsSync? cameraSync = null)
     {
         var credentials = new Mock<IKioskCredentials>();
         credentials.SetupGet(c => c.MachineId).Returns("MACHINE-1");
@@ -93,7 +145,7 @@ public sealed class HeartbeatTests : IDisposable
         var supabase = new SupabaseService(settings, credentials.Object,
             _services.GetRequiredService<IServiceScopeFactory>(), _http);
         return new LicenseService(supabase, settings, credentials.Object, new Mock<IAdminPinService>().Object,
-            counter, _dir.Path, cameraHealth);
+            counter, _dir.Path, cameraHealth, cameraSync);
     }
 
     private sealed record Call(string Uri, string Body);
@@ -101,12 +153,13 @@ public sealed class HeartbeatTests : IDisposable
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public List<Call> Calls { get; } = [];
+        public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var body = request.Content == null ? "" : await request.Content.ReadAsStringAsync(ct);
             Calls.Add(new Call(request.RequestUri!.AbsoluteUri, body));
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(Status)
             {
                 Content = new StringContent("", Encoding.UTF8, "application/json"),
             };

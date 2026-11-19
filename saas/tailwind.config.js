@@ -67,8 +67,8 @@ export default {
         pastel: {
           peach: { DEFAULT: 'hsl(var(--pastel-peach))', ink: 'hsl(var(--pastel-peach-ink))' },
           mint: { DEFAULT: 'hsl(var(--pastel-mint))', ink: 'hsl(var(--pastel-mint-ink))' },
-          sky: { DEFAULT: 'hsl(var(--pastel-sky))', ink: 'hsl(var(--pastel-sky-ink))' },
-          lilac: { DEFAULT: 'hsl(var(--pastel-lilac))', ink: 'hsl(var(--pastel-lilac-ink))' },
+          sand: { DEFAULT: 'hsl(var(--pastel-sand))', ink: 'hsl(var(--pastel-sand-ink))' },
+          navy: { DEFAULT: 'hsl(var(--pastel-navy))', ink: 'hsl(var(--pastel-navy-ink))' },
           lemon: { DEFAULT: 'hsl(var(--pastel-lemon))', ink: 'hsl(var(--pastel-lemon-ink))' },
           rose: { DEFAULT: 'hsl(var(--pastel-rose))', ink: 'hsl(var(--pastel-rose-ink))' },
         },
@@ -76,8 +76,8 @@ export default {
         state: {
           amber: { DEFAULT: 'var(--state-amber)', fg: 'hsl(var(--state-amber-fg))' },
           green: { DEFAULT: 'var(--state-green)', fg: 'hsl(var(--state-green-fg))' },
-          violet: { DEFAULT: 'var(--state-violet)', fg: 'hsl(var(--state-violet-fg))' },
-          blue: { DEFAULT: 'var(--state-blue)', fg: 'hsl(var(--state-blue-fg))' },
+          orange: { DEFAULT: 'var(--state-orange)', fg: 'hsl(var(--state-orange-fg))' },
+          navy: { DEFAULT: 'var(--state-navy)', fg: 'hsl(var(--state-navy-fg))' },
           red: { DEFAULT: 'var(--state-red)', fg: 'hsl(var(--state-red-fg))' },
           gray: { DEFAULT: 'var(--state-gray)', fg: 'hsl(var(--state-gray-fg))' },
         },
@@ -95,7 +95,7 @@ export default {
           soft: 'hsl(var(--editor-soft))',
           hover: 'hsl(var(--editor-hover))',
           pressed: 'hsl(var(--editor-pressed))',
-          // Couleur complète (bleu doux de l'admin, accent à 10 % côté client) : pas d'opacité Tailwind.
+          // Couleur complète (crème de l’admin, accent à 10 % côté client) : pas d'opacité Tailwind.
           selected: 'var(--editor-selected)',
           line: 'hsl(var(--editor-line))',
           'line-strong': 'hsl(var(--editor-line-strong))',

@@ -1,5 +1,10 @@
-﻿# Watchdog PolaKiosk — lance l'app à l'ouverture de session et la relance si elle plante.
-# S'exécute en session utilisateur (raccourci dans le dossier Démarrage, aucun droit admin).
+﻿# Watchdog PolaKiosk — lance l'app et la relance si elle plante ou après une mise à jour.
+# S'exécute en session utilisateur, aucun droit admin. Lancé à l'ouverture de session par le
+# raccourci du dossier Démarrage si la case « Lancer la borne au démarrage de Windows » de l'Admin
+# est cochée (désactivé à l'installation) ; sinon par l'app elle-même, ouverte à la main.
+# « Quitter vers Windows » (admin de la borne) pose stop.flag : plus de relance jusqu'à la prochaine
+# ouverture de session (ce watchdog le supprime en démarrant) ou jusqu'au lancement de l'app à la main
+# (l'app le supprime à son démarrage).
 # Pendant une mise à jour, un fichier verrou empêche la relance (sinon l'installeur ne
 # pourrait pas remplacer l'exe en cours d'utilisation). Un verrou de plus de 10 min est
 # orphelin (mise à jour interrompue) : il est ignoré et supprimé.
@@ -7,7 +12,7 @@
 # Fichier enregistré en UTF-8 AVEC BOM : sans BOM, Windows PowerShell 5.1 le lit en ANSI
 # et le tiret long des messages casse l'analyse du script.
 #
-# Lancé automatiquement au logon. Manuel :
+# Manuel :
 #   powershell -ExecutionPolicy Bypass -File watchdog.ps1 -ExePath "...\PolaKiosk.exe"
 
 param(
@@ -37,6 +42,7 @@ $processName = [System.IO.Path]::GetFileNameWithoutExtension($ExePath)
 $dataDir  = Join-Path $env:LOCALAPPDATA "PolaKiosk"
 $lockFile = Join-Path $dataDir "update.lock"
 $logFile  = Join-Path $dataDir "watchdog.log"
+$stopFile = Join-Path $dataDir "stop.flag"
 if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
 
 function Write-Log($msg) {
@@ -52,7 +58,14 @@ if (-not $owned) {
     exit 0
 }
 
+# Nouvelle session : un « Quitter vers Windows » de la session précédente ne compte plus.
+if (Test-Path $stopFile) {
+    Remove-Item $stopFile -ErrorAction SilentlyContinue
+    Write-Log "[watchdog] Arrêt volontaire de la session précédente oublié (stop.flag supprimé)."
+}
+
 Write-Log "[watchdog] Démarrage. Surveillance de '$processName' toutes les ${IntervalSeconds}s."
+$stopped = $false
 
 while ($true) {
     # Mise à jour en cours → ne pas relancer l'app (l'installeur a besoin qu'elle reste fermée)
@@ -66,6 +79,14 @@ while ($true) {
         Write-Log "[watchdog] Verrou de mise à jour orphelin ($([int]$age.TotalMinutes) min) : ignoré et supprimé."
         Remove-Item $lockFile -ErrorAction SilentlyContinue
     }
+
+    # Arrêt volontaire (« Quitter vers Windows ») → pas de relance tant que stop.flag existe
+    if (Test-Path $stopFile) {
+        if (-not $stopped) { Write-Log "[watchdog] Arrêt volontaire : relance suspendue."; $stopped = $true }
+        Start-Sleep -Seconds 2
+        continue
+    }
+    if ($stopped) { Write-Log "[watchdog] stop.flag retiré : surveillance reprise."; $stopped = $false }
 
     $running = Get-Process -Name $processName -ErrorAction SilentlyContinue
     if (-not $running) {

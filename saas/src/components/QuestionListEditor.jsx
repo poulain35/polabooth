@@ -139,7 +139,7 @@ export default function QuestionListEditor({
                     <button
                       type="button"
                       onClick={() => addOption(q.id)}
-                      className="flex items-center gap-1 text-xs text-primary hover:text-primary font-medium ml-3.5"
+                      className="flex items-center gap-1 text-xs text-primary-ink hover:underline font-medium ml-3.5"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Ajouter une option
@@ -164,7 +164,7 @@ export default function QuestionListEditor({
         <button
           type="button"
           onClick={addQuestion}
-          className="flex items-center gap-1.5 text-sm text-primary hover:text-primary font-medium mb-4"
+          className="flex items-center gap-1.5 text-sm text-primary-ink hover:underline font-medium mb-4"
         >
           <Plus className="w-4 h-4" />
           Ajouter une question

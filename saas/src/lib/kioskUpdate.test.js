@@ -1,7 +1,7 @@
 // LAB-200 : mise à jour d'une borne uniquement sur demande depuis la page Licences.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareVersions, kioskUpdateStatus, latestRelease } from './kioskUpdate.js';
+import { compareVersions, kioskUpdateStatus, latestRelease, pendingKioskUpdate } from './kioskUpdate.js';
 
 const REQ = '2026-11-03T10:00:00.123456+00:00';
 const lic = (over = {}) => ({
@@ -70,4 +70,31 @@ test('kioskUpdateStatus : un échec ou une réception antérieurs à la demande 
   }));
   assert.equal(s.state, 'requested');
   assert.equal(s.error, null);
+});
+
+test('pendingKioskUpdate : bornes du compte en retard sur la dernière version', () => {
+  const releases = [{ version: '1.0.18' }, { version: '1.0.19' }];
+  const base = { org_id: 'o1', retired_at: null, update_requested_version: null, update_requested_at: null };
+  const licenses = [
+    { ...base, id: 'a', app_version: '1.0.18' },
+    { ...base, id: 'b', app_version: '1.0.19' },
+    { ...base, id: 'c', app_version: '1.0.17' },
+    { ...base, id: 'd', app_version: null },
+    { ...base, id: 'e', app_version: '1.0.10', retired_at: '2026-10-01T00:00:00Z' },
+    { ...base, id: 'f', app_version: '1.0.10', org_id: 'o2' },
+    { ...base, id: 'g', app_version: '1.0.18', update_requested_version: '1.0.19', update_requested_at: REQ },
+  ];
+  assert.deepEqual(pendingKioskUpdate(licenses, releases, 'o1'), { version: '1.0.19', count: 2 });
+  assert.equal(pendingKioskUpdate(licenses.slice(1, 2), releases, 'o1'), null);
+  assert.equal(pendingKioskUpdate(licenses, [], 'o1'), null);
+  assert.equal(pendingKioskUpdate(licenses, releases, null), null);
+});
+
+test('pendingKioskUpdate : une demande échouée laisse la borne comptée', () => {
+  const releases = [{ version: '1.0.19' }];
+  const failed = {
+    org_id: 'o1', retired_at: null, app_version: '1.0.18', update_requested_version: '1.0.19',
+    update_requested_at: REQ, update_failed_at: '2026-11-03T11:00:00Z', update_error: 'x',
+  };
+  assert.deepEqual(pendingKioskUpdate([failed], releases, 'o1'), { version: '1.0.19', count: 1 });
 });

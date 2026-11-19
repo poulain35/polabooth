@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import NotificationsBell from '../../components/NotificationsBell';
 import CommandPalette from '../../components/CommandPalette';
 import MobileTabBar from '../../components/admin/MobileTabBar';
+import KioskUpdateCard from '../../components/admin/KioskUpdateCard';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -92,7 +93,7 @@ function NavBadge({ count, tone = 'primary', active = false }) {
   if (!count) return null;
   const cls = tone === 'destructive'
     ? 'bg-state-red text-state-red-fg'
-    : active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground';
+    : active ? 'bg-primary-ink text-primary-soft' : 'bg-muted text-muted-foreground';
   return (
     <span className={`ml-auto flex h-[22px] min-w-6 items-center justify-center rounded-full px-[7px] text-xs font-medium leading-none ${cls}`}>
       {count > 99 ? '99+' : count}
@@ -230,7 +231,7 @@ export default function AdminLayout() {
       if (!data.session) return;
       const { data: orgData } = await supabase
         .from('organizations')
-        .select('name, contact_company, contact_phone, contact_email, logo_url, business_profile')
+        .select('id, name, contact_company, contact_phone, contact_email, logo_url, business_profile')
         .eq('owner_id', data.session.user.id)
         .maybeSingle();
       if (orgData) setOrg(orgData);
@@ -250,7 +251,7 @@ export default function AdminLayout() {
       <DropdownMenuTrigger asChild>
         <button className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Menu du compte">
           <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary-soft text-primary-ink">{initialsOf(companyName)}</AvatarFallback>
+            <AvatarFallback className="bg-primary-ink text-primary-soft">{initialsOf(companyName)}</AvatarFallback>
           </Avatar>
         </button>
       </DropdownMenuTrigger>
@@ -339,8 +340,9 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* Modules */}
-        <nav aria-label="Menu de l’administration" className="flex-1 space-y-3 overflow-y-auto px-4 pb-5 pt-2">
+        {/* Modules, puis l'encart de mise à jour des bornes juste sous Aide (défile avec le menu) */}
+        <div className="flex-1 overflow-y-auto">
+        <nav aria-label="Menu de l’administration" className="space-y-3 px-4 pb-5 pt-2">
           {modules.map((module) => (
             <div key={module.id} className={module.separator ? 'border-t border-border pt-3' : ''}>
               {/* Items du groupe */}
@@ -373,7 +375,10 @@ export default function AdminLayout() {
             </div>
           ))}
         </nav>
-
+        <div className="px-4 pb-4 empty:hidden">
+          <KioskUpdateCard orgId={org.id} refreshKey={location.pathname.startsWith('/admin/bornes')} onNavigate={() => setNavOpen(false)} />
+        </div>
+        </div>
       </aside>
 
       {/* Zone principale : topbar desktop + contenu. Téléphone : place de la barre du bas réservée

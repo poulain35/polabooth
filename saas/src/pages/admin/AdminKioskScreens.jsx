@@ -83,7 +83,7 @@ function UnknownScreen() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <Notice tone="red" role="alert">Écran inconnu.</Notice>
-      <Link to="/admin/bornes?tab=ecrans" className="inline-block mt-4 text-sm text-primary hover:underline">Écrans de la borne</Link>
+      <Link to="/admin/bornes?tab=ecrans" className="inline-block mt-4 text-sm text-primary-ink hover:underline">Écrans de la borne</Link>
     </div>
   );
 }
@@ -537,7 +537,7 @@ function ScreenEditorView({ kind }) {
       {publishing && (
         <div className="absolute inset-0 z-[80] bg-black/30 flex items-center justify-center">
           <div role="status" className="bg-card rounded-dialog shadow-float px-6 py-5 flex items-center gap-3 text-sm font-medium text-foreground">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <Loader2 className="w-5 h-5 animate-spin text-primary-ink" />
             Publication de l’écran sur les bornes…
           </div>
         </div>

@@ -10,11 +10,11 @@ import { Skeleton } from '../../../components/ui/skeleton';
 // Icône et pastel par chiffre ; un chiffre inconnu (autre module) : graphique, lilas.
 const TILES = {
   signed: { icon: Euro, tone: 'peach' },
-  upcoming: { icon: CalendarDays, tone: 'sky' },
+  upcoming: { icon: CalendarDays, tone: 'sand' },
   prints: { icon: Printer, tone: 'mint' },
-  photos: { icon: Camera, tone: 'lilac' },
+  photos: { icon: Camera, tone: 'navy' },
 };
-const DEFAULT_TILE = { icon: ChartNoAxesColumn, tone: 'lilac' };
+const DEFAULT_TILE = { icon: ChartNoAxesColumn, tone: 'navy' };
 
 function Figure({ figure, loading }) {
   const tile = TILES[figure.id] ?? DEFAULT_TILE;

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
-// Carte de l'admin : blanche avec ombre douce, ou pastel (`tone`) pour une carte mise en avant. Sans bordure.
+// Carte de l'admin : blanche avec ombre douce, ou pastel (`tone`, `brand` = jaune du logo) pour une carte mise en avant. Sans bordure.
 // Sur un pastel, le gris atténué manque de contraste en clair (4,3:1) : dans la carte, `text-muted-foreground`
 // prend la valeur de l'encre (`--ink`).
 const ON_PASTEL = "text-foreground [--muted-foreground:var(--ink)]";
@@ -12,10 +12,12 @@ const cardVariants = cva("rounded-card", {
       default: "bg-card text-card-foreground shadow-card",
       peach: `bg-pastel-peach ${ON_PASTEL}`,
       mint: `bg-pastel-mint ${ON_PASTEL}`,
-      sky: `bg-pastel-sky ${ON_PASTEL}`,
-      lilac: `bg-pastel-lilac ${ON_PASTEL}`,
+      sand: `bg-pastel-sand ${ON_PASTEL}`,
+      navy: `bg-pastel-navy ${ON_PASTEL}`,
       lemon: `bg-pastel-lemon ${ON_PASTEL}`,
       rose: `bg-pastel-rose ${ON_PASTEL}`,
+      // Jaune du logo (« À faire en premier ») : texte, atténué et encre à la couleur de l'encre du logo.
+      brand: "bg-primary text-primary-foreground [--muted-foreground:var(--primary-foreground)] [--ink:var(--primary-foreground)]",
     },
   },
   defaultVariants: { tone: "default" },

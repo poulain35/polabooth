@@ -13,11 +13,11 @@ const MONTH_SHORT = new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone:
 
 // Pastel du pavé de date par sorte de ligne ; une sorte inconnue (autre module) : lilas.
 const DATE_TONE = {
-  event: 'bg-pastel-sky text-pastel-sky-ink',
+  event: 'bg-pastel-sand text-pastel-sand-ink',
   retrait: 'bg-pastel-mint text-pastel-mint-ink',
   retour: 'bg-pastel-peach text-pastel-peach-ink',
 };
-const DEFAULT_TONE = 'bg-pastel-lilac text-pastel-lilac-ink';
+const DEFAULT_TONE = 'bg-pastel-navy text-pastel-navy-ink';
 
 function DateTile({ entry }) {
   const date = new Date(entry.date);
@@ -58,7 +58,7 @@ export default function WeekAgenda({ days, loading, className }) {
           </div>
         ) : days.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <IconCircle tone="sky"><CalendarDays /></IconCircle>
+            <IconCircle tone="sand"><CalendarDays /></IconCircle>
             <p className="text-sm text-muted-foreground">Rien de prévu dans les 7 prochains jours</p>
           </div>
         ) : (

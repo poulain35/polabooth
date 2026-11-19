@@ -6,6 +6,7 @@ import { supabase, fetchKioskMonitoring, updateLicense, deleteLicense,
   setKioskAdminPin, pushKioskAdminPin, retireLicense,
   isAppAdmin, fetchKioskAccounts, updateOrgKioskLimit, fetchPushableEvents } from '../../lib/supabase';
 import { KioskEventPushSection } from '../../components/admin/KioskEventPush';
+import { KioskCameraSection } from '../../components/admin/KioskCameraSection';
 import KioskLogsPanel from '../../components/admin/KioskLogsPanel';
 import { kioskName, parseEventParam } from '../../lib/kioskLogs';
 import { compareVersions, latestRelease } from '../../lib/kioskUpdate';
@@ -215,7 +216,7 @@ function KioskCard({ lic, accountName, superAdmin, onToggle, onDelete, onLabelEd
 
       {/* Ligne 1 : nom, PC, interrupteur actif / désactivé */}
       <div className="flex items-start gap-3.5">
-        <IconCircle tone="sky"><Camera /></IconCircle>
+        <IconCircle tone="sand"><Camera /></IconCircle>
 
         <div className="min-w-0 flex-1">
           <input
@@ -337,6 +338,9 @@ function KioskCard({ lic, accountName, superAdmin, onToggle, onDelete, onLabelEd
         {/* Suivi relu par le temps réel et toutes les 30 s (load) : pas de relecture propre à la section. */}
         <KioskEventPushSection lic={lic} events={events} onLicenseUpdate={onUpdateChange} />
       </div>
+
+      {/* Réglages de l'appareil photo (LAB-429), relus de la même façon */}
+      <KioskCameraSection lic={lic} onLicenseUpdate={onUpdateChange} />
 
       {/* Ligne 3 : stock papier */}
       <PaperStock lic={lic} used={paperUsed} onSave={onPaperSave} onReset={onPaperReset} />

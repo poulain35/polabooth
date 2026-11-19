@@ -7,7 +7,11 @@
 
 `setup-polakiosk.exe` installe l'app **par utilisateur** (`%LocalAppData%\Programs\PolaKiosk`),
 sans droits admin. Ça permet aux **mises à jour automatiques de se faire en silence**, sans UAC.
-Le watchdog (démarrage auto + relance si crash) est lancé via le **dossier Démarrage** de l'utilisateur.
+Le watchdog relance l'app si elle plante et après une mise à jour. **Lancement au démarrage de Windows :
+désactivé à l'installation**, réglé par la case « Lancer la borne au démarrage de Windows » de l'Admin
+de la borne. Cochée, l'app pose le raccourci « PolaKiosk Watchdog » dans le **dossier Démarrage** de
+l'utilisateur (l'installeur ne le pose plus depuis la 1.0.22 ; une borne installée avant le garde).
+Décochée, on ouvre la borne à la main et c'est l'app qui lance le watchdog.
 
 ## Prérequis (poste de build, une fois)
 
@@ -79,7 +83,8 @@ Ne les mettez jamais dans le dépôt git.
 ## Première installation sur un PC kiosk
 
 1. Lancer `setup-polakiosk.exe` (aucun droit admin requis).
-2. L'app s'installe, le watchdog démarre, l'app se lance.
+2. L'app s'installe, le watchdog démarre, l'app se lance. Pour qu'elle démarre avec Windows :
+   Admin de la borne → « Démarrage de Windows » → cocher la case.
 3. Dans le SaaS → **Kiosks**, le PC apparaît avec sa version installée (ex. `v1.0.0 ✓`).
 4. **Imprimante** : ouvrir l'écran admin (PIN) → carte **Imprimante** → choisir l'imprimante
    dans la liste déroulante, ou laisser « Imprimante par défaut du système ». Le choix est
@@ -132,7 +137,7 @@ dans la liste : supprimer une version annule les demandes en cours vers elle.)
 
 ## Mécanique (pour info)
 
-- **Watchdog** (`scripts\watchdog.ps1`, dossier Démarrage) : lance l'app au logon, la relance si elle disparaît. Suspend la relance si `update.lock` est présent, sauf si ce verrou a plus de 10 min (mise à jour interrompue) : il est alors supprimé. Un seul watchdog par session.
+- **Watchdog** (`scripts\watchdog.ps1`) : lancé au logon par le raccourci du dossier Démarrage si la case de l'Admin est cochée, sinon par l'app à son démarrage quand aucun ne tourne (mutex `Local\PolaKiosk.Watchdog`) ; lance l'app, la relance si elle disparaît. Suspend la relance si `update.lock` est présent, sauf si ce verrou a plus de 10 min (mise à jour interrompue) : il est alors supprimé. Suspend aussi la relance tant que `stop.flag` existe (bouton « Quitter vers Windows » de l'admin de la borne) ; il supprime ce fichier en démarrant, donc la borne repart à l'ouverture de session suivante (case cochée). Un seul watchdog par session.
 - **Mise à jour** : l'app télécharge l'installeur en flux dans `%LocalAppData%\PolaKiosk\updates` (fichier `.part` renommé une fois complet, empreinte SHA-256 vérifiée), pose `update.lock`, lance `scripts\apply-update.ps1` puis se ferme. Le script installe en silence (`/VERYSILENT`, 8 min maximum), vérifie le code retour, retire le verrou ; le watchdog relance l'app. En cas d'échec, il écrit `update.failed` (la version ratée) : l'ancienne version redémarre et signale l'échec au SaaS.
 - **Une seule instance** : une seconde copie de PolaKiosk lancée en même temps se ferme aussitôt.
 - **Journaux** : `%LocalAppData%\PolaKiosk\watchdog.log`, `update.log` et `setup-install.log` (journal détaillé de l'installeur).
@@ -140,4 +145,4 @@ dans la liste : supprimer une version annule les demandes en cours vers elle.)
 ## Désinstallation
 
 Paramètres Windows → Applications → PolaKiosk → Désinstaller. Arrête le watchdog et l'app,
-retire le raccourci de démarrage.
+retire le raccourci de démarrage s'il existe.

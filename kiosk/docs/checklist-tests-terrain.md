@@ -87,8 +87,10 @@ Cocher `[x]` quand le test passe. Noter la date et la version testée.
 
 ## 6. Watchdog & relance auto
 
-- [ ] **Installation** : `setup-polakiosk.exe` installe l'app dans `%LocalAppData%\Programs\PolaKiosk` + crée le raccourci « PolaKiosk Watchdog » dans le dossier Démarrage (`shell:startup`).
-- [ ] **Démarrage auto** : fermer la session Windows et rouvrir → l'app se lance toute seule.
+- [ ] **Installation** : `setup-polakiosk.exe` (nouveau PC) installe l'app dans `%LocalAppData%\Programs\PolaKiosk`, **sans** raccourci « PolaKiosk Watchdog » dans le dossier Démarrage (`shell:startup`) ; Admin → « Démarrage de Windows » : case décochée.
+- [ ] **Démarrage auto désactivé** : fermer la session Windows et rouvrir → l'app ne se lance pas. L'ouvrir par l'icône du Bureau, puis la terminer dans le Gestionnaire des tâches → elle redémarre quand même (watchdog lancé par l'app).
+- [ ] **Démarrage auto activé** : cocher la case → le raccourci apparaît dans `shell:startup` ; fermer la session et rouvrir → l'app se lance toute seule. Décocher → le raccourci disparaît.
+- [ ] **Mise à jour d'une borne déjà installée** (≤ 1.0.21) : après la mise à jour, la case est cochée et la borne démarre toujours avec Windows.
 - [ ] **Relance après crash** : terminer `PolaKiosk.exe` via le Gestionnaire des tâches → l'app **redémarre automatiquement** sous ~30 s (vérification toutes les 15 s).
 - [ ] **Journal watchdog** : vérifier `%LocalAppData%\PolaKiosk\watchdog.log` (lignes de relance horodatées).
 - [ ] **Une seule instance** : lancer `PolaKiosk.exe` à la main alors qu'il tourne déjà → la seconde copie se ferme aussitôt (`fatal.log` : « déjà lancé »).

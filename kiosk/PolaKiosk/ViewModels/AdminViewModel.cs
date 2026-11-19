@@ -31,7 +31,9 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     private readonly IPrinterDriver _printerDriver;
     private readonly TimeProvider _clock;
     private readonly ICameraService? _camera;
+    private readonly IWindowsStartup? _startup;
     private bool _previewRunning;
+    private bool _loadingStartup; // lecture initiale de la case : rien à écrire
 
     public string AppVersion => $"Version {Services.AppVersion.Current}";
 
@@ -54,8 +56,8 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     [ObservableProperty] private string _normalSettingStatus   = "";
     [ObservableProperty] private string _driverSettingMsg      = "";
 
-    public ObservableCollection<CameraOption> AvailableCameras { get; } = new();
-    [ObservableProperty] private CameraOption? _selectedCamera;
+    public ObservableCollection<CameraSourceOption> AvailableCameras { get; } = new();
+    [ObservableProperty] private CameraSourceOption? _selectedCamera;
     [ObservableProperty] private string _cameraStatusMsg = "";
 
     // ── Tester la caméra (LAB-263) : aperçu, photo de test, définition obtenue ──
@@ -89,12 +91,24 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     [ObservableProperty] private bool   _isConfirmingSaasChange;
     [ObservableProperty] private string _saasStatusMsg = "";
 
+    // ── Quitter vers Windows : le watchdog ne relance pas l'app jusqu'à la prochaine session ──
+    /// <summary>Deuxième temps : « Oui, quitter » / « Annuler » affichés.</summary>
+    [ObservableProperty] private bool   _isConfirmingQuit;
+    [ObservableProperty] private string _quitStatusMsg = "";
+
+    // ── Démarrage de Windows : raccourci du watchdog dans le dossier Démarrage (désactivé par défaut) ──
+    /// <summary>App installée : la case peut être changée (grisée en développement).</summary>
+    public bool CanChangeLaunchAtStartup => _startup?.IsAvailable == true;
+    [ObservableProperty] private bool   _launchAtStartup;
+    [ObservableProperty] private string _launchAtStartupStatusMsg = "";
+
     public AdminViewModel(IKioskStateService state, INavigationService navigation, ISyncService sync,
         IKioskService kiosk, IPrintService print, IMachineSettingsService machine,
         ICameraDetectionService cameraDetection, AppSettings settings, ISaasSwitchService saasSwitch,
         IAppRestart restart, IPolaHistory history, IPrinterDriver printerDriver, ICameraService? camera = null,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null, IWindowsStartup? startup = null)
     {
+        _startup         = startup;
         _printerDriver   = printerDriver;
         _clock           = clock ?? TimeProvider.System;
         _camera          = camera;
@@ -120,7 +134,37 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         RefreshDriverSettingStatus();
         LoadCameras();
         LoadStorageSettings();
+        LoadLaunchAtStartup();
         LoadPolaHistory();
+    }
+
+    private void LoadLaunchAtStartup()
+    {
+        _loadingStartup = true;
+        try { LaunchAtStartup = _startup?.IsEnabled == true; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { LaunchAtStartup = false; }
+        finally { _loadingStartup = false; }
+    }
+
+    /// <summary>
+    /// Case cochée ou décochée : raccourci posé ou retiré tout de suite (pris en compte à la prochaine
+    /// ouverture de session). Échec : la case revient à l'état réel, avec le message.
+    /// </summary>
+    partial void OnLaunchAtStartupChanged(bool value)
+    {
+        if (_loadingStartup || _startup == null) return;
+        try
+        {
+            _startup.SetEnabled(value);
+            LaunchAtStartupStatusMsg = value
+                ? "✓ La borne se lancera toute seule à chaque démarrage de Windows."
+                : "✓ La borne ne se lancera plus au démarrage de Windows : ouvrez PolaKiosk à la main.";
+        }
+        catch (Exception ex)
+        {
+            LaunchAtStartupStatusMsg = $"✗ Réglage impossible à enregistrer : {ex.Message}";
+            LoadLaunchAtStartup();
+        }
     }
 
     private void LoadPolaHistory()
@@ -233,6 +277,35 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         }
         SaasStatusMsg = "✓ Adresse effacée. La borne redémarre…";
         _restart.Restart();
+    }
+
+    [RelayCommand]
+    private void AskQuit()
+    {
+        QuitStatusMsg = "";
+        IsConfirmingQuit = true;
+    }
+
+    [RelayCommand]
+    private void CancelQuit() => IsConfirmingQuit = false;
+
+    /// <summary>
+    /// Ferme l'application sans relance par le watchdog. Elle repart à la prochaine ouverture de session
+    /// Windows, ou lancée à la main. Fichier d'arrêt impossible à écrire : message, l'app reste ouverte.
+    /// </summary>
+    [RelayCommand]
+    private async Task ConfirmQuitAsync()
+    {
+        if (!IsConfirmingQuit) return;
+        IsConfirmingQuit = false;
+        await StopPreviewAsync();
+        try { _restart.QuitToWindows(); }
+        catch (Exception ex)
+        {
+            QuitStatusMsg = $"✗ Impossible de quitter sans relance : {ex.Message}";
+            return;
+        }
+        QuitStatusMsg = "✓ La borne se ferme…";
     }
 
     [RelayCommand]

@@ -49,3 +49,23 @@ export function kioskUpdateStatus(lic) {
   if (base.receivedAt && since(base.receivedAt)) return { ...base, state: 'received' };
   return { ...base, receivedAt: null, failedAt: null, error: null, state: 'requested' };
 }
+
+/**
+ * Encart « Nouvelle version » du menu de l'admin : dernière version publiée et nombre de bornes du
+ * compte (`orgId`) en service qui tournent sur une version plus ancienne, sans demande en cours vers
+ * cette version (demandée ou reçue). Null si aucune borne n'est en retard. Une borne qui n'a jamais
+ * donné sa version n'est pas comptée.
+ */
+export function pendingKioskUpdate(licenses, releases, orgId) {
+  const latest = latestRelease(releases)?.version;
+  if (!latest || !orgId) return null;
+  const count = (licenses ?? []).filter((lic) => {
+    if (lic.org_id !== orgId || lic.retired_at || !lic.app_version) return false;
+    if (compareVersions(lic.app_version, latest) >= 0) return false;
+    const status = kioskUpdateStatus(lic);
+    const inProgress = (status.state === 'requested' || status.state === 'received')
+      && compareVersions(status.version, latest) >= 0;
+    return !inProgress;
+  }).length;
+  return count > 0 ? { version: latest, count } : null;
+}

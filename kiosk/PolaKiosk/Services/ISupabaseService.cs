@@ -1,3 +1,4 @@
+using PolaKiosk.Models;
 using PolaKiosk.Models.Supabase;
 
 namespace PolaKiosk.Services;
@@ -97,6 +98,21 @@ public interface ISupabaseService
     /// plus). Renvoie false si l'envoi a été annulé ou remplacé entre-temps. Lève une exception en cas d'erreur.
     /// </summary>
     Task<bool> AckEventPushAsync(Guid eventId, string requestedAt, string? error, CancellationToken ct = default);
+
+    /// <summary>
+    /// LAB-428 : réglages de l'appareil photo demandés depuis le SaaS (RPC kiosk_get_camera_request), ou
+    /// null sans demande en attente. Lève <see cref="KioskLicenseRefusedException"/> si la licence est
+    /// refusée, une autre exception en cas d'erreur réseau ou serveur.
+    /// </summary>
+    Task<CameraSettingsRequest?> GetCameraRequestAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// LAB-428 : résultat de la demande <paramref name="requestedAt"/> (RPC kiosk_ack_camera_request) :
+    /// <paramref name="status"/> « applied » avec les valeurs relues sur l'appareil, ou « refused » avec
+    /// la raison (500 caractères au plus). Renvoie false si la demande a été remplacée ou close entre-temps.
+    /// </summary>
+    Task<bool> AckCameraRequestAsync(string requestedAt, string status, CameraExposureValues? values, string? error,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Envoie une réponse au questionnaire (RPC kiosk_record_guest_response, idempotente sur son id).

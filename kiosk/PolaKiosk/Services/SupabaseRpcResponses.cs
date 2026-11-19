@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PolaKiosk.Models;
 using PolaKiosk.Models.Supabase;
 
 namespace PolaKiosk.Services;
@@ -107,6 +108,34 @@ internal static class SupabaseRpcResponses
         var dto = ev.ToObject<EventDto>();
         return dto == null || dto.Id == Guid.Empty ? null : new EventPushRequest(dto, requestedAt);
     }
+
+    /// <summary>
+    /// Réponse de kiosk_get_camera_request (LAB-428) : null sans demande, sinon <c>{values, requested_at}</c>.
+    /// Les valeurs sont des codes Canon entiers (clés tv, av, iso, wb, kelvin) ; une clé absente ou d'un
+    /// autre type vaut « pas de changement ». requested_at est gardé tel quel pour être renvoyé à l'identique.
+    /// </summary>
+    internal static CameraSettingsRequest? ParseCameraRequestResponse(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        using var reader = new JsonTextReader(new StringReader(body)) { DateParseHandling = DateParseHandling.None };
+        if (JToken.ReadFrom(reader) is not JObject obj) return null;
+
+        var requestedAt = obj["requested_at"]?.Type == JTokenType.String ? obj["requested_at"]!.Value<string>()!.Trim() : "";
+        if (requestedAt.Length == 0) return null;
+        var v = obj["values"] as JObject;
+        return new CameraSettingsRequest(new CameraExposureValues
+        {
+            Tv     = IntOrNull(v?[CameraExposureKeys.Tv]),
+            Av     = IntOrNull(v?[CameraExposureKeys.Av]),
+            Iso    = IntOrNull(v?[CameraExposureKeys.Iso]),
+            Wb     = IntOrNull(v?[CameraExposureKeys.Wb]),
+            Kelvin = IntOrNull(v?[CameraExposureKeys.Kelvin]),
+        }, requestedAt);
+    }
+
+    private static int? IntOrNull(JToken? token)
+        => token?.Type == JTokenType.Integer && token.Value<long>() is var n && n is >= int.MinValue and <= int.MaxValue
+            ? (int)n : null;
 
     /// <summary>
     /// Réponse de kiosk_get_screens : <c>{home, result}</c>, chaque plan publié ou null. Une réponse

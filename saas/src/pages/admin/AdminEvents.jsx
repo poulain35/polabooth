@@ -40,7 +40,7 @@ const STATUS_STYLES = {
   unplanned: { label: 'À planifier', tone: 'amber' },
   upcoming:  { label: 'À venir',     tone: 'gray' },
   finished:  { label: 'Terminé',     tone: 'green' },
-  ongoing:   { label: 'En cours',    tone: 'violet' },
+  ongoing:   { label: 'En cours',    tone: 'orange' },
 };
 
 function computeEventStatus(ev) {
@@ -56,8 +56,8 @@ const STAGE_FILTERS = [{ id: ALL_STAGES, label: 'Tous' }, ...EVENT_STAGES];
 const STAGE_CARDS = [
   { id: 'a-preparer', tone: 'lemon', icon: Pencil },
   { id: 'prets', tone: 'mint', icon: Check },
-  { id: 'semaine', tone: 'lilac', icon: CalendarClock },
-  { id: 'a-livrer', tone: 'sky', icon: Send },
+  { id: 'semaine', tone: 'navy', icon: CalendarClock },
+  { id: 'a-livrer', tone: 'sand', icon: Send },
 ].map((card) => ({ ...card, label: EVENT_STAGES.find((s) => s.id === card.id).label }));
 
 

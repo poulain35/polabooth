@@ -61,7 +61,7 @@ Prix indicatifs relevés en novembre 2026, à vérifier chez chaque fournisseur.
 
 | Service | Pour démarrer | En activité | Remarques |
 |---|---|---|---|
-| Supabase | Gratuit | Pro : 25 $/mois | L'offre gratuite met le projet en pause après une semaine sans activité (bornes et galeries hors service). Pour une activité réelle, prenez Pro. |
+| Supabase | Gratuit | Gratuit, ou Pro 25 $/mois | L'offre gratuite suffit pour une activité de loueur. Elle met le projet en pause après une semaine sans aucune activité (bornes et galeries hors service) : un clic dans le tableau de bord de Supabase le relance. Pro évite cette pause et repousse les limites (base, stockage, bande passante). |
 | Hébergement du site | Gratuit (Netlify, Cloudflare Pages) | Gratuit, ou Vercel Pro 20 $/mois | Vercel gratuit (« Hobby ») est réservé à un usage non commercial. Un serveur existant convient aussi (Nginx). |
 | Stockage Cloudflare R2 | Gratuit jusqu'à 10 Go | environ 0,015 $ par Go et par mois au-delà | Pas de frais de sortie. Un événement de 400 photos pèse environ 200 Mo. Scaleway, OVHcloud et Backblaze sont du même ordre, avec des frais de sortie variables. |
 | SMTP | Inclus avec votre messagerie | Inclus | Port 465 obligatoire. Gmail limite le nombre d'envois par jour. |

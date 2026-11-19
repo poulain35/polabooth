@@ -153,7 +153,8 @@ internal sealed class StartupSequence(IServiceProvider services, Dispatcher disp
             _ = resynced ? onlineSync.UploadPendingAsync() : onlineSync.RunAsync();
 
         // Demande ou événement reçu pendant une séance invité : appliqué dès le retour sur un écran sûr.
-        tasks.WatchNavigation(navigation, networkMonitor, services.GetRequiredService<IEventPushService>());
+        tasks.WatchNavigation(navigation, networkMonitor, services.GetRequiredService<IEventPushService>(),
+            services.GetRequiredService<ICameraSettingsSync>());
 
         // Appareil photo vérifié dès le démarrage (LAB-263) : le premier battement de cœur le dit déjà.
         // L'accueil revérifie à chaque affichage puis toutes les 30 s.

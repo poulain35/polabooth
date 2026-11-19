@@ -18,6 +18,41 @@ public static class EdsPropID
     // Simulation d'exposition du live view (EOS R, EDSDK 13.20 § 5.2.104) : propriété cachée,
     // à débloquer avant l'ouverture de session (§ 6.22.3, voir EdsEvfViewType.UnlockKey).
     public const uint Evf_ViewType = 0x01000513;
+
+    // Exposition (EDSDKTypes.h, « Capture Properties » et « Image Properties »).
+    public const uint WhiteBalance     = 0x00000106;
+    public const uint ColorTemperature = 0x00000107; // en kelvins, utile si WhiteBalance = ColorTemp
+    public const uint AEMode           = 0x00000400; // mode de prise de vue (M, Av, Tv…), lecture seule
+    public const uint ISOSpeed         = 0x00000402;
+    public const uint Av               = 0x00000405;
+    public const uint Tv               = 0x00000406;
+    public const uint AEModeSelect     = 0x00000436; // position de la molette, quand AEMode ne répond pas
+}
+
+// Valeurs utiles de kEdsPropID_AEMode / AEModeSelect (EdsAEMode, EDSDKTypes.h).
+public static class EdsAEMode
+{
+    public const int Program = 0;
+    public const int Tv      = 1;
+    public const int Av      = 2;
+    public const int Manual  = 3;
+    public const int Bulb    = 4;
+}
+
+// Valeur utile de kEdsPropID_WhiteBalance (EdsWhiteBalance, EDSDKTypes.h).
+public static class EdsWhiteBalance
+{
+    public const int ColorTemp = 9;
+}
+
+// Valeurs permises d'une propriété (EdsPropertyDesc, EDSDKTypes.h : form, access, numElements, propDesc[128]).
+[StructLayout(LayoutKind.Sequential)]
+public struct EdsPropertyDesc
+{
+    public int Form;
+    public int Access;
+    public int NumElements;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)] public int[] PropDesc;
 }
 
 // Valeurs de Evf_ViewType (« Expo. simulation »). Désactivée : l'appareil éclaire seul le live
@@ -114,6 +149,8 @@ public static class EdsStateEvent
 public static class EdsPropertyEvent
 {
     public const uint All = 0x00000100;
+    public const uint PropertyChanged = 0x00000101;
+    public const uint PropertyDescChanged = 0x00000102; // liste permise changée (zoom, objectif, molette)
 }
 
 public static class EdsFileAttribute

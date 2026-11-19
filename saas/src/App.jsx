@@ -122,7 +122,7 @@ function RequireFeature({ id, children }) {
         <p className="text-base font-semibold text-foreground">Cette fonctionnalité est désactivée</p>
         <p className="mt-2 text-sm text-muted-foreground">
           Vous pouvez la réactiver dans{' '}
-          <Link to="/admin/reglages#fonctionnalites" className="text-primary underline underline-offset-2">
+          <Link to="/admin/reglages#fonctionnalites" className="text-primary-ink underline underline-offset-2">
             Réglages → Fonctionnalités
           </Link>.
         </p>

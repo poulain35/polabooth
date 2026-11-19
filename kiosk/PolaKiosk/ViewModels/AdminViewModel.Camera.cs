@@ -12,17 +12,17 @@ public partial class AdminViewModel
     private void LoadCameras()
     {
         AvailableCameras.Clear();
-        AvailableCameras.Add(new CameraOption("Détection automatique", null, 0));
+        AvailableCameras.Add(new CameraSourceOption("Détection automatique", null, 0));
 
         foreach (var c in _cameraDetection.DetectAvailableCameras())
         {
             if (c.Source == CameraSource.Canon)
-                AvailableCameras.Add(new CameraOption(c.Name, "canon", 0));
+                AvailableCameras.Add(new CameraSourceOption(c.Name, "canon", 0));
             else if (c.Source == CameraSource.Webcam)
-                AvailableCameras.Add(new CameraOption($"Webcam {c.DeviceIndex}", "webcam", c.DeviceIndex));
+                AvailableCameras.Add(new CameraSourceOption($"Webcam {c.DeviceIndex}", "webcam", c.DeviceIndex));
         }
 
-        AvailableCameras.Add(new CameraOption("Simulation (test)", "mock", 0));
+        AvailableCameras.Add(new CameraSourceOption("Simulation (test)", "mock", 0));
 
         // Sélection courante d'après la config appliquée
         var forced = _settings.Camera.ForcedSource;
@@ -152,5 +152,9 @@ public partial class AdminViewModel
     }
 
     /// <summary>Sortie de l'écran admin (navigation) : l'aperçu ne doit pas continuer en arrière-plan.</summary>
-    public void Release() => _ = StopPreviewAsync();
+    public void Release()
+    {
+        UnsubscribeExposure(); // écran Appareil photo (LAB-427)
+        _ = StopPreviewAsync();
+    }
 }

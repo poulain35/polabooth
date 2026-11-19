@@ -9,18 +9,18 @@ const initialsVariants = cva(
       tone: {
         peach: "bg-pastel-peach text-pastel-peach-ink",
         mint: "bg-pastel-mint text-pastel-mint-ink",
-        sky: "bg-pastel-sky text-pastel-sky-ink",
-        lilac: "bg-pastel-lilac text-pastel-lilac-ink",
+        sand: "bg-pastel-sand text-pastel-sand-ink",
+        navy: "bg-pastel-navy text-pastel-navy-ink",
         lemon: "bg-pastel-lemon text-pastel-lemon-ink",
         rose: "bg-pastel-rose text-pastel-rose-ink",
         muted: "bg-muted text-muted-foreground",
       },
     },
-    defaultVariants: { tone: "sky" },
+    defaultVariants: { tone: "sand" },
   }
 );
 
-export const INITIALS_TONES = ['peach', 'mint', 'sky', 'lilac', 'lemon', 'rose'];
+export const INITIALS_TONES = ['peach', 'mint', 'sand', 'navy', 'lemon', 'rose'];
 
 /** Une ou deux initiales tirées d'un nom (« Prénom Nom » donne « PN »). */
 function initialsOf(name) {

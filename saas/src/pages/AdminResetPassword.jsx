@@ -55,7 +55,7 @@ export default function AdminResetPassword() {
   if (state.status === 'checking') {
     return shell(
       <div className="flex justify-center py-6">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary-ink" />
       </div>
     );
   }

@@ -24,7 +24,7 @@ export default function AuthPageShell({ title, subtitle, label, icon: Icon = Use
           </div>
 
           <Card className="w-full px-8 py-7">
-            <IconCircle tone="lilac" className="mx-auto mb-4 flex">
+            <IconCircle tone="navy" className="mx-auto mb-4 flex">
               <Icon />
             </IconCircle>
             {label && (

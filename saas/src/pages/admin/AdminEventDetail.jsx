@@ -35,13 +35,13 @@ import { EventSteps } from './event/shared';
 import { formatShortDate } from '../../lib/dates';
 import { useCopy } from '../../hooks/useCopy';
 
-// Pastille d'étape : un ton par état (ambre = à préparer, vert = prêt, violet = en cours, bleu = à livrer,
+// Pastille d'étape : un ton par état (ambre = à préparer, vert = prêt, orange = en cours, bleu nuit = à livrer,
 // gris = terminé). Le libellé porte l'état.
 const STAGE_TONES = {
   'a-preparer': 'amber',
   prets: 'green',
-  'en-cours': 'violet',
-  'a-livrer': 'blue',
+  'en-cours': 'orange',
+  'a-livrer': 'navy',
   livre: 'gray',
   archives: 'gray',
 };
@@ -58,10 +58,10 @@ function NextStep({ next, onArchive }) {
       </Button>
     );
   return (
-    <Card tone="sky" role="region" aria-label="Prochaine étape" className="flex flex-wrap items-center gap-x-[18px] gap-y-3 p-card">
+    <Card tone="sand" role="region" aria-label="Prochaine étape" className="flex flex-wrap items-center gap-x-[18px] gap-y-3 p-card">
       <IconCircle tone="white" className="h-12 w-12"><ArrowRight /></IconCircle>
       <div className="min-w-0 flex-1 basis-[200px]">
-        <p className="text-xs font-medium text-pastel-sky-ink">Prochaine étape</p>
+        <p className="text-xs font-medium text-pastel-sand-ink">Prochaine étape</p>
         <CardTitle as="h2" className="mt-0.5">{next.label}</CardTitle>
         {next.hint && <p className="mt-0.5 text-[13px] text-muted-foreground">{next.hint}</p>}
       </div>
@@ -265,7 +265,7 @@ export default function AdminEventDetail() {
       {/* ── En-tête : nom, pastille d'étape, date, lieu, borne, code, actions, étapes ── */}
       <Card className="flex flex-col gap-card p-card">
         <div className="flex flex-wrap items-start gap-4">
-          <Initials name={event.name} tone="lilac" aria-hidden="true" className="hidden h-14 w-14 text-lg ring-0 sm:inline-flex" />
+          <Initials name={event.name} tone="navy" aria-hidden="true" className="hidden h-14 w-14 text-lg ring-0 sm:inline-flex" />
 
           <div className="min-w-0 flex-1 basis-[260px]">
             {editingName ? (

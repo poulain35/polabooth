@@ -101,7 +101,7 @@ function TextQuestionCard({ q, responses, onSelect, activeValue }) {
   return (
     <Card className="p-card">
       <div className="mb-4 flex items-start gap-3">
-        <IconCircle size="sm" tone="lilac"><MessageSquareText /></IconCircle>
+        <IconCircle size="sm" tone="navy"><MessageSquareText /></IconCircle>
         <div className="min-w-0">
           <CardTitle as="h3">{q.label}</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">Texte libre · {answered} réponse{answered > 1 ? 's' : ''}</p>
@@ -151,7 +151,7 @@ function ChoiceQuestionCard({ q, responses, onSelect, activeValue }) {
   return (
     <Card className="p-card">
       <div className="mb-4 flex items-start gap-3">
-        <IconCircle size="sm" tone="sky"><ListChecks /></IconCircle>
+        <IconCircle size="sm" tone="sand"><ListChecks /></IconCircle>
         <div className="min-w-0">
           <CardTitle as="h3">{q.label}</CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -303,8 +303,8 @@ export default function AdminStats({ eventId, embedded = false } = {}) {
         <>
           {/* Chiffres */}
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <KpiCard tone="sky" label={crossFilter ? 'Événements correspondants' : 'Événements'} value={filtered.length} icon={<BarChart3 />} />
-            <KpiCard tone="lilac" label="Événements au total" value={events.length} icon={<ListChecks />} />
+            <KpiCard tone="sand" label={crossFilter ? 'Événements correspondants' : 'Événements'} value={filtered.length} icon={<BarChart3 />} />
+            <KpiCard tone="navy" label="Événements au total" value={events.length} icon={<ListChecks />} />
             <KpiCard tone="mint" label="Questions analysées" value={statQuestions.length} icon={<MessageSquareText />} />
           </div>
 

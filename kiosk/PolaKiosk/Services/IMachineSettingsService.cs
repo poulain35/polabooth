@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PolaKiosk.Models;
 
 namespace PolaKiosk.Services;
 
@@ -37,6 +38,12 @@ public interface IMachineSettingsService
     /// garde les autres.
     /// </summary>
     void SetPrinterDriverSetting(PrinterDriverSetting setting);
+
+    /// <summary>
+    /// Réglages d'exposition de l'appareil (LAB-427), gardés par borne et réappliqués à chaque ouverture
+    /// de session. <paramref name="changedAt"/> sert à « le dernier gagne » avec le SaaS.
+    /// </summary>
+    void SetCameraExposure(CameraExposureValues values, DateTimeOffset changedAt);
 }
 
 public record MachineSettings
@@ -72,6 +79,9 @@ public record MachineSettings
 
     /// <summary>Réglages du pilote enregistrés depuis l'Admin, par imprimante et par sorte (LAB-334).</summary>
     public IReadOnlyList<PrinterDriverSetting>? PrinterDriverSettings { get; init; }
+
+    /// <summary>Vitesse, ouverture, ISO, balance des blancs choisies dans Admin › Appareil photo (LAB-427).</summary>
+    public SavedCameraExposure? CameraExposure { get; init; }
 
     [JsonIgnore] public int WebcamWidthOrDefault  => WebcamWidth  is > 0 ? WebcamWidth.Value  : WebcamCameraService.DefaultWidth;
     [JsonIgnore] public int WebcamHeightOrDefault => WebcamHeight is > 0 ? WebcamHeight.Value : WebcamCameraService.DefaultHeight;

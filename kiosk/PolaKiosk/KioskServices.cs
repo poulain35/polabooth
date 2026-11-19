@@ -132,6 +132,11 @@ internal static class KioskServices
         services.AddSingleton<IUpdateService, UpdateService>();
         services.AddSingleton<UpdateCoordinator>();
         services.AddSingleton<IEventPushService, EventPushService>();
+        // Réglages de l'appareil photo demandés depuis le SaaS et rapport de l'appareil (LAB-428).
+        services.AddSingleton<ICameraSettingsSync>(sp => new CameraSettingsSyncService(
+            sp.GetRequiredService<ISupabaseService>(), () => sp.GetRequiredService<ICameraService>(),
+            sp.GetRequiredService<IMachineSettingsService>(), sp.GetRequiredService<INavigationService>(),
+            sp.GetRequiredService<IKioskLogService>()));
         services.AddSingleton<IDialogService, DialogService>();
         services.AddTransient<IPrintService, PrintService>();
         // Réglages du pilote (LAB-334) : la fenêtre des préférences s'ouvre au-dessus de la fenêtre de la borne.
@@ -158,7 +163,8 @@ internal static class KioskServices
         services.AddSingleton<ILicenseService>(sp => new LicenseService(
             sp.GetRequiredService<SupabaseService>(), settings,
             sp.GetRequiredService<IKioskCredentials>(), sp.GetRequiredService<IAdminPinService>(),
-            sp.GetRequiredService<IPendingUploadsCounter>(), dataDir, sp.GetRequiredService<ICameraHealthService>()));
+            sp.GetRequiredService<IPendingUploadsCounter>(), dataDir, sp.GetRequiredService<ICameraHealthService>(),
+            sp.GetRequiredService<ICameraSettingsSync>()));
         services.AddSingleton<IKioskLogService, KioskLogService>();
         // Événement et séance de chaque journal (LAB-326) : l'état est lu à l'écriture, pas injecté dans les journaux.
         services.AddSingleton<IKioskLogContext>(sp =>
@@ -173,6 +179,7 @@ internal static class KioskServices
         // Adresse du SaaS saisie sur la borne et « Changer de SaaS » (open core K2)
         services.AddSingleton<IKioskConfigClient, KioskConfigClient>();
         services.AddSingleton<IAppRestart, AppRestart>();
+        services.AddSingleton<IWindowsStartup, WindowsStartup>();
         services.AddTransient<ISaasSwitchService, SaasSwitchService>();
         services.AddTransient<SaasAddressView>();
         services.AddTransient<SaasAddressViewModel>();

@@ -7,7 +7,8 @@
  * Forme d'un module (src/modules/<id>/index.jsx, id = id de la fonctionnalité du catalogue) :
  *   routes : { public, client, admin, adminMaybe, adminStandalone } → [{ path, Component }]
  *   slots  : { '<emplacement>': [{ Component, ...extra }] } → rendus par <ModuleSlot name="…" />
- *   hooks  : { '<nom>': async (...args) => … } → moduleHook('<nom>')
+ *   hooks  : { '<nom>': async (...args) => … } → moduleHook('<nom>') (le premier module qui le fournit)
+ *            ou moduleHooks('<nom>') (tous, pour les crochets que plusieurs modules remplissent)
  * Les composants sont chargés à la demande (React.lazy) : aucun import statique du code ouvert.
  */
 import registry from '../modules/index.js';
@@ -32,6 +33,13 @@ export function moduleHook(name) {
     if (module.hooks?.[name]) return { feature: module.id, run: module.hooks[name] };
   }
   return null;
+}
+
+/** Toutes les fonctions `name` des modules installés, dans l'ordre du registre, avec leur fonctionnalité. */
+export function moduleHooks(name) {
+  return registry
+    .filter((module) => module.hooks?.[name])
+    .map((module) => ({ feature: module.id, run: module.hooks[name] }));
 }
 
 /**

@@ -98,7 +98,7 @@ export default function SetupCard({ setup, onHide, onShow, actions }) {
     <section aria-labelledby="today-setup">
       <Card className="p-card">
         <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2">
-          <IconCircle tone="lilac"><ListChecks /></IconCircle>
+          <IconCircle tone="navy"><ListChecks /></IconCircle>
           <div className="min-w-0 flex-1 basis-[220px]">
             <CardTitle as="h2" id="today-setup">
               Mise en route · {setup.done} {setup.done > 1 ? 'étapes' : 'étape'} sur {setup.total}

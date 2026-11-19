@@ -15,6 +15,7 @@ const LICENSE_COLUMNS = [
   'update_requested_version', 'update_requested_at', 'update_received_at', 'update_failed_at', 'update_error',
   'pending_uploads', 'pending_uploads_at', 'camera_status', 'camera_status_at',
   'event_push_id', 'event_push_requested_at', 'event_push_received_at', 'event_push_applied_at', 'event_push_error',
+  'camera_report', 'camera_request',
 ].join(', ');
 
 /**
@@ -183,6 +184,19 @@ export async function requestEventOnKiosk(licenseId, eventId) {
   const { data, error } = await supabase.rpc('kiosk_request_event', {
     p_license_id: licenseId,
     p_event_id: eventId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Demande de réglages de l'appareil photo (LAB-429) : seulement les valeurs changées, codes pris dans les listes
+ * envoyées par la borne. Remplace une demande pas encore appliquée. Retourne la nouvelle demande (camera_request).
+ */
+export async function setKioskCameraSettings(licenseId, values) {
+  const { data, error } = await supabase.rpc('set_kiosk_camera_settings', {
+    p_license_id: licenseId,
+    p_values: values,
   });
   if (error) throw error;
   return data;

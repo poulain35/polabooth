@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using PolaKiosk.Models;
 
 namespace PolaKiosk.Services;
 
@@ -81,6 +82,12 @@ public class MachineSettingsService : IMachineSettingsService
         var kept = (_current.PrinterDriverSettings ?? [])
             .Where(s => s != null && !(s.Kind == setting.Kind && DriverSettingCheck.SamePrinter(s.PrinterName, setting.PrinterName)));
         _current = _current with { PrinterDriverSettings = [.. kept, setting] };
+        Save();
+    }
+
+    public void SetCameraExposure(CameraExposureValues values, DateTimeOffset changedAt)
+    {
+        _current = _current with { CameraExposure = new SavedCameraExposure { Values = values, ChangedAt = changedAt } };
         Save();
     }
 

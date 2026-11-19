@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   CalendarClock, Camera, CheckCircle2, ChevronDown, Clock, Download, Euro, EyeOff, FileText, Image, Inbox,
-  ListChecks, ListTodo, MonitorSmartphone, MoreHorizontal, PartyPopper, Phone, Receipt, RotateCcw, TriangleAlert, Truck,
+  ListChecks, ListTodo, MonitorSmartphone, MoreHorizontal, Package, PartyPopper, Phone, Receipt, RotateCcw, TriangleAlert, Truck,
 } from 'lucide-react';
 import { Card, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
@@ -37,6 +37,7 @@ const ICONS = {
   balance: Receipt,
   logistics: Truck,
   setup: ListChecks,
+  equipment: Package,
 };
 const iconOf = (item) => ICONS[`${item.kind}:${item.reason}`] ?? ICONS[item.kind] ?? ListTodo;
 
@@ -45,15 +46,16 @@ const ICON_TONES = {
   alert: 'rose',
   no_borne: 'peach',
   design: 'lemon',
-  home_design: 'sky',
+  home_design: 'sand',
   guest_export: 'mint',
-  request: 'lilac',
-  quote: 'lilac',
+  request: 'navy',
+  quote: 'navy',
   new_client: 'mint',
   deposit: 'peach',
   balance: 'peach',
-  logistics: 'sky',
-  setup: 'sky',
+  logistics: 'sand',
+  setup: 'sand',
+  equipment: 'rose',
 };
 const toneOf = (item) => ICON_TONES[item.kind] ?? 'muted';
 

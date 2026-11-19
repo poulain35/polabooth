@@ -9,9 +9,9 @@ fabric.Object.NUM_FRACTION_DIGITS = 6;
 
 // ─── Global Fabric.js control style ──────────────────────────────────────────
 Object.assign(fabric.Object.prototype, {
-  borderColor:        '#3F51E0',
+  borderColor:        '#D97706',
   borderScaleFactor:  1.5,
-  cornerColor:        '#3F51E0',
+  cornerColor:        '#D97706',
   cornerStrokeColor:  '#ffffff',
   cornerSize:         10,
   cornerStyle:        'circle',
@@ -32,14 +32,14 @@ export const BLEED_COLOR = '#ef4444';
 export const DEFAULT_BG_COLOR = BLANK_TEMPLATE.bgColor;
 
 // ─── Couleurs d'accent du canevas ─────────────────────────────────────────────
-// Bleu de la palette dans l'admin ; noyer dans l'éditeur du client (style du site, LAB-355). Les zones photo
+// Orange foncé du logo dans l'admin (le jaune ne se voit pas sur un fond clair) ; noyer dans l'éditeur du client (style du site, LAB-355). Les zones photo
 // sont masquées à l'export : ces couleurs ne sont jamais imprimées.
-export const ADMIN_CANVAS_ACCENT  = { accent: '#3F51E0', zoneFill: '#ECEFFE', zoneShape: '#CBD2FA', zoneLabel: '#3243C9' };
+export const ADMIN_CANVAS_ACCENT  = { accent: '#D97706', zoneFill: '#FFF4D6', zoneShape: '#F5DC93', zoneLabel: '#1F1A3D' };
 export const CLIENT_CANVAS_ACCENT = { accent: '#6A4128', zoneFill: '#F4EBDF', zoneShape: '#E4D3BE', zoneLabel: '#6A4128' };
 let canvasAccent = ADMIN_CANVAS_ACCENT;
-// Dégradé proposé par défaut pour le fond : pastels de la palette (ciel vers rose) dans l'admin,
+// Dégradé proposé par défaut pour le fond : pastels de la palette (crème vers rose) dans l'admin,
 // couleurs du site chez le client.
-export const ADMIN_DEFAULT_GRADIENT  = { direction: 'to-b', color1: '#DCEEFB', color2: '#FCE0E8' };
+export const ADMIN_DEFAULT_GRADIENT  = { direction: 'to-b', color1: '#FFF4D6', color2: '#FCE1DF' };
 export const CLIENT_DEFAULT_GRADIENT = { direction: 'to-b', color1: '#6A4128', color2: '#E4D3BE' };
 
 export function setCanvasAccent(palette) {

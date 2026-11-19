@@ -45,41 +45,41 @@
 
     /* Tokens propres à l'admin, valeurs claires (LAB-363). Un aperçu `.light-island` les retrouve claires
        dans l'admin en sombre. */
-    --soft: 228 45.5% 97.8%;               /* doux #F7F8FC */
-    --ink: 230 16.4% 21.6%;                /* encre #2E3140 */
-    --primary-soft: 230 90% 96.1%;         /* bleu doux #ECEFFE */
-    --primary-ink: 233.2 60.2% 49.2%;      /* texte bleu #3243C9 */
-    --strong: 232.5 18.2% 8.6%;            /* fort #12131A */
-    --strong-foreground: 0 0% 100%;
-    --pastel-peach: 26.7 100% 91.2%;       /* #FFE6D2 */
-    --pastel-peach-ink: 24.5 76.9% 30.6%;  /* #8A4312 */
-    --pastel-mint: 142.5 50% 90.6%;        /* #DBF3E4 */
-    --pastel-mint-ink: 148.8 61.3% 23.3%;  /* #17603A */
-    --pastel-sky: 205.2 79.5% 92.4%;       /* #DCEEFB */
-    --pastel-sky-ink: 205.8 66.5% 31.6%;   /* #1B5886 */
-    --pastel-lilac: 254.4 80.6% 93.9%;     /* #E9E3FC */
-    --pastel-lilac-ink: 251.7 48.2% 43.9%; /* #4F3AA6 */
-    --pastel-lemon: 50.1 89.3% 85.3%;      /* #FBF0B8 */
-    --pastel-lemon-ink: 46.9 100% 21.6%;   /* #6E5600 */
-    --pastel-rose: 342.9 82.4% 93.3%;      /* #FCE0E8 */
-    --pastel-rose-ink: 341.8 57.1% 38.4%;  /* #9A2A4C */
+    --soft: 42 55.6% 96.5%;                /* doux #FBF8F1 */
+    --ink: 36 13.5% 14.5%;                 /* encre #2A2620 */
+    --primary-soft: 43.9 100% 92%;         /* crème #FFF4D6 */
+    --primary-ink: 248.6 40.2% 17.1%;      /* encre du logo #1F1A3D */
+    --strong: 248.6 40.2% 17.1%;           /* fort : encre du logo #1F1A3D */
+    --strong-foreground: 43.9 100% 92%;    /* crème #FFF4D6 */
+    --pastel-peach: 27.1 100% 90%;         /* #FFE3CC */
+    --pastel-peach-ink: 27.4 100% 27.1%;   /* #8A3F00 */
+    --pastel-mint: 135.8 38.8% 90.4%;      /* #DDF0E2 */
+    --pastel-mint-ink: 141.2 52.8% 24.1%;  /* #1D5E34 */
+    --pastel-sand: 40 34.9% 91.6%;         /* #F1ECE2 */
+    --pastel-sand-ink: 248.6 40.2% 17.1%;  /* #1F1A3D */
+    --pastel-navy: 257.1 17.1% 92%;        /* #E9E7EE */
+    --pastel-navy-ink: 248.6 40.2% 17.1%;  /* #1F1A3D */
+    --pastel-lemon: 46.2 100% 88%;         /* #FFF1C2 */
+    --pastel-lemon-ink: 40.4 100% 21.6%;   /* #6E4A00 */
+    --pastel-rose: 4.1 82.9% 93.1%;        /* #FCE1DF */
+    --pastel-rose-ink: 354.1 69.5% 37.3%;  /* #A11D2A */
     /* États : le fond est une couleur complète (translucide en sombre), le texte un triplet. */
-    --state-amber: #FFF1D6;
-    --state-amber-fg: 36.1 100% 27.1%;     /* #8A5300 */
-    --state-green: #DDF5E6;
-    --state-green-fg: 148.1 63.2% 24.5%;   /* #17663C */
-    --state-violet: #EBE5FD;
-    --state-violet-fg: 252.7 53.3% 47.1%;  /* #5338B8 */
-    --state-blue: #DDEBFF;
-    --state-blue-fg: 216.7 71.7% 40.2%;    /* #1D56B0 */
-    --state-red: #FFE1E1;
-    --state-red-fg: 3.2 71.3% 41%;         /* #B3261E */
-    --state-gray: #EEF0F6;
-    --state-gray-fg: 225.7 10.9% 37.8%;    /* #565B6B */
-    --chart-1: 233.3 72.2% 56.3%;          /* #3F51E0 */
+    --state-amber: #FFF1C2;
+    --state-amber-fg: 40.4 100% 21.6%;     /* #6E4A00 */
+    --state-green: #DDF0E2;
+    --state-green-fg: 141.2 52.8% 24.1%;   /* #1D5E34 */
+    --state-orange: #FFE3CC;
+    --state-orange-fg: 27.4 100% 27.1%;    /* #8A3F00 */
+    --state-navy: #ECEAE4;
+    --state-navy-fg: 248.6 40.2% 17.1%;    /* #1F1A3D */
+    --state-red: #FCE1DF;
+    --state-red-fg: 354.1 69.5% 37.3%;     /* #A11D2A */
+    --state-gray: #F1EEE7;
+    --state-gray-fg: 36 8.7% 33.9%;        /* #5E584F */
+    --chart-1: 248.6 40.2% 17.1%;          /* #1F1A3D */
     --chart-2: 24.6 80.5% 53.7%;           /* #E8782A */
-    --chart-grid: 225 26.7% 94.1%;         /* #ECEEF4 */
-    --shadow-card: 0 1px 2px rgba(20, 24, 60, 0.04), 0 8px 24px rgba(20, 24, 60, 0.05);
+    --chart-grid: 41.2 33.3% 90.6%;        /* #EFEADF */
+    --shadow-card: 0 1px 2px rgba(42, 38, 32, 0.05), 0 6px 24px rgba(42, 38, 32, 0.05);
   }
 
   /* Palette claire de l'admin (LAB-363). `.admin-editor > .light-island` : la racine d'un éditeur plein
@@ -88,25 +88,25 @@
   .admin-ui,
   .admin-editor > .light-island {
     color-scheme: light;
-    --background: 230 37.5% 96.9%;         /* fond #F4F5FA */
-    --foreground: 232.5 18.2% 8.6%;        /* texte #12131A */
+    --background: 43.6 40.7% 94.7%;        /* fond #F7F4EC */
+    --foreground: 248.6 40.2% 17.1%;       /* texte : encre du logo #1F1A3D */
     --card: 0 0% 100%;                     /* surface #FFFFFF */
-    --card-foreground: 232.5 18.2% 8.6%;
+    --card-foreground: 248.6 40.2% 17.1%;
     --popover: 0 0% 100%;
-    --popover-foreground: 232.5 18.2% 8.6%;
-    --primary: 233.3 72.2% 56.3%;          /* bleu d'action #3F51E0 */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 225 30.8% 94.9%;          /* surface 2 #EEF0F6 */
-    --secondary-foreground: 232.5 18.2% 8.6%;
-    --muted: 225 30.8% 94.9%;              /* surface 2 #EEF0F6 */
-    --muted-foreground: 225 8.9% 43.9%;    /* atténué #666B7A */
-    --accent: 225 30.8% 94.9%;             /* survol : surface 2 */
-    --accent-foreground: 232.5 18.2% 8.6%;
-    --destructive: 3.2 71.3% 41%;          /* rouge #B3261E */
+    --popover-foreground: 248.6 40.2% 17.1%;
+    --primary: 45.1 100% 66.1%;            /* jaune du logo #FFD452 */
+    --primary-foreground: 248.6 40.2% 17.1%; /* encre #1F1A3D (jamais de blanc sur le jaune) */
+    --secondary: 42.9 36.8% 92.5%;         /* surface 2 #F3EFE5 */
+    --secondary-foreground: 248.6 40.2% 17.1%;
+    --muted: 42.9 36.8% 92.5%;             /* surface 2 #F3EFE5 */
+    --muted-foreground: 36 7.5% 39%;       /* atténué #6B655C */
+    --accent: 42.9 36.8% 92.5%;            /* survol : surface 2 */
+    --accent-foreground: 248.6 40.2% 17.1%;
+    --destructive: 355.5 68.2% 45.7%;      /* rouge #C42531 */
     --destructive-foreground: 0 0% 100%;
-    --border: 228 25% 92.2%;               /* ligne #E6E8F0 */
-    --input: 225.9 20.5% 83.7%;            /* ligne 2 #CDD1DE */
-    --ring: 233.3 72.2% 56.3%;
+    --border: 41.7 35.4% 87.3%;            /* ligne #EAE3D3 */
+    --input: 41.4 26.1% 78.2%;             /* ligne 2 #D6CDB9 */
+    --ring: 32.1 94.6% 43.7%;              /* orange foncé #D97706 (le jaune ne se voit pas sur le blanc) */
     --radius: 0.75rem;
 
     --font-ui: 'Lexend';
@@ -114,7 +114,7 @@
     --radius-dialog: 1.25rem;
     --control-sm: 2.125rem;
     --control-sm-text: 0.8125rem;
-    --shadow-float: 0 12px 40px rgba(20, 24, 60, 0.16);
+    --shadow-float: 0 12px 40px rgba(42, 38, 32, 0.16);
     --page-background: var(--background);
     --scrollbar: var(--input);
     --scrollbar-hover: var(--muted-foreground);
@@ -130,8 +130,8 @@
     --card-foreground: 240 5.9% 93.3%;
     --popover: 240 7.1% 11%;
     --popover-foreground: 240 5.9% 93.3%;
-    --primary: 233.1 100% 74.3%;           /* bleu d'action #7C8BFF */
-    --primary-foreground: 236.5 54.8% 12.2%; /* #0E1030 */
+    --primary: 45.1 100% 66.1%;            /* jaune du logo #FFD452 */
+    --primary-foreground: 248.6 40.2% 17.1%; /* encre #1F1A3D */
     --secondary: 240 6.2% 15.9%;           /* surface 2 #26262B */
     --secondary-foreground: 240 5.9% 93.3%;
     --muted: 240 6.2% 15.9%;               /* surface 2 #26262B */
@@ -142,25 +142,25 @@
     --destructive-foreground: 240 5.6% 7.1%;
     --border: 240 7.4% 18.6%;              /* ligne #2C2C33 */
     --input: 240 6.2% 28.4%;               /* ligne 2 #44444D */
-    --ring: 233.1 100% 74.3%;
+    --ring: 45.1 100% 66.1%;
 
     --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.6);
     --switch-thumb: 240 5.9% 93.3%;
 
     --soft: 240 5.9% 13.3%;                /* doux #202024 */
     --ink: 240 7.1% 83.5%;                 /* encre #D2D2D8 */
-    --primary-soft: 234 37% 21.2%;         /* bleu doux #22264A */
-    --primary-ink: 233 100% 83.1%;         /* texte bleu #A9B3FF */
+    --primary-soft: 240 7.1% 19.4%;        /* actif : graphite #2E2E35 */
+    --primary-ink: 45.1 100% 66.1%;        /* texte jaune #FFD452 */
     --strong: 240 5.9% 93.3%;              /* fort #EDEDEF */
     --strong-foreground: 240 5.6% 7.1%;    /* #111113 */
     --pastel-peach: 285 8.9% 17.6%;        /* #2F2931 */
     --pastel-peach-ink: 20.2 100% 79%;     /* #FFB894 */
     --pastel-mint: 158.8 22.1% 15.1%;      /* #1E2F29 */
     --pastel-mint-ink: 146.2 55.3% 66.7%;  /* #7BD9A4 */
-    --pastel-sky: 208.9 31.8% 16.7%;       /* #1D2B38 */
-    --pastel-sky-ink: 204.7 79.7% 74.9%;   /* #8CC8F2 */
-    --pastel-lilac: 246.2 27.1% 21%;       /* #2A2744 */
-    --pastel-lilac-ink: 251.7 100% 82.9%;  /* #B9A8FF */
+    --pastel-sand: 240 6.2% 15.9%;         /* #26262B */
+    --pastel-sand-ink: 240 7.1% 83.5%;     /* #D2D2D8 */
+    --pastel-navy: 240 8.9% 15.5%;         /* #24242B */
+    --pastel-navy-ink: 240 13.7% 81.4%;    /* #C9C9D6 */
     --pastel-lemon: 222.9 7.7% 17.8%;      /* #2A2C31 */
     --pastel-lemon-ink: 46.2 83.9% 68.4%;  /* #F2D36B */
     --pastel-rose: 325.7 15.9% 17.3%;      /* #33252D */
@@ -169,15 +169,15 @@
     --state-amber-fg: 39.1 87.3% 69%;      /* #F5C56B */
     --state-green: rgba(123, 217, 164, 0.13);
     --state-green-fg: 146.2 55.3% 66.7%;   /* #7BD9A4 */
-    --state-violet: rgba(185, 168, 255, 0.15);
-    --state-violet-fg: 251.7 100% 82.9%;   /* #B9A8FF */
-    --state-blue: rgba(141, 185, 255, 0.14);
-    --state-blue-fg: 216.8 100% 77.6%;     /* #8DB9FF */
+    --state-orange: rgba(255, 178, 36, 0.14);
+    --state-orange-fg: 31.2 100% 71%;      /* #FFB86B */
+    --state-navy: #2A2A33;
+    --state-navy-fg: 248.6 23.3% 88.2%;    /* #DCDAE8 */
     --state-red: rgba(255, 155, 148, 0.14);
     --state-red-fg: 3.9 100% 79%;          /* #FF9B94 */
     --state-gray: #2A2A30;
     --state-gray-fg: 240 7.1% 72.5%;       /* #B4B4BE */
-    --chart-1: 232.9 80% 66.7%;            /* #6676EE */
+    --chart-1: 45.1 100% 66.1%;            /* #FFD452 */
     --chart-2: 24.6 66.4% 51%;             /* #D5732F */
     --chart-grid: 240 6.2% 15.9%;          /* #26262B */
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -300,9 +300,9 @@ body {
 }
 
 /* Touches de la marque du logiciel, Polabooth (admin, connexion, /associer ; jamais les pages client).
-   Couleurs du logo, fixes dans les deux modes, sauf le bleu nuit qui devient crème en sombre. Les
-   tokens de la palette de l'admin ne changent pas : la marque reste un accent (filet, repères, jauges).
-   Règles : « Thème de l'admin », saas/CLAUDE.md. Composants : src/components/PolaboothBrand.jsx. */
+   Couleurs du logo, fixes dans les deux modes, sauf le bleu nuit qui devient crème en sombre. La palette
+   de l'admin est tirée du logo (jaune d'action, encre, crème, neutres chauds) ; ces variables servent aux
+   touches à plusieurs couleurs (filet, repères, jauges). Règles : « Thème de l'admin », saas/CLAUDE.md. Composants : src/components/PolaboothBrand.jsx. */
 :root {
   --pb-yellow: #FFD452;
   --pb-orange: #FFB224;

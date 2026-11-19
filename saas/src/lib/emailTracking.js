@@ -7,7 +7,7 @@ import { safeHttpUrl } from './urls.js';
 
 export { safeHttpUrl };
 
-// `tone` = ton de la pastille (`StatusPill`) : gris = envoyé, bleu = reçu, violet = ouvert, vert = cliqué,
+// `tone` = ton de la pastille (`StatusPill`) : gris = envoyé, bleu nuit = reçu, orange = ouvert, vert = cliqué,
 // ambre = à surveiller, rouge = échec.
 const GRAY = { tone: 'gray' };
 const RED = { tone: 'red' };
@@ -15,8 +15,8 @@ const AMBER = { tone: 'amber' };
 
 export const EMAIL_STATUS = {
   sent:         { label: 'Envoyé',            ...GRAY },
-  delivered:    { label: 'Reçu',              tone: 'blue' },
-  opened:       { label: 'Ouvert',            tone: 'violet' },
+  delivered:    { label: 'Reçu',              tone: 'navy' },
+  opened:       { label: 'Ouvert',            tone: 'orange' },
   clicked:      { label: 'Cliqué',            tone: 'green' },
   soft_bounce:  { label: 'Rebond temporaire', ...AMBER },
   hard_bounce:  { label: 'Rebond définitif',  ...RED },

@@ -1,4 +1,5 @@
 using System.IO;
+using PolaKiosk.Models;
 
 namespace PolaKiosk.Services;
 
@@ -20,4 +21,10 @@ public class MockCameraService : ICameraService
     }
 
     public Task ShutdownAsync() => Task.CompletedTask;
+
+    // Réglages d'exposition : Canon seulement (LAB-427).
+    public bool SupportsExposureSettings => false;
+    public Task<CameraExposureState?> ReadExposureAsync() => Task.FromResult<CameraExposureState?>(null);
+    public Task<CameraExposureState?> ApplyExposureAsync(CameraExposureValues values) => Task.FromResult<CameraExposureState?>(null);
+    public event EventHandler? ExposureOptionsChanged { add { } remove { } }
 }

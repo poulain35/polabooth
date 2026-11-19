@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using PolaKiosk.Models;
 using PolaKiosk.Models.Supabase;
 
 namespace PolaKiosk.Services;
@@ -56,6 +57,23 @@ internal static class SupabaseRpcBodies
             p_error        = string.IsNullOrWhiteSpace(error) ? null
                            : error.Length > MaxUpdateErrorLength ? error[..MaxUpdateErrorLength] : error,
             p_requested_at = requestedAt,
+        });
+
+    /// <summary>
+    /// Paramètres de la RPC kiosk_ack_camera_request (noms = arguments SQL) : valeurs non nulles seulement
+    /// (clés tv, av, iso, wb, kelvin), raison coupée à 500 caractères. requested_at renvoyé à l'identique.
+    /// </summary>
+    internal static string BuildCameraAckBody(string machineId, string secret, string requestedAt, string status,
+        CameraExposureValues? values, string? error)
+        => JsonConvert.SerializeObject(new
+        {
+            p_machine_id   = machineId,
+            p_secret       = secret,
+            p_requested_at = requestedAt,
+            p_status       = status,
+            p_values       = values == null ? null : CameraReport.Values(values),
+            p_error        = string.IsNullOrWhiteSpace(error) ? null
+                           : error.Length > MaxUpdateErrorLength ? error[..MaxUpdateErrorLength] : error,
         });
 
     /// <summary>Paramètres de la RPC kiosk_record_guest_response (noms = arguments SQL).</summary>

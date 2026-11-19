@@ -38,6 +38,12 @@ public partial class App : Application
             return;
         }
 
+        // Relancée à la main après « Quitter vers Windows » : le watchdog reprend la surveillance.
+        WatchdogStop.Clear(KioskPaths.LocalRoot);
+        // Lancée à la main (pas de lancement au démarrage de Windows) : le watchdog n'est pas là pour
+        // relancer l'app après un plantage ou une mise à jour, elle le lance elle-même.
+        WatchdogLauncher.EnsureRunning();
+
         try { await StartAsync(); }
         catch (Exception ex)
         {

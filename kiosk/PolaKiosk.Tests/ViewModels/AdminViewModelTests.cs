@@ -19,7 +19,7 @@ public class AdminViewModelTests
     private AdminViewModel NewViewModel() => NewViewModel(_state.Object, _sync.Object, _history.Object);
 
     internal static AdminViewModel NewViewModel(IKioskStateService state, ISyncService sync, IPolaHistory history,
-        INavigationService? navigation = null)
+        INavigationService? navigation = null, IAppRestart? restart = null)
     {
         var machine = new Mock<IMachineSettingsService>();
         machine.SetupGet(m => m.Current).Returns(new MachineSettings());
@@ -30,7 +30,38 @@ public class AdminViewModelTests
 
         return new AdminViewModel(state, navigation ?? Mock.Of<INavigationService>(), sync,
             Mock.Of<IKioskService>(), print.Object, machine.Object, cameras.Object, new AppSettings(),
-            Mock.Of<ISaasSwitchService>(), Mock.Of<IAppRestart>(), history, Mock.Of<IPrinterDriver>());
+            Mock.Of<ISaasSwitchService>(), restart ?? Mock.Of<IAppRestart>(), history, Mock.Of<IPrinterDriver>());
+    }
+
+    [Fact]
+    public async Task Quit_to_windows_asks_first_then_quits()
+    {
+        var restart = new Mock<IAppRestart>();
+        var vm = NewViewModel(_state.Object, _sync.Object, _history.Object, restart: restart.Object);
+
+        await vm.ConfirmQuitCommand.ExecuteAsync(null);
+        restart.Verify(r => r.QuitToWindows(), Times.Never, "sans confirmation, rien ne se ferme");
+
+        vm.AskQuitCommand.Execute(null);
+        vm.IsConfirmingQuit.Should().BeTrue();
+        await vm.ConfirmQuitCommand.ExecuteAsync(null);
+
+        restart.Verify(r => r.QuitToWindows(), Times.Once);
+        vm.IsConfirmingQuit.Should().BeFalse();
+        vm.QuitStatusMsg.Should().StartWith("✓");
+    }
+
+    [Fact]
+    public async Task Quit_to_windows_failure_keeps_the_app_open_with_a_message()
+    {
+        var restart = new Mock<IAppRestart>();
+        restart.Setup(r => r.QuitToWindows()).Throws(new UnauthorizedAccessException("Accès refusé."));
+        var vm = NewViewModel(_state.Object, _sync.Object, _history.Object, restart: restart.Object);
+
+        vm.AskQuitCommand.Execute(null);
+        await vm.ConfirmQuitCommand.ExecuteAsync(null);
+
+        vm.QuitStatusMsg.Should().Be("✗ Impossible de quitter sans relance : Accès refusé.");
     }
 
     [Fact]

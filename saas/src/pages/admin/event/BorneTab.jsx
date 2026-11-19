@@ -267,7 +267,7 @@ export default function BorneTab({ event, setEvent, design, kiosk, photobooths, 
             <CardHeading
               className="mb-5"
               icon={<Monitor />}
-              tone="lilac"
+              tone="navy"
               title="Fond d'écran d'accueil"
               description="Premier écran affiché sur la borne avant chaque session"
             />

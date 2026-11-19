@@ -179,7 +179,7 @@ export default function AdminEmails() {
           </div>
         ) : rows.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-            <IconCircle tone="sky" className="mb-3"><Mail /></IconCircle>
+            <IconCircle tone="sand" className="mb-3"><Mail /></IconCircle>
             <p className="font-medium text-foreground">
               {hasFilters ? 'Aucun email ne correspond à ces filtres' : 'Aucun email envoyé pour l\'instant'}
             </p>
