@@ -16,6 +16,7 @@ kiosk/**/.vs/
 kiosk/**/appsettings.local.json
 kiosk/**/appsettings.Production.json
 kiosk/PolaKiosk/EDSDK/native/
+kiosk/PolaKiosk/ffmpeg/
 kiosk/installer/Output/
 
 # ── Supabase ───────────────────────────────────────────

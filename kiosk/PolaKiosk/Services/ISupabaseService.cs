@@ -45,6 +45,15 @@ public interface ISupabaseService
         DateTime capturedAtUtc);
 
     /// <summary>
+    /// Envoie l'animation d'une séance (LAB-237) : affiche puis clip MP4 sur R2, en flux, avec un délai
+    /// selon la taille (10 min au moins pour le clip), puis une ligne photos de type <c>gif</c>. Retourne
+    /// l'URL publique du clip et l'ID de la photo. Refus 22023 de kiosk_record_photo :
+    /// <see cref="MediaRecordRejectedException"/> ; autre échec : exception, la séance reste en attente.
+    /// </summary>
+    Task<(string PublicUrl, Guid PhotoId)> UploadAnimationAsync(Guid sessionId, Guid eventId, AnimationClip clip,
+        DateTime capturedAtUtc);
+
+    /// <summary>
     /// Fiche contact du loueur (nom, téléphone, URL du logo) via la RPC get_org_contact_by_event
     /// (accessible anon). Null si la RPC échoue ou ne renvoie rien : la borne garde ce qu'elle a.
     /// </summary>

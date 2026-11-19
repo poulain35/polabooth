@@ -83,11 +83,30 @@ public class HomeScreenTests
     [Fact]
     public void Only_formats_the_kiosk_can_shoot_are_offered()
     {
-        // Le GIF est activé dans le SaaS, mais la borne ne sait faire que la photo : 1b, pas 1c.
-        var formats = HomeScreen.EnabledFormats(Home(gif: true), HomeScreen.SupportedFormats);
+        // Le boomerang est activé dans le SaaS, mais la borne ne le sait pas encore faire : 1b, pas 1c.
+        var formats = HomeScreen.EnabledFormats(Home(boomerang: true), HomeScreen.SupportedFormats);
 
         formats.Should().Equal(CaptureFormat.Photo);
         HomeScreen.ResolveLayout(true, formats).Should().Be(HomeLayout.Personalized);
+    }
+
+    [Fact]
+    public void The_gif_is_offered_only_when_animations_can_be_encoded()
+    {
+        HomeScreen.SupportedFormats.Should().Equal(CaptureFormat.Photo, CaptureFormat.Gif);
+
+        var ready = HomeScreen.EnabledFormats(Home(gif: true), HomeScreen.ShootableFormats(animationsReady: true));
+        ready.Should().Equal(CaptureFormat.Photo, CaptureFormat.Gif);
+        HomeScreen.ResolveLayout(true, ready).Should().Be(HomeLayout.FormatChoice);
+
+        // ffmpeg absent : le GIF est masqué, l'accueil reste celui d'une photo.
+        var missing = HomeScreen.EnabledFormats(Home(gif: true), HomeScreen.ShootableFormats(animationsReady: false));
+        missing.Should().Equal(CaptureFormat.Photo);
+        HomeScreen.ResolveLayout(true, missing).Should().Be(HomeLayout.Personalized);
+
+        // Seul le GIF coché, encodage impossible : la photo reste proposée.
+        HomeScreen.EnabledFormats(Home(gif: true, photo: false), HomeScreen.ShootableFormats(false))
+            .Should().Equal(CaptureFormat.Photo);
     }
 
     [Fact]

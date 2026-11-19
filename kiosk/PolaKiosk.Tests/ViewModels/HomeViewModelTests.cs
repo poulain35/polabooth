@@ -23,6 +23,7 @@ public class HomeViewModelTests : IDisposable
     private readonly Mock<INavigationService> _nav = new();
     private readonly Mock<ISyncService> _sync = new();
     private readonly Mock<IKioskLogService> _log = new();
+    private readonly Mock<IGuestJourneyService> _journey = new();
     private readonly SessionPathService _paths;
     private EventEntity _event = new() { Id = EventId, Name = EventName };
 
@@ -39,7 +40,8 @@ public class HomeViewModelTests : IDisposable
     public void Dispose() => _dir.Dispose();
 
     private async Task<HomeViewModel> OpenHomeAsync(JObject? home = null, JObject? rgpd = null,
-        DateTimeOffset? start = null, DateTimeOffset? end = null, string? company = null, string? instanceName = null)
+        DateTimeOffset? start = null, DateTimeOffset? end = null, string? company = null, string? instanceName = null,
+        IAnimationService? animation = null)
     {
         var kiosk = new JObject { ["home"] = home ?? new JObject() };
         if (rgpd != null) kiosk["rgpd"] = rgpd;
@@ -54,7 +56,8 @@ public class HomeViewModelTests : IDisposable
         state.SetupGet(s => s.ContactCompany).Returns(company);
         var vm = new HomeViewModel(_nav.Object, state.Object, _sync.Object, Mock.Of<IIdleTimeoutService>(),
             _paths, Mock.Of<ICompositeService>(), new AdminPinPadViewModel(Mock.Of<IAdminPinService>(), _nav.Object, new PinAttemptLimiter()),
-            new AppSettings { Contact = { CompanyName = instanceName ?? "" } }, log: _log.Object);
+            new AppSettings { Contact = { CompanyName = instanceName ?? "" } }, log: _log.Object,
+            journey: _journey.Object, animation: animation);
         await vm.InitializeAsync();
         return vm;
     }
@@ -151,6 +154,76 @@ public class HomeViewModelTests : IDisposable
 
         vm.StartFormatCommand.Execute(vm.Tiles[0]);
         _nav.Verify(n => n.NavigateTo<LiveView>(), Times.Once);
+    }
+
+    private static IAnimationService Animations(bool ready)
+    {
+        var status = ready
+            ? new AnimationEncoderStatus(AnimationEncoderState.Ready, ["h264_mf"], "n9.0.2")
+            : new AnimationEncoderStatus(AnimationEncoderState.FfmpegMissing, [], null);
+        var animation = new Mock<IAnimationService>();
+        animation.Setup(a => a.GetEncoderStatusAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync(status);
+        return animation.Object;
+    }
+
+    private static JObject GifHome(bool photo = true) => new()
+    {
+        ["personalized"] = true,
+        ["buttons"] = new JObject
+        {
+            ["photo"] = new JObject { ["enabled"] = photo, ["label"] = "Photo" },
+            ["gif"]   = new JObject { ["enabled"] = true, ["label"] = "Mon GIF" },
+        },
+    };
+
+    [Fact]
+    public async Task The_gif_tile_shows_and_its_format_follows_the_journey()
+    {
+        _journey.SetupProperty(j => j.CaptureFormat, CaptureFormat.Photo);
+        var vm = await OpenHomeAsync(GifHome(), animation: Animations(ready: true));
+
+        vm.Layout.Should().Be(HomeLayout.FormatChoice);
+        vm.Tiles.Select(t => t.Title).Should().Equal("Photo", "Mon GIF");
+
+        vm.StartFormatCommand.Execute(vm.Tiles[1]);
+        _journey.Object.CaptureFormat.Should().Be(CaptureFormat.Gif);
+        _nav.Verify(n => n.NavigateTo<LiveView>(), Times.Once);
+
+        vm.StartFormatCommand.Execute(vm.Tiles[0]);
+        _journey.Object.CaptureFormat.Should().Be(CaptureFormat.Photo);
+    }
+
+    [Fact]
+    public async Task Without_ffmpeg_the_gif_is_hidden_and_the_photo_home_is_unchanged()
+    {
+        _journey.SetupProperty(j => j.CaptureFormat, CaptureFormat.Gif);
+        var vm = await OpenHomeAsync(GifHome(), animation: Animations(ready: false));
+
+        vm.Layout.Should().Be(HomeLayout.Personalized);
+        vm.Tiles.Select(t => t.Format).Should().Equal(CaptureFormat.Photo);
+        vm.StartCommand.Execute(null);
+        _journey.Object.CaptureFormat.Should().Be(CaptureFormat.Photo);
+    }
+
+    [Fact]
+    public async Task A_gif_alone_starts_from_the_whole_screen()
+    {
+        _journey.SetupProperty(j => j.CaptureFormat, CaptureFormat.Photo);
+        var vm = await OpenHomeAsync(GifHome(photo: false), animation: Animations(ready: true));
+
+        vm.Layout.Should().Be(HomeLayout.Personalized);
+        vm.StartCommand.Execute(null);
+        _journey.Object.CaptureFormat.Should().Be(CaptureFormat.Gif);
+    }
+
+    [Fact]
+    public async Task With_only_the_photo_the_encoder_is_never_checked()
+    {
+        var animation = new Mock<IAnimationService>();
+        var vm = await OpenHomeAsync(new JObject { ["personalized"] = true }, animation: animation.Object);
+
+        vm.Layout.Should().Be(HomeLayout.Personalized);
+        animation.Verify(a => a.GetEncoderStatusAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

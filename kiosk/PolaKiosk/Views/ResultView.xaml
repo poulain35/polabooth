@@ -216,8 +216,16 @@
                                 <Border.RenderTransform>
                                     <RotateTransform Angle="-2"/>
                                 </Border.RenderTransform>
-                                <Image Source="{Binding CompositeImage}" Stretch="Uniform" MaxWidth="440" MaxHeight="600"
-                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <Grid>
+                                    <Image Source="{Binding CompositeImage}" Stretch="Uniform" MaxWidth="440" MaxHeight="600"
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Visibility="{Binding HasAnimation, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"/>
+                                    <!-- Animation du GIF (LAB-237) : en boucle, muette ; source posée par le code de la vue -->
+                                    <MediaElement x:Name="AnimationPlayer" Stretch="Uniform" MaxWidth="440" MaxHeight="600"
+                                                  LoadedBehavior="Manual" UnloadedBehavior="Close" IsMuted="True"
+                                                  MediaEnded="OnAnimationEnded" MediaFailed="OnAnimationFailed"
+                                                  Visibility="{Binding HasAnimation, Converter={StaticResource BoolToVisibility}}"/>
+                                </Grid>
                             </Border>
                         </Grid>
 
@@ -239,6 +247,10 @@
                             <TextBlock Text="Magnifique !" Style="{StaticResource ResultTitle}" FontSize="72" LineHeight="76"/>
                             <TextBlock Text="{Binding Subtitle}" FontSize="21" Foreground="{StaticResource KioskBrownBrush}"
                                        TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            <!-- GIF dont l'animation a échoué : montage photo à la place -->
+                            <TextBlock Text="{Binding AnimationNotice}" FontSize="19" FontWeight="Medium"
+                                       Foreground="{StaticResource KioskBrownBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                       Visibility="{Binding AnimationNotice, Converter={StaticResource BoolToVisibility}}"/>
 
                             <!-- Bloc d'impression : nombre d'exemplaires dans la limite des quotas -->
                             <Border Background="{StaticResource KioskForestBrush}" CornerRadius="{StaticResource KioskTileRadius}" Padding="26,24"

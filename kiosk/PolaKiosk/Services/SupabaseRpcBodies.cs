@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using PolaKiosk.Models;
 using PolaKiosk.Models.Supabase;
 
@@ -149,18 +150,34 @@ internal static class SupabaseRpcBodies
     // LAB-231 : p_captured_at = début de la séance (heure de la borne), pas l'heure d'envoi ; le serveur
     // met NULL une heure hors des bornes de l'événement (horloge déréglée).
     /// <summary>Paramètres de la RPC kiosk_record_photo (noms = arguments SQL).</summary>
+    // LAB-237 : une animation ajoute p_media_type, p_thumbnail_path (affiche), p_duration_ms, p_width et
+    // p_height ; une photo n'envoie que les paramètres d'avant (corps inchangé, défaut 'photo' côté SQL).
     internal static string BuildRecordPhotoBody(string accessCode, Guid eventId, string storagePath, string photoUrl,
-        DateTime capturedAtUtc, string machineId, string secret)
-        => JsonConvert.SerializeObject(new
+        DateTime capturedAtUtc, string machineId, string secret, RecordedMedia? media = null)
+    {
+        var body = new JObject
         {
-            p_code         = accessCode,
-            p_event_id     = eventId,
-            p_storage_path = storagePath,
-            p_photo_url    = photoUrl,
-            p_machine_id   = machineId,
-            p_secret       = secret,
-            p_captured_at  = ToUtcIso(capturedAtUtc),
-        });
+            ["p_code"]         = accessCode,
+            ["p_event_id"]     = eventId,
+            ["p_storage_path"] = storagePath,
+            ["p_photo_url"]    = photoUrl,
+            ["p_machine_id"]   = machineId,
+            ["p_secret"]       = secret,
+            ["p_captured_at"]  = ToUtcIso(capturedAtUtc),
+        };
+        if (media != null)
+        {
+            body["p_media_type"]     = media.MediaType;
+            body["p_thumbnail_path"] = media.ThumbnailPath;
+            body["p_duration_ms"]    = media.DurationMs;
+            body["p_width"]          = media.Width;
+            body["p_height"]         = media.Height;
+        }
+        return body.ToString(Formatting.None);
+    }
+
+    /// <summary>Paramètres d'une animation pour kiosk_record_photo (LAB-237). Largeur et hauteur : les deux ou aucune.</summary>
+    internal sealed record RecordedMedia(string MediaType, string ThumbnailPath, int? DurationMs, int? Width, int? Height);
 
     /// <summary>
     /// Heure UTC à la milliseconde avec <c>Z</c>. SQLite rend les dates sans genre (Unspecified) : elles

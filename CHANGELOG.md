@@ -38,6 +38,38 @@ chaque version le dit.
 
 ---
 
+## 1.5.0 (19 novembre 2026)
+
+### À faire
+
+`npm run update-instance` installe la nouvelle version de Fabric et reconstruit le site. Aucune
+migration. Installez la borne **1.0.26** sur chaque PC pour le GIF et les nouveaux curseurs de
+l'appareil photo. Si vous construisez l'installeur vous-même, `build.ps1` télécharge maintenant
+ffmpeg (voir [docs/installation-borne.md](docs/installation-borne.md), section 3.3).
+
+### SaaS
+
+- L'éditeur passe à Fabric.js 7 : l'alerte de sécurité sur fabric signalée par `npm audit` disparaît.
+  Les cadres et les écrans déjà enregistrés s'ouvrent à l'identique (les réglages de Fabric 5 sont
+  gardés, `saas/src/lib/fabric.js`) et la borne lit le JSON écrit sans aucun changement.
+- Une image introuvable dans un design (fichier supprimé) n'empêche plus d'ouvrir le reste du design :
+  elle reste à sa place, vide, et garde son adresse.
+
+### Borne (1.0.26)
+
+- Nouveau format **GIF** : à activer par événement (fiche › Borne). Une tuile « GIF » s'ajoute à
+  côté de « Photo » sur l'accueil ; la borne prend 3 à 6 photos au flash (« 2/4 », « 3/4 »…), les
+  assemble en une courte vidéo MP4 dans le cadre, la passe en boucle sur l'écran de fin, et le QR
+  code et l'email donnent la vidéo. « Imprimer » imprime le montage des photos.
+- Les vidéos sont encodées par ffmpeg (version LGPL, livrée avec l'installeur et ses licences),
+  avec l'encodeur H.264 de Windows. Sans encodeur, la tuile GIF n'apparaît pas.
+- Envoi des vidéos en flux, sans bloquer le QR code de l'invité suivant ; hors ligne, les photos
+  repartent avant les vidéos. La base locale des bornes déjà installées est complétée au démarrage.
+- Écran « Appareil photo » plus facile au doigt : curseurs larges à grosse poignée, et faire
+  défiler la liste ne change plus un réglage.
+
+---
+
 ## 1.4.2 (19 novembre 2026)
 
 ### À faire

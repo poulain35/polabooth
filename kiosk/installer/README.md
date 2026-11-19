@@ -17,6 +17,7 @@ Décochée, on ouvre la borne à la main et c'est l'app qui lance le watchdog.
 
 - [Inno Setup 6.1+](https://jrsoftware.org/isdl.php) (lecture de la version dans la DLL publiée)
 - SDK .NET 10
+- Internet à la première construction (téléchargement de ffmpeg, voir plus bas)
 
 ## Générer une version
 
@@ -40,7 +41,11 @@ sortie `PolaKiosk\bin\Release\net10.0-windows\win-x64\publish\`), la signe si un
 configuré (étape 3), puis compile `installer\PolaKiosk.iss` avec Inno Setup (variable `ISCC` pour
 un autre chemin). Résultat : `installer\Output\setup-polakiosk.exe`.
 
-À la main, c'est `dotnet publish` puis `ISCC installer\PolaKiosk.iss` (installeur non signé) ; sans
+Avant la publication, `build.ps1` lance `scripts\fetch-ffmpeg.ps1` : ffmpeg (build LGPL de
+BtbN/FFmpeg-Builds, version figée) est téléchargé dans `PolaKiosk\ffmpeg\` si absent, empreintes
+SHA-256 vérifiées, build GPL ou nonfree refusé. Il est gitignoré (environ 126 Mo).
+
+À la main, c'est `scripts\fetch-ffmpeg.ps1`, `dotnet publish` puis `ISCC installer\PolaKiosk.iss` (installeur non signé) ; sans
 publication préalable, la compilation s'arrête sur « PolaKiosk.dll introuvable ».
 
 ### 3. Signer (facultatif, LAB-424)
@@ -79,6 +84,12 @@ L'installeur contient toujours `THIRD-PARTY-NOTICES.txt` : si les DLL Canon
 (`PolaKiosk\EDSDK\native\`) étaient présentes au moment de la publication, elles sont dans
 l'installeur, et ce fichier rappelle qu'elles appartiennent à Canon et ne servent qu'avec PolaKiosk.
 Ne les mettez jamais dans le dépôt git.
+
+ffmpeg est obligatoire : sans `ffmpeg.exe` dans la publication, la compilation s'arrête sur
+« ffmpeg.exe absent de la publication ». L'installeur le copie à côté de l'application, tel quel,
+avec ses licences (`licenses\ffmpeg\COPYING.LGPLv3.txt`, `COPYING.GPLv3.txt`) ; la section FFmpeg de
+`THIRD-PARTY-NOTICES.txt` donne la version, l'adresse du binaire et celle des sources. Pour changer
+de version : adresse et deux empreintes dans `scripts\fetch-ffmpeg.ps1`, version dans les mentions.
 
 ## Première installation sur un PC kiosk
 

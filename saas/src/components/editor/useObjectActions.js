@@ -1,4 +1,4 @@
-import { fabric } from 'fabric';
+import { ActiveSelection, Circle, FabricImage, FabricText, Group, IText, Line, Point, Rect, Textbox } from '../../lib/fabric.js';
 import { ACTION_LABELS, ACTION_BUTTON_TEXTS, VARIABLE_LABELS, VARIABLE_SAMPLES } from '../../lib/kioskScreenLayout';
 import { KIOSK_COLORS, KIOSK_FONT_TITLE, KIOSK_FONT_TEXT } from '../../lib/kioskScreenTemplates';
 import { ensureKioskFonts } from '../../utils/kioskFonts';
@@ -15,6 +15,51 @@ const CLONE_PROPS = ['fontFamily', 'fontWeight', 'fontStyle', 'underline', 'char
 // Les zones photo sont structurelles (définies par le format) : jamais dupliquées,
 // sinon elles s'empilent en doublons invisibles (designs vus avec 20+ zones fantômes).
 const involvesPhotoZone = (obj) => !!obj && findPhotoZones([obj]).length > 0;
+
+// Objets sélectionnés dans l'ordre d'empilement du canvas (une sélection multiple les range autrement).
+function selectedInStackOrder(canvas) {
+  const all = canvas.getObjects();
+  return canvas.getActiveObjects().filter((o) => all.includes(o)).sort((a, b) => all.indexOf(a) - all.indexOf(b));
+}
+
+// Plans. Fabric 7 ne déplace qu'un objet du canvas (une sélection multiple passée telle quelle serait
+// ajoutée au canvas) : on déplace chaque objet sélectionné, comme le faisait Fabric 5.
+function restack(canvas, direction) {
+  const objs = selectedInStackOrder(canvas);
+  if (!objs.length) return;
+  const count = canvas.getObjects().length;
+  if (direction === 'front') objs.forEach((o) => canvas.bringObjectToFront(o));
+  if (direction === 'back') [...objs].reverse().forEach((o) => canvas.sendObjectToBack(o));
+  // D'un cran : le plus haut d'abord (ou le plus bas), sans passer par-dessus un autre objet sélectionné.
+  if (direction === 'forward') {
+    [...objs].reverse().forEach((o, moved) => {
+      const idx = canvas.getObjects().indexOf(o);
+      if (idx < count - 1 - moved) canvas.moveObjectTo(o, idx + 1);
+    });
+  }
+  if (direction === 'backward') {
+    objs.forEach((o, moved) => {
+      const idx = canvas.getObjects().indexOf(o);
+      if (idx > moved) canvas.moveObjectTo(o, idx - 1);
+    });
+  }
+}
+
+// Ajoute une copie décalée au canvas et la sélectionne. Copie d'une sélection multiple : ses objets
+// sont ajoutés un par un et restent sélectionnés ensemble (Fabric 7).
+function addCopy(canvas, copy) {
+  copy.set({ left: (copy.left ?? 0) + 15, top: (copy.top ?? 0) + 15, evented: true });
+  canvas.discardActiveObject();
+  if (copy instanceof ActiveSelection) {
+    copy.canvas = canvas;
+    copy.forEachObject((o) => canvas.add(o));
+    copy.setCoords();
+  } else {
+    canvas.add(copy);
+  }
+  canvas.setActiveObject(copy);
+  canvas.renderAll();
+}
 
 // Actions sur les objets du canvas : ajout (formes, texte, image, éléments de la borne, zone photo),
 // suppression, plans, alignement, copier / coller, groupe, verrou, grille, menu contextuel.
@@ -58,7 +103,7 @@ export function useObjectActions({
     // Wait for the font to be loaded before creating the object
     // so Fabric calculates dimensions with the real font metrics
     try { await document.fonts.load(`${fontSize}px "${fontFamily}"`); } catch (_) { /* ignore */ }
-    addObjectToCanvas(new fabric.IText('Votre texte', {
+    addObjectToCanvas(new IText('Votre texte', {
       left: W / 2,
       top: currentFormat.canvasHeight / 2,
       fontFamily,
@@ -71,7 +116,7 @@ export function useObjectActions({
   }
 
   function addRect() {
-    addObjectToCanvas(new fabric.Rect({
+    addObjectToCanvas(new Rect({
       left: 50, top: 50,
       width: Math.min(120, currentFormat.canvasWidth * 0.3),
       height: Math.min(80, currentFormat.canvasHeight * 0.15),
@@ -80,7 +125,7 @@ export function useObjectActions({
   }
 
   function addCircle() {
-    addObjectToCanvas(new fabric.Circle({
+    addObjectToCanvas(new Circle({
       left: 50, top: 50,
       radius: Math.min(50, currentFormat.canvasWidth * 0.12),
       fill: '#e2e8f0', stroke: '#94a3b8', strokeWidth: 1,
@@ -90,14 +135,14 @@ export function useObjectActions({
   function addLine() {
     const W = currentFormat.canvasWidth;
     const H = currentFormat.canvasHeight;
-    addObjectToCanvas(new fabric.Line([W * 0.1, H * 0.5, W * 0.9, H * 0.5], {
+    addObjectToCanvas(new Line([W * 0.1, H * 0.5, W * 0.9, H * 0.5], {
       stroke: '#334155', strokeWidth: 1.5,
     }));
   }
 
   // Image aux proportions de la page : pleine page (importedImagePlacement), sinon réduite à 60 %.
   function placeImportedImage(imgEl) {
-    const fabricImg = new fabric.Image(imgEl);
+    const fabricImg = new FabricImage(imgEl);
     const { left, top, scale } = importedImagePlacement(fabricImg.width, fabricImg.height, currentFormat);
     fabricImg.set({ left, top, scaleX: scale, scaleY: scale });
     fabricImg.setCoords();
@@ -136,17 +181,17 @@ export function useObjectActions({
     const H = currentFormat.canvasHeight;
     const label = ACTION_BUTTON_TEXTS[action] ?? ACTION_LABELS[action] ?? action;
     const fontSize = 14;
-    const caption = new fabric.Text(label, {
+    const caption = new FabricText(label, {
       fontFamily: KIOSK_FONT_TEXT, fontWeight: '600', fontSize,
       fill: KIOSK_COLORS.cream, originX: 'center', originY: 'center', left: 0, top: 0,
     });
     const w = Math.max(110, Math.ceil(caption.width) + 48);
     const h = 52;
-    const shape = new fabric.Rect({
+    const shape = new Rect({
       width: w, height: h, rx: h / 2, ry: h / 2, fill: KIOSK_COLORS.forest, strokeWidth: 0,
       originX: 'center', originY: 'center', left: 0, top: 0,
     });
-    const button = new fabric.Group([shape, caption], {
+    const button = new Group([shape, caption], {
       left: W / 2, top: H / 2, originX: 'center', originY: 'center',
     });
     button.kioskAction = action;
@@ -160,7 +205,7 @@ export function useObjectActions({
     const H = currentFormat.canvasHeight;
     const isTitle = variable === 'event_name';
     const width = isTitle ? 420 : 260;
-    const box = new fabric.Textbox(VARIABLE_SAMPLES[variable] ?? VARIABLE_LABELS[variable] ?? variable, {
+    const box = new Textbox(VARIABLE_SAMPLES[variable] ?? VARIABLE_LABELS[variable] ?? variable, {
       left: (W - width) / 2, top: H / 2 - 20, width,
       fontFamily: isTitle ? KIOSK_FONT_TITLE : KIOSK_FONT_TEXT,
       fontWeight: isTitle ? '600' : '500',
@@ -176,7 +221,7 @@ export function useObjectActions({
     const W = currentFormat.canvasWidth;
     const H = currentFormat.canvasHeight;
     const w = 240, h = 160;
-    const rect = new fabric.Rect({
+    const rect = new Rect({
       left: (W - w) / 2, top: (H - h) / 2, width: w, height: h,
       fill: KIOSK_COLORS.mint, strokeWidth: 0,
     });
@@ -198,7 +243,7 @@ export function useObjectActions({
     });
     isSavingRef.current = true;
     canvas.add(rect);
-    canvas.sendToBack(rect);
+    canvas.sendObjectToBack(rect);
     canvas.setActiveObject(rect);
     canvas.renderAll();
     isSavingRef.current = false;
@@ -210,8 +255,9 @@ export function useObjectActions({
     const canvas = fabricRef.current;
     const active = canvas.getActiveObjects();
     if (!active.length) return;
-    active.forEach((o) => canvas.remove(o));
+    // Fabric 7 : la sélection est défaite d'abord, pour que chaque objet retrouve sa place sur le canvas.
     canvas.discardActiveObject();
+    canvas.remove(...active);
     setSelectedObject(null);
     canvas.renderAll();
     saveHistorySnapshot(canvas);
@@ -219,33 +265,29 @@ export function useObjectActions({
 
   function bringForward() {
     const canvas = fabricRef.current;
-    const obj = canvas.getActiveObject();
-    if (!obj) return;
-    canvas.bringForward(obj);
+    if (!canvas?.getActiveObject()) return;
+    restack(canvas, 'forward');
     canvas.renderAll();
   }
 
   function sendBackward() {
     const canvas = fabricRef.current;
-    const obj = canvas.getActiveObject();
-    if (!obj) return;
-    canvas.sendBackwards(obj);
+    if (!canvas?.getActiveObject()) return;
+    restack(canvas, 'backward');
     canvas.renderAll();
   }
 
   function bringToFront() {
     const canvas = fabricRef.current;
-    const obj = canvas?.getActiveObject();
-    if (!obj) return;
-    canvas.bringToFront(obj);
+    if (!canvas?.getActiveObject()) return;
+    restack(canvas, 'front');
     canvas.renderAll();
   }
 
   function sendToBack() {
     const canvas = fabricRef.current;
-    const obj = canvas?.getActiveObject();
-    if (!obj) return;
-    canvas.sendToBack(obj);
+    if (!canvas?.getActiveObject()) return;
+    restack(canvas, 'back');
     canvas.renderAll();
   }
 
@@ -254,10 +296,10 @@ export function useObjectActions({
     const canvas = fabricRef.current;
     const obj = canvas?.getActiveObject();
     if (!obj) return;
-    const br = obj.getBoundingRect(true);
+    const br = obj.getBoundingRect();
     const cp = obj.getCenterPoint();
     const { x, y } = getNewCenter(br, cp, currentFormat.canvasWidth, currentFormat.canvasHeight);
-    obj.setPositionByOrigin(new fabric.Point(x, y), 'center', 'center');
+    obj.setPositionByOrigin(new Point(x, y), 'center', 'center');
     canvas.renderAll();
     saveHistorySnapshot(canvas);
     setObjectVersion((v) => v + 1);
@@ -273,7 +315,7 @@ export function useObjectActions({
     const obj = canvas?.getActiveObject();
     if (!obj) return;
     const cp = obj.getCenterPoint();
-    obj.setPositionByOrigin(new fabric.Point(currentFormat.canvasWidth / 2, cp.y), 'center', 'center');
+    obj.setPositionByOrigin(new Point(currentFormat.canvasWidth / 2, cp.y), 'center', 'center');
     canvas.renderAll();
     saveHistorySnapshot(canvas);
     setObjectVersion((v) => v + 1);
@@ -284,7 +326,7 @@ export function useObjectActions({
     const obj = canvas?.getActiveObject();
     if (!obj) return;
     const cp = obj.getCenterPoint();
-    obj.setPositionByOrigin(new fabric.Point(cp.x, currentFormat.canvasHeight / 2), 'center', 'center');
+    obj.setPositionByOrigin(new Point(cp.x, currentFormat.canvasHeight / 2), 'center', 'center');
     canvas.renderAll();
     saveHistorySnapshot(canvas);
     setObjectVersion((v) => v + 1);
@@ -294,37 +336,29 @@ export function useObjectActions({
   function copyObject() {
     const obj = fabricRef.current?.getActiveObject();
     if (!obj || involvesPhotoZone(obj)) return;
-    obj.clone((cloned) => { clipboardRef.current = cloned; }, CLONE_PROPS);
+    obj.clone(CLONE_PROPS).then((cloned) => { clipboardRef.current = cloned; });
   }
 
   function pasteObject() {
     const canvas = fabricRef.current;
     if (!canvas || !clipboardRef.current || involvesPhotoZone(clipboardRef.current)) return;
-    clipboardRef.current.clone((copy) => {
-      copy.set({ left: (copy.left ?? 0) + 15, top: (copy.top ?? 0) + 15, evented: true });
-      canvas.discardActiveObject();
-      canvas.add(copy);
-      canvas.setActiveObject(copy);
-      canvas.renderAll();
+    clipboardRef.current.clone(CLONE_PROPS).then((copy) => {
+      addCopy(canvas, copy);
       setSelectedObject(copy);
       saveHistorySnapshot(canvas);
       clipboardRef.current = copy;
-    }, CLONE_PROPS);
+    });
   }
 
   function duplicateObject() {
     const canvas = fabricRef.current;
     const obj = canvas?.getActiveObject();
     if (!obj || involvesPhotoZone(obj)) return;
-    obj.clone((copy) => {
-      copy.set({ left: (copy.left ?? 0) + 15, top: (copy.top ?? 0) + 15, evented: true });
-      canvas.discardActiveObject();
-      canvas.add(copy);
-      canvas.setActiveObject(copy);
-      canvas.renderAll();
+    obj.clone(CLONE_PROPS).then((copy) => {
+      addCopy(canvas, copy);
       setSelectedObject(copy);
       saveHistorySnapshot(canvas);
-    }, CLONE_PROPS);
+    });
   }
 
   // ── Group / Ungroup ──────────────────────────────────────────────────────────
@@ -332,7 +366,12 @@ export function useObjectActions({
     const canvas = fabricRef.current;
     const active = canvas?.getActiveObject();
     if (!active || active.type !== 'activeSelection') return;
-    const group = active.toGroup();
+    // Fabric 7 n'a plus toGroup : sélection défaite, objets retirés puis regroupés, groupe ajouté au-dessus.
+    const objs = selectedInStackOrder(canvas);
+    canvas.discardActiveObject();
+    canvas.remove(...objs);
+    const group = new Group(objs);
+    canvas.add(group);
     canvas.setActiveObject(group);
     canvas.renderAll();
     setSelectedObject(group);
@@ -343,7 +382,13 @@ export function useObjectActions({
     const canvas = fabricRef.current;
     const group = canvas?.getActiveObject();
     if (!group || group.type !== 'group') return;
-    const sel = group.toActiveSelection();
+    // Fabric 7 n'a plus toActiveSelection : les objets sortent du groupe à leur place sur le canvas.
+    canvas.discardActiveObject();
+    canvas.remove(group);
+    const items = group.removeAll();
+    canvas.add(...items);
+    const sel = new ActiveSelection(items, { canvas });
+    canvas.setActiveObject(sel);
     canvas.renderAll();
     setSelectedObject(sel);
     saveHistorySnapshot(canvas);

@@ -47,6 +47,19 @@ public class GuestJourneyServiceTests
     }
 
     [Fact]
+    public void The_chosen_format_is_kept_for_retakes_and_back_to_photo_on_the_home_screen()
+    {
+        var journey = new GuestJourneyService(_nav.Object) { CaptureFormat = PolaKiosk.ViewModels.CaptureFormat.Gif };
+
+        NavigateTo<ResultView>();
+        NavigateTo<LiveView>(); // « Reprendre » : un GIF de nouveau
+        journey.CaptureFormat.Should().Be(PolaKiosk.ViewModels.CaptureFormat.Gif);
+
+        NavigateTo<HomeView>();
+        journey.CaptureFormat.Should().Be(PolaKiosk.ViewModels.CaptureFormat.Photo);
+    }
+
+    [Fact]
     public void The_log_session_ends_on_the_home_screen_or_the_event_code_screen()
     {
         var ev = Guid.NewGuid();

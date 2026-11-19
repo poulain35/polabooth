@@ -1,7 +1,7 @@
 // Aperçu sur la borne (spec docs/specs/apercu-borne.md, LAB-307) : préparation des images et
 // géométrie de la fenêtre. Module pur, sans React : la fenêtre (KioskPreview.jsx) ne reçoit que ce
 // que renvoient ces fonctions, jamais le canvas de l'éditeur (D10).
-import { fabric } from 'fabric';
+import { util } from './fabric.js';
 import { exportAsHighResPNG, exportScreenParts } from '../utils/export.js';
 import { HOME_FORMAT, isHomeFormat } from '../utils/formats.js';
 import { findPhotoZones, photoZoneRect } from './photoZones.js';
@@ -59,7 +59,7 @@ export async function zonesFromCanvasJson(canvasJson) {
   const state = typeof canvasJson === 'string' ? JSON.parse(canvasJson) : canvasJson;
   const kept = zonesOnly(state?.objects);
   if (!kept.length) return [];
-  const objects = await new Promise((resolve) => fabric.util.enlivenObjects(kept, resolve));
+  const objects = await util.enlivenObjects(kept);
   return findPhotoZones(objects).map((zone) => zoneFromRect(photoZoneRect(zone)));
 }
 

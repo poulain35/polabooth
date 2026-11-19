@@ -17,7 +17,7 @@ Installation d'une instance : `docs/installation-instance.md`.
 | Framework | React 19 + Vite 8 |
 | Routage | React Router 7 |
 | Styles | Tailwind CSS 3 |
-| Canvas | Fabric.js 5 |
+| Canvas | Fabric.js 7 (défauts de Fabric 5 forcés, `src/lib/fabric.js`) |
 | Backend | Supabase (Auth, Postgres, Storage) |
 | Fonctions serveur | Supabase Edge Functions (TypeScript, Deno) |
 | Emails | Brevo (API) ou tout serveur SMTP |
@@ -113,7 +113,7 @@ couleurs : les couleurs de la borne sont fixes.
 ### Table `templates`
 ```
 id, name, format ('portrait' | 'landscape' | 'stripV' | 'stripH'),
-canvas_json (fabric.canvas.toJSON()), is_active, thumbnail, created_at
+canvas_json (objets sérialisés par Fabric), is_active, thumbnail, created_at
 ```
 
 ### Table `client_designs`

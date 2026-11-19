@@ -115,7 +115,7 @@
         <!-- Tuile de format (1c) : la première en vert forêt, les autres sur papier -->
         <Style x:Key="HomeFormatTile" TargetType="Button" BasedOn="{StaticResource KioskTileButton}">
             <Setter Property="Width" Value="184"/>
-            <Setter Property="Height" Value="156"/>
+            <Setter Property="Height" Value="160"/>
             <Setter Property="Margin" Value="0,0,18,0"/>
             <Setter Property="BorderBrush" Value="{StaticResource KioskSandBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>

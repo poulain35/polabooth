@@ -46,7 +46,7 @@ kiosk/
 ├── docs/checklist-tests-terrain.md
 ├── installer/                     ← PolaKiosk.iss (Inno Setup), instance.iss facultatif (éditeur),
 │                                    build.ps1 (construction), sign.ps1 (signature facultative)
-├── scripts/                       ← watchdog.ps1, apply-update.ps1
+├── scripts/                       ← watchdog.ps1, apply-update.ps1, fetch-ffmpeg.ps1 (ffmpeg LGPL vérifié)
 ├── PolaKiosk/
 │   ├── App.xaml(.cs)              ← démarrage, DI, erreurs globales ; App.xaml = couleurs, polices, styles
 │   ├── KioskFonts.cs, Assets/Fonts/  ← polices embarquées (Fraunces, DM Sans, licences OFL)
@@ -104,6 +104,16 @@ séance impossible ; l'état part au heartbeat.
 Canon : fichiers de Canon, utilisables seulement avec PolaKiosk). Pour construire un installeur
 avec Canon, chacun demande son accès au programme développeur de Canon.
 
+### ffmpeg (animations)
+`PolaKiosk/ffmpeg/ffmpeg.exe` (build LGPL de BtbN, version figée), copié à la racine de la sortie.
+**Jamais dans le dépôt** (environ 126 Mo) : `scripts/fetch-ffmpeg.ps1` le télécharge, vérifie les
+empreintes SHA-256, refuse un build GPL ou nonfree et exige l'encodeur `h264_mf` ou `libopenh264`.
+`installer/build.ps1` le lance avant la publication ; l'installeur refuse de se construire sans
+ffmpeg et installe ses licences (`installer/licenses/ffmpeg/`) ; `THIRD-PARTY-NOTICES.txt` donne la
+version et l'adresse des sources. `AnimationService` crée la vidéo (MP4 H.264, yuv420p,
+`+faststart`, dimensions paires) et l'affiche JPEG, avec délai maximal et annulation, sans jamais
+lever d'exception (journaux catégorie `animation_encode`). Admin › Borne : « Animations : … ».
+
 ### Prise de vue (`EdsdkCameraService`)
 Toutes les opérations EDSDK passent par **un thread STA dédié** (file d'attente bloquante).
 ```
@@ -141,7 +151,9 @@ Objets de `canvas_json.objects` marqués **`isPhotoZone: true`**, y compris dans
 (récursivement). La borne reproduit la matrice de Fabric 5.3 : position relative au centre du
 groupe, `left`/`top`, `originX`/`originY`, `scaleX`/`scaleY`, `angle`, miroirs. Ordre des zones =
 ordre d'empilement. Même géométrie côté SaaS (`saas/src/lib/photoZones.js`) : les tests des deux
-côtés partagent les mêmes cas.
+côtés partagent les mêmes cas. Le SaaS utilise Fabric 7 mais force les défauts de Fabric 5
+(`saas/src/lib/fabric.js` : origine `left`/`top`, types en minuscules) : la borne garde la géométrie
+de Fabric 5.3.
 
 ### Formats et conversion
 | Format | Canvas SaaS (px) | Montage (px) | Impression (mm) | Papier |
@@ -176,8 +188,11 @@ montages. Jamais `File.OpenWrite` (ne tronque pas l'ancien contenu). Noms unique
 
 Champs utilisés :
 - `home.background_url`, `home.personalized`, `home.display_name`, `home.buttons.*` (formats proposés ;
-  seule la photo est gérée aujourd'hui, `HomeScreen.SupportedFormats`)
+  photo et GIF gérés, `HomeScreen.SupportedFormats` ; tuile GIF masquée si ffmpeg n'est pas prêt ;
+  boomerang pas encore géré)
 - `capture.countdown_seconds`
+- `capture.gif.shots` (3 à 6, défaut 4) et `capture.gif.interval_ms` (500 à 3000, défaut 1000) :
+  photos du GIF et intervalle entre deux (lecture tolérante : hors bornes = défaut)
 - `rgpd.enabled`, `rgpd.message`
 - `effects.enabled_effects`, `effects.default_effect`, `effects.user_can_choose`
   (none, bw, sepia, vintage, vignette, bright)
@@ -196,8 +211,11 @@ dans le SaaS : **vérifier l'effet côté SaaS avant de changer un champ.**
 ## Données locales
 
 `%AppData%\PolaKiosk\polakiosk.db` (SQLite, WAL). Créée par `EnsureCreatedAsync` ; les tables
-ajoutées après coup sont créées par `CREATE TABLE IF NOT EXISTS`, les colonnes ajoutées par
-`LocalDbColumns.EnsureAsync` (sans perte) : **y ajouter toute nouvelle colonne.**
+manquantes sont créées complètes, puis `LocalDbSchema.UpgradeAsync` ajoute à une base existante les
+colonnes de `LocalDbSchema.AddedColumns` qui lui manquent (sans perte) : **y ajouter toute nouvelle
+colonne d'une table existante**, et dans `LocalDbSchemaTests`. `Sessions` porte le type de séance
+(`MediaType` : `photo` ou `gif`), le clip et l'affiche d'un GIF, sa durée et sa taille, et
+`UploadRejected` (refus définitif du serveur).
 Tables : `Events`, `Templates`, `Sessions`, `PrintCounts`, `PrintLogs`, `KioskLogs`, `GuestResponses`,
 `PhotoConsents`.
 
@@ -205,7 +223,8 @@ Autres fichiers de `%AppData%\PolaKiosk` : `state.json` (événement actif, comp
 `license.json` (signé HMAC), `license.key`, `activation.bin` et `admin-pin.bin` (chiffrés DPAPI),
 `machine-settings.json`, `templates/` (PNG des designs), `backgrounds/`, `logo/`, `pola/` (copie de
 chaque `.pola` importé), `pending/{sessionId}/` (photo en attente du questionnaire obligatoire),
-`events/{nom}_{id8}/originals|composites|composites\thumbs`.
+`events/{nom}_{id8}/originals|composites|composites\thumbs|animations\{sessionId}` (GIF : `clip.mp4`
+et `poster.jpg`).
 
 `%LocalAppData%\PolaKiosk` : `watchdog.log`, `fatal.log`, `update.log`, `updates/`, `update.lock`,
 fichiers d'état des mises à jour.
@@ -220,16 +239,17 @@ actif, jamais un événement dont une séance n'est pas envoyée, uniquement un 
 ## Supabase
 
 Tous les appels passent par `HttpClient` avec `apikey` + `Bearer` = clé anon. **Jamais de clé
-`service_role`.** Seule exception : le PUT du montage vers le stockage (URL présignée), sans ces en-têtes.
+`service_role`.** Seule exception : le PUT vers le stockage (URL présignée), sans ces en-têtes, en
+flux, avec un délai selon la taille du fichier (10 min au moins pour un clip).
 
 | Usage | Appel |
 |---|---|
 | Événement par code | RPC `kiosk_get_event {p_code, p_machine_id, p_secret}` → `{id, org_id, name, access_code, start_date, end_date, form_config: {kiosk}}` ; `42501` → licence refusée ; `null` → « Ce code ne correspond à aucun événement de votre compte. » |
 | Association | RPC `kiosk_pairing_start {p_machine_id, p_machine_name, p_app_version, p_device_key_hash}` puis `kiosk_pairing_poll {p_pairing_id, p_device_key}` (statut ; `approved` porte le secret **une seule fois**) |
 | Design approuvé | RPC `kiosk_get_approved_design {p_machine_id, p_secret, p_event_id}` → `{id, format, canvas_json, final_png_url}` ou `null` |
-| URL d'envoi | `POST functions/v1/get-kiosk-upload-url` → `presigned_url`, `storage_path`, `public_url`, `content_type` |
+| URL d'envoi | `POST functions/v1/get-kiosk-upload-url` → `presigned_url`, `storage_path`, `public_url`, `content_type` ; GIF : `kind` = `poster` (affiche) puis `media` (clip) |
 | Envoi | `PUT {presigned_url}` avec `Content-Type` = `content_type` |
-| Enregistrer la photo | RPC `kiosk_record_photo {p_code, p_event_id, p_storage_path, p_photo_url, p_machine_id, p_secret, p_captured_at}` |
+| Enregistrer la photo | RPC `kiosk_record_photo {p_code, p_event_id, p_storage_path, p_photo_url, p_machine_id, p_secret, p_captured_at}` ; GIF : en plus `p_media_type`, `p_thumbnail_path`, `p_duration_ms`, `p_width`, `p_height` ; `22023` = refus définitif |
 | Contact du loueur | RPC `get_org_contact_by_event {p_event_id}` → société, téléphone, email, `logo_url` |
 | Consentement photo | RPC `kiosk_record_photo_consent` (idempotente ; `22023` = refus définitif) |
 | Réponse au questionnaire | RPC `kiosk_record_guest_response` (idempotente ; `22023` = refus définitif) |
@@ -262,7 +282,11 @@ QR code : `{SaasUrl}/photos/{accessCode}?photo={photoId}&via=qr` (`via=qr` compt
 - Envoi : URL `get-kiosk-upload-url`, PUT, puis `kiosk_record_photo`. En échec ou hors ligne, la
   séance reste en attente (retour du réseau ou cycle de 2 min).
 - Chemin : `photos/{slug-événement}-{8 car. de l'id}/{sessionId}/{fichier}` ; un renvoi reçoit le
-  même chemin, donc pas de doublon. Un seul envoi à la fois dans le processus.
+  même chemin, donc pas de doublon. Un seul envoi à la fois par séance : un clip lent ne retarde
+  pas le QR de l'invité suivant.
+- GIF : affiche, puis clip MP4, puis une seule ligne `photos` (`media_type = gif`) ; clip ou affiche
+  manquant → le montage part comme une photo. Photos envoyées avant les animations. Refus `22023`
+  → séance sortie de la file, fichiers gardés, journalisé.
 - Questionnaire obligatoire : poses et montage dans `pending\{sessionId}\`, **aucune séance ni
   envoi avant la validation** ; abandon = dossier supprimé.
 
@@ -382,6 +406,8 @@ WPF et testée : `TouchKeyboardEditor`, `TouchKeyboardLayouts`, `EmailDomainSugg
 - **Installeur** : par utilisateur dans `%LocalAppData%\Programs\PolaKiosk`, exclut
   `appsettings.local.json`. Éditeur affiché : `AppPublisher` de `installer/instance.iss` s'il existe,
   sinon « PolaKiosk ».
+- **ffmpeg** : `installer/build.ps1` lance `scripts/fetch-ffmpeg.ps1` avant `dotnet publish` ;
+  `PolaKiosk.iss` s'arrête si `ffmpeg.exe` manque dans la publication et installe `licenses\ffmpeg`.
 - **Signature** (facultative, LAB-424) : `installer/build.ps1` signe `PolaKiosk.exe`, `PolaKiosk.dll`,
   l'installeur et le désinstalleur si `KIOSK_SIGN_CERT_THUMBPRINT`, `KIOSK_SIGN_CERT_FILE` (+ mot de passe)
   ou `KIOSK_SIGN_COMMAND` est défini (`installer/sign.ps1`, Authenticode SHA-256 horodaté) ; sinon

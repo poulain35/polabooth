@@ -65,7 +65,8 @@ Sur un PC Windows de développement (pas forcément la borne) :
 - [SDK .NET 10](https://dotnet.microsoft.com/download) ;
 - [Inno Setup 6.1 ou plus récent](https://jrsoftware.org/isdl.php) ;
 - Git ;
-- facultatif : le kit **Canon EDSDK** (voir 3.2).
+- facultatif : le kit **Canon EDSDK** (voir 3.2) ;
+- une connexion Internet à la première construction : le script télécharge ffmpeg (voir 3.3).
 
 Vérifiez dans un terminal PowerShell :
 
@@ -144,6 +145,23 @@ l'installeur si elles sont présentes, avec `THIRD-PARTY-NOTICES.txt` (mentions 
 Sans ces DLL, la borne fonctionne avec une webcam (1920×1080 si la webcam le permet). Utile pour
 tester, moins bon pour un vrai événement.
 
+### 3.3 ffmpeg (vidéos des animations)
+
+La borne crée ses vidéos d'animation avec **ffmpeg**, un logiciel libre (licence LGPL v3), livré tel
+quel à côté de l'application. Il n'est pas dans le dépôt (environ 130 Mo). Vous n'avez rien à
+faire : `installer\build.ps1` lance `scripts\fetch-ffmpeg.ps1`, qui télécharge une version précise
+(build LGPL de BtbN/FFmpeg-Builds), vérifie son empreinte et le place dans `kiosk\PolaKiosk\ffmpeg\`.
+Pour le récupérer à la main, depuis `kiosk\` :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-ffmpeg.ps1
+```
+
+L'installeur ne se construit pas sans ffmpeg. Il installe aussi ses licences (dossier
+`licenses\ffmpeg`) et `THIRD-PARTY-NOTICES.txt` indique la version et l'adresse des sources.
+Après l'installation, Administration › Borne affiche « Animations : prêtes (h264_mf) » (encodeur de
+Windows) ou « (libopenh264) ».
+
 ---
 
 ## 4. Construire l'installeur
@@ -155,7 +173,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer\build.ps1
 ```
 
 Le script publie l'application puis compile l'installeur avec Inno Setup. Résultat :
-`installer\Output\setup-polakiosk.exe` (environ 100 Mo, .NET inclus : rien à installer sur la borne).
+`installer\Output\setup-polakiosk.exe` (.NET et ffmpeg inclus : rien à installer sur la borne).
 
 **Signature (facultative).** Sans signature, Windows affiche « Windows a protégé votre ordinateur »
 (éditeur inconnu) au premier lancement de l'installeur téléchargé : cliquez « Informations
@@ -303,6 +321,7 @@ Détails techniques (watchdog, journaux, rollback) : `kiosk/installer/README.md`
 | « Problème technique » sur l'accueil | L'appareil photo n'est pas détecté : vérifiez le câble USB, l'alimentation, le mode photo. Le SaaS est prévenu (carte de la borne). |
 | La borne prend la webcam au lieu du Canon | Installeur construit sans les DLL EDSDK (3.2 ; l'installeur prêt à l'emploi les contient), ou caméra forcée sur webcam dans l'administration. |
 | « Mettez la molette de l'appareil sur M » dans « Appareil photo » | La molette du Canon est sur un autre mode : tournez-la sur M. Les réglages gardés sont remis la prochaine fois que la borne ouvre l'appareil (journaux, catégorie `camera`). |
+| « Animations : ffmpeg absent » ou « encodeur H.264 absent » (Administration › Borne) | Installeur construit sans ffmpeg, ou `ffmpeg.exe` supprimé du dossier d'installation : réinstallez. Encodeur absent : Windows sans Media Foundation (éditions N : installez le « Media Feature Pack »). Détails dans les journaux, catégorie `animation_encode`. |
 | Administration fermée | Définissez et envoyez le PIN depuis le SaaS (5.2, point 3). La borne doit avoir du réseau pour le recevoir. |
 | Rien ne s'imprime | Imprimante choisie dans l'administration ? Papier et ruban chargés ? Testez une impression depuis Windows. |
 | Bandes imprimées une seule fois, ou feuille non coupée | Réglage « bandes coupées » absent ou refusé (autre imprimante, pilote changé) : la carte Imprimante de l'administration l'indique, comme les journaux (catégorie `print`). Enregistrez-le à nouveau (5.3) et vérifiez que la coupe 2 pouces est cochée. |

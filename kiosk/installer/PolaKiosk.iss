@@ -29,6 +29,11 @@
 #if !FileExists(AppDll)
   #error "PolaKiosk.dll introuvable : lancer d'abord dotnet publish (voir installer\README.md)."
 #endif
+; ffmpeg.exe (build LGPL, animations LAB-234) : copié dans la publication s'il est dans
+; PolaKiosk\ffmpeg\ (build.ps1 lance scripts\fetch-ffmpeg.ps1 avant de publier).
+#if !FileExists(AddBackslash(SourcePath) + PublishDir + "\ffmpeg.exe")
+  #error "ffmpeg.exe absent de la publication : lancer scripts\fetch-ffmpeg.ps1 puis republier (voir installer\README.md)."
+#endif
 #define VerMajor 0
 #define VerMinor 0
 #define VerRev   0
@@ -77,8 +82,10 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 ; Scripts watchdog + mise à jour
 Source: "{#ScriptsDir}\watchdog.ps1";     DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "{#ScriptsDir}\apply-update.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
-; Mentions des composants de tiers (DLL Canon EDSDK, Independent JPEG Group), exigées par Canon
+; Mentions des composants de tiers (DLL Canon EDSDK, Independent JPEG Group exigées par Canon ;
+; FFmpeg : version, adresse des sources) et textes des licences LGPL v3 / GPL v3 de FFmpeg
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "licenses\ffmpeg\*.txt";   DestDir: "{app}\licenses\ffmpeg"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\{#AppName}";        Filename: "{app}\{#ExeName}"

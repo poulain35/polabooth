@@ -69,8 +69,7 @@ export async function exportAsHighResPNG(fabricCanvas, format, options = {}) {
   try {
     if (needsReset) {
       fabricCanvas._exportMode = true;
-      fabricCanvas.setWidth(canvasWidth);
-      fabricCanvas.setHeight(canvasHeight);
+      fabricCanvas.setDimensions({ width: canvasWidth, height: canvasHeight });
       fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
       fabricCanvas.renderAll();
     }
@@ -107,8 +106,7 @@ export async function exportAsHighResPNG(fabricCanvas, format, options = {}) {
     fabricCanvas.backgroundImage = origBgImage;
     // Restore expanded canvas state
     if (needsReset) {
-      fabricCanvas.setWidth(origW);
-      fabricCanvas.setHeight(origH);
+      fabricCanvas.setDimensions({ width: origW, height: origH });
       fabricCanvas.setViewportTransform(origVT);
       fabricCanvas._exportMode = false;
     }
@@ -197,8 +195,7 @@ export function exportScreenParts(fabricCanvas, format, parts) {
   const out = [];
   try {
     fabricCanvas._exportMode = true;
-    fabricCanvas.setWidth(canvasWidth);
-    fabricCanvas.setHeight(canvasHeight);
+    fabricCanvas.setDimensions({ width: canvasWidth, height: canvasHeight });
     fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
 
     if (parts.background?.name) {
@@ -225,8 +222,7 @@ export function exportScreenParts(fabricCanvas, format, parts) {
     objects.forEach((o, i) => setVisible(o, visibleBefore[i]));
     fabricCanvas.backgroundColor = origBgColor;
     fabricCanvas.backgroundImage = origBgImage;
-    fabricCanvas.setWidth(origW);
-    fabricCanvas.setHeight(origH);
+    fabricCanvas.setDimensions({ width: origW, height: origH });
     fabricCanvas.setViewportTransform(origVT);
     fabricCanvas._exportMode = origExportMode;
     fabricCanvas.renderAll();
@@ -245,8 +241,7 @@ export function exportScreenPreview(fabricCanvas, format) {
   const origExportMode = fabricCanvas._exportMode;
   try {
     fabricCanvas._exportMode = true;
-    fabricCanvas.setWidth(format.canvasWidth);
-    fabricCanvas.setHeight(format.canvasHeight);
+    fabricCanvas.setDimensions({ width: format.canvasWidth, height: format.canvasHeight });
     fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     fabricCanvas.renderAll();
     return fabricCanvas.toDataURL({ format: 'png', multiplier: 0.5, enableRetinaScaling: false });
@@ -254,8 +249,7 @@ export function exportScreenPreview(fabricCanvas, format) {
     console.warn('Aperçu de l’écran impossible :', err?.message ?? err);
     return null;
   } finally {
-    fabricCanvas.setWidth(origW);
-    fabricCanvas.setHeight(origH);
+    fabricCanvas.setDimensions({ width: origW, height: origH });
     fabricCanvas.setViewportTransform(origVT);
     fabricCanvas._exportMode = origExportMode;
     fabricCanvas.renderAll();

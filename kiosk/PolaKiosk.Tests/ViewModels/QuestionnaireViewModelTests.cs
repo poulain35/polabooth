@@ -189,8 +189,8 @@ public sealed class QuestionnaireViewModelTests
         vm.NextCommand.Execute(null);
         Action<AppDbContext>? stage = null;
         _sessions.Setup(s => s.CommitPendingSessionAsync(SessionId, EventId, "Mariage", CapturedAt,
-                     @"C:\data\pending\photo.jpg", @"C:\data\pending\composite.jpg", It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>()))
-                 .Callback<Guid, Guid, string, DateTime, string, string, Action<AppDbContext>?, Guid?>((_, _, _, _, _, _, s, _) => stage = s)
+                     @"C:\data\pending\photo.jpg", @"C:\data\pending\composite.jpg", It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>(), It.IsAny<AnimationClip?>()))
+                 .Callback<Guid, Guid, string, DateTime, string, string, Action<AppDbContext>?, Guid?, AnimationClip?>((_, _, _, _, _, _, s, _, _) => stage = s)
                  .ReturnsAsync(@"C:\data\events\composite.jpg");
 
         await vm.SubmitCommand.ExecuteAsync(null);
@@ -217,8 +217,8 @@ public sealed class QuestionnaireViewModelTests
         vm.NextCommand.Execute(null);
         Action<AppDbContext>? stage = null;
         _sessions.Setup(s => s.CommitPendingSessionAsync(SessionId, EventId, "Mariage", It.IsAny<DateTime>(),
-                     It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>()))
-                 .Callback<Guid, Guid, string, DateTime, string, string, Action<AppDbContext>?, Guid?>((_, _, _, _, _, _, s, _) => stage = s)
+                     It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>(), It.IsAny<AnimationClip?>()))
+                 .Callback<Guid, Guid, string, DateTime, string, string, Action<AppDbContext>?, Guid?, AnimationClip?>((_, _, _, _, _, _, s, _, _) => stage = s)
                  .ReturnsAsync(@"C:\data\events\composite.jpg");
 
         await vm.SubmitCommand.ExecuteAsync(null);

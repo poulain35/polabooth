@@ -166,6 +166,29 @@ borne ») ou la page Licences (section « Événement sur la borne » de la cart
 
 ---
 
+## 11. GIF de bout en bout (LAB-237)
+
+À faire sur la vraie borne (Canon R100 branché, imprimante DNP, version avec `ffmpeg\ffmpeg.exe`,
+Administration › Borne : « Animations : prêtes »), avec un événement à accueil personnalisé et les
+formats Photo et GIF actifs dans ses réglages de la borne (SaaS). Le serveur doit accepter `kind` dans `get-kiosk-upload-url` et les paramètres du média
+dans `kiosk_record_photo` (spec LAB-207).
+
+- [ ] **Base d'une borne en service** : installer la nouvelle version sur une borne qui a déjà des séances → elle démarre, la galerie montre les anciennes photos, les envois en attente partent. Journal de démarrage sans erreur de base.
+- [ ] **Photo seule** : événement avec seulement « Photo » actif → l'accueil est le même qu'avant (pas de tuile).
+- [ ] **Tuiles** : Photo + GIF actifs → deux tuiles à l'accueil, seules les tuiles démarrent ; « Photo » donne le parcours habituel.
+- [ ] **Sans ffmpeg** : renommer `ffmpeg\ffmpeg.exe` dans le dossier d'installation, relancer → la tuile GIF n'apparaît plus, la photo fonctionne. Remettre le fichier.
+- [ ] **Prise de vue** : tuile GIF → compte à rebours, flash, puis « 2/4 », « 3/4 », « 4/4 » avec le live view entre deux prises (4 photos, 1 s par défaut) ; essayer aussi 6 photos et 3000 ms dans le SaaS. « Annuler » pendant la série → retour à l'accueil, aucune séance dans la galerie.
+- [ ] **Délai** : chronométrer de la dernière photo à l'animation à l'écran (« Préparation de votre animation… ») → **moins de 5 s** sur le PC de la borne. Noter le temps : ………
+- [ ] **Résultat** : l'animation se joue en boucle, sans son, sans saccade ; pas d'écran de choix d'effet. « Imprimer » imprime le **montage des photos** (pas une image de l'animation), au bon format, et le compteur « encore N tirages » baisse comme pour une photo.
+- [ ] **QR et e-mail** : une fois en ligne, le QR et l'e-mail ouvrent l'animation (la page de partage et l'e-mail doivent savoir afficher un MP4, sinon le noter).
+- [ ] **Galerie** : la séance GIF montre son affiche avec une pastille lecture ; l'ouvrir → l'animation rejoue en boucle et « Imprimer » réimprime le montage, plafond par photo respecté.
+- [ ] **Hors ligne** : couper le réseau, faire 2 GIF et 1 photo, rebrancher → tout arrive dans la galerie du SaaS sous 2 minutes environ, photo d'abord, **une seule fois chacun** (même après un redémarrage de la borne pendant l'attente).
+- [ ] **4G faible** : sur un partage de connexion lent, faire un GIF puis tout de suite une photo → le QR de la photo apparaît sans attendre la fin de l'envoi du clip.
+- [ ] **Questionnaire obligatoire** : GIF avec questionnaire obligatoire → valider : l'animation est au résultat et dans la galerie ; abandonner : rien n'est gardé.
+- [ ] **Encodage raté** (si l'occasion se présente) : la séance reste une photo, message « Animation indisponible : voici vos photos. », impression normale.
+
+---
+
 ## Notes / anomalies constatées
 
 ```

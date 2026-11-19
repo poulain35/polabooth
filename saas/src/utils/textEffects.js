@@ -1,7 +1,7 @@
-import { fabric } from 'fabric';
+import { FabricText, Shadow } from '../lib/fabric.js';
 
 // Référence au _renderText prototype — capturée une fois au chargement du module
-const ORIG_RENDER_TEXT = fabric.Text.prototype._renderText;
+const ORIG_RENDER_TEXT = FabricText.prototype._renderText;
 
 export const EFFECT_DEFS = [
   { id: 'none',    label: 'Aucun',      preview: {} },
@@ -63,14 +63,14 @@ export function applyTextEffect(obj) {
   // ── Ombre portée ─────────────────────────────────────────────────────────
   if (type === 'shadow') {
     const { color = '#000000', opacity = 0.65, blur = 10, offsetX = 5, offsetY = 5 } = params;
-    obj.set('shadow', new fabric.Shadow({ color: hexToRgba(color, opacity), blur, offsetX, offsetY }));
+    obj.set('shadow', new Shadow({ color: hexToRgba(color, opacity), blur, offsetX, offsetY }));
     return;
   }
 
   // ── Levée (hard shadow) ───────────────────────────────────────────────────
   if (type === 'lift') {
     const { color = '#000000', opacity = 0.8, offsetX = 6, offsetY = 6 } = params;
-    obj.set('shadow', new fabric.Shadow({ color: hexToRgba(color, opacity), blur: 0, offsetX, offsetY }));
+    obj.set('shadow', new Shadow({ color: hexToRgba(color, opacity), blur: 0, offsetX, offsetY }));
     return;
   }
 

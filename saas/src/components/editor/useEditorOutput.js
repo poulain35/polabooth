@@ -103,15 +103,13 @@ export function useEditorOutput({
         const needsReset = origW !== currentFormat.canvasWidth || origH !== currentFormat.canvasHeight;
         if (needsReset) {
           canvas._exportMode = true;
-          canvas.setWidth(currentFormat.canvasWidth);
-          canvas.setHeight(currentFormat.canvasHeight);
+          canvas.setDimensions({ width: currentFormat.canvasWidth, height: currentFormat.canvasHeight });
           canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
           canvas.renderAll();
         }
         previewUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.75, multiplier: 0.5 });
         if (needsReset) {
-          canvas.setWidth(origW);
-          canvas.setHeight(origH);
+          canvas.setDimensions({ width: origW, height: origH });
           canvas.setViewportTransform(origVT);
           canvas._exportMode = false;
           canvas.renderAll();

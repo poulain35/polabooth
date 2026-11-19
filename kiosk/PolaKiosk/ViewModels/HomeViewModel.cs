@@ -35,6 +35,8 @@ public partial class HomeViewModel : ObservableObject, IReleasable
     private readonly ICameraHealthService? _cameraHealth;
     private readonly IKioskLogService? _log;
     private readonly IFrameSelection? _frameSelection;
+    private readonly IGuestJourneyService? _journey;
+    private readonly IAnimationService? _animation;
     private CancellationTokenSource? _cameraWatch;
 
     // Cartes du choix du cadre (LAB-315), préparées dès l'affichage de l'accueil ; null si le choix est coupé.
@@ -191,8 +193,11 @@ public partial class HomeViewModel : ObservableObject, IReleasable
         ISyncService sync, IIdleTimeoutService idle,
         SessionPathService sessionPaths, ICompositeService composite, AdminPinPadViewModel pinPad,
         AppSettings? settings = null, ICameraHealthService? cameraHealth = null, IKioskLogService? log = null,
-        IFrameSelection? frameSelection = null)
+        IFrameSelection? frameSelection = null, IGuestJourneyService? journey = null,
+        IAnimationService? animation = null)
     {
+        _journey        = journey;
+        _animation      = animation;
         _cameraHealth   = cameraHealth;
         _log            = log;
         _frameSelection = frameSelection;
@@ -222,7 +227,7 @@ public partial class HomeViewModel : ObservableObject, IReleasable
         _kioskConfig = KioskConfig.FromFormConfig(ev.FormConfigJson);
         var home = _kioskConfig?.Home;
 
-        var formats = HomeScreen.EnabledFormats(home, HomeScreen.SupportedFormats);
+        var formats = HomeScreen.EnabledFormats(home, HomeScreen.ShootableFormats(await AnimationsReadyAsync(home)));
         Tiles       = HomeScreen.Tiles(formats, home);
 
         // Écran du client (LAB-291) : seulement si l'accueil est personnalisé et l'option active,
@@ -484,12 +489,27 @@ public partial class HomeViewModel : ObservableObject, IReleasable
     private void Start()
     {
         if (!IsWholeScreenTappable) return;
-        Begin();
+        Begin(FirstFormat);
     }
 
-    /// <summary>Appui sur une tuile de format (1c, écran du client). Seule la photo existe pour l'instant.</summary>
+    /// <summary>Appui sur une tuile de format (1c, écran du client) : le format choisi suit tout le parcours.</summary>
     [RelayCommand(CanExecute = nameof(CanStartSession))]
-    private void StartFormat(HomeFormatTile? tile) => Begin();
+    private void StartFormat(HomeFormatTile? tile) => Begin(tile?.Format ?? FirstFormat);
+
+    // Appui sur tout l'écran (un seul format, ou écran de l'organisation sans tuiles) : premier format.
+    private CaptureFormat FirstFormat => Tiles.Count > 0 ? Tiles[0].Format : CaptureFormat.Photo;
+
+    /// <summary>
+    /// Encodage des animations prêt (ffmpeg et encodeur H.264 contrôlés une fois, en cache). Contrôlé
+    /// seulement si un format animé est coché, pour ne jamais retarder l'accueil d'un événement photo.
+    /// </summary>
+    private async Task<bool> AnimationsReadyAsync(HomeConfig? home)
+    {
+        if (_animation == null || home?.Buttons is not { } buttons) return false;
+        if (!buttons.Gif.Enabled && !buttons.Boomerang.Enabled) return false;
+        try { return (await _animation.GetEncoderStatusAsync()).IsReady; }
+        catch { return false; }
+    }
 
     private bool CanStartSession() => !IsCameraMissing;
 
@@ -515,10 +535,13 @@ public partial class HomeViewModel : ObservableObject, IReleasable
         _ => false,
     };
 
-    private void Begin()
+    private void Begin(CaptureFormat format)
     {
         // Ne pas démarrer la séquence si l'overlay PIN admin est ouvert, ni sans appareil photo
         if (PinPad.ShowPinEntry || IsCameraMissing || _waitingForFrames) return;
+
+        // Format de la séance (LAB-237), lu par l'écran Live : photo ou GIF.
+        if (_journey != null) _journey.CaptureFormat = format;
 
         // Message RGPD passé via le paramètre de navigation
         var rgpd = _kioskConfig?.Rgpd?.Enabled == true

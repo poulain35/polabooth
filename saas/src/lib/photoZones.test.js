@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fabric } from 'fabric';
+import { Group, Point, Rect, util } from './fabric.js';
 import {
   findPhotoZones,
   flattenObjects,
@@ -11,10 +11,10 @@ import {
 
 // Vecteur commun avec kiosk/PolaKiosk.Tests/Services/CompositeServiceTests.cs (ParsePhotoZones) :
 // mêmes designs, mêmes rectangles attendus (left, top, width, height, angle en px canvas).
-const zone = (o) => new fabric.Rect({ strokeWidth: 0, fill: 'transparent', isPhotoZone: true, ...o });
-const deco = (o) => new fabric.Rect({ fill: 'red', ...o });
+const zone = (o) => new Rect({ strokeWidth: 0, fill: 'transparent', isPhotoZone: true, ...o });
+const deco = (o) => new Rect({ fill: 'red', ...o });
 const group = (props) => {
-  const g = new fabric.Group([
+  const g = new Group([
     zone({ left: 20, top: 30, width: 160, height: 120 }),
     deco({ left: 200, top: 100, width: 100, height: 50 }),
   ]);
@@ -42,12 +42,12 @@ const CASES = {
   },
   'groupes imbriqués': {
     build: () => {
-      const inner = new fabric.Group([
+      const inner = new Group([
         zone({ left: 40, top: 60, width: 100, height: 80, scaleX: 1.5 }),
         deco({ left: 160, top: 60, width: 40, height: 40 }),
       ]);
       inner.set({ scaleX: 0.5, scaleY: 0.5 });
-      const outer = new fabric.Group([inner, deco({ left: 20, top: 300, width: 300, height: 60 })]);
+      const outer = new Group([inner, deco({ left: 20, top: 300, width: 300, height: 60 })]);
       outer.set({ left: 60, top: 100, angle: -20, scaleX: 1.25, scaleY: 1.25 });
       return [outer];
     },
@@ -88,7 +88,7 @@ test('photoZoneRect — les coins coïncident avec la géométrie Fabric, groupe
     });
     const m = z.calcTransformMatrix();
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      const p = fabric.util.transformPoint(new fabric.Point((sx * z.width) / 2, (sy * z.height) / 2), m);
+      const p = util.transformPoint(new Point((sx * z.width) / 2, (sy * z.height) / 2), m);
       assert.ok(ours.some(([x, y]) => Math.abs(x - p.x) < 1e-6 && Math.abs(y - p.y) < 1e-6));
     }
   }
@@ -109,7 +109,7 @@ test('findPhotoZones / flattenObjects — ordre d’empilement, groupes déroul�
   const b = deco({ left: 20, top: 0, width: 10, height: 10 });
   const c = zone({ left: 40, top: 0, width: 10, height: 10 });
   const d = deco({ left: 60, top: 0, width: 10, height: 10 });
-  const objects = [a, new fabric.Group([b, new fabric.Group([c])]), d];
+  const objects = [a, new Group([b, new Group([c])]), d];
   assert.deepEqual(findPhotoZones(objects), [a, c]);
   assert.deepEqual(flattenObjects(objects), [a, b, c, d]);
 });

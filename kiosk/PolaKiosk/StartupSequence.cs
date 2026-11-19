@@ -22,10 +22,11 @@ internal sealed class StartupSequence(IServiceProvider services, Dispatcher disp
 
     public async Task RunAsync()
     {
-        // Base neuve : toutes les tables et colonnes du modèle. Une base d'une ancienne version n'est
-        // pas complétée (aucune borne en service avant LAB-401) : la supprimer pour la recréer.
+        // Base neuve : toutes les tables et colonnes du modèle. Base existante (borne en service) :
+        // EnsureCreated n'y touche pas, LocalDbSchema ajoute les colonnes venues depuis (LAB-237).
         var dbContext = services.GetRequiredService<AppDbContext>();
         await dbContext.Database.EnsureCreatedAsync();
+        await LocalDbSchema.UpgradeAsync(dbContext);
 
         // Mode WAL : écritures atomiques, base bien plus résistante à une coupure de courant.
         // journal_mode est persisté dans le fichier (une fois suffit) ; busy_timeout évite
@@ -37,6 +38,10 @@ internal sealed class StartupSequence(IServiceProvider services, Dispatcher disp
         // Photos en attente du questionnaire obligatoire (LAB-222), AVANT tout envoi : termine les
         // validations interrompues par un crash, supprime les parcours jamais validés.
         await services.GetRequiredService<ISessionService>().CleanupPendingAsync();
+
+        // Contrôle de ffmpeg (LAB-237) lancé tôt, en fond : l'accueil lit le résultat en cache pour
+        // proposer ou masquer le GIF, sans attendre l'essai des encodeurs.
+        _ = services.GetRequiredService<IAnimationService>().GetEncoderStatusAsync();
 
         // Plantages du lancement précédent (LAB-332) : fatal.log → journaux kiosk, à leur heure d'origine,
         // avant tout changement d'événement (ils prennent l'événement actif au plantage).

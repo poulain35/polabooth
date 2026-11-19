@@ -32,6 +32,7 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     private readonly TimeProvider _clock;
     private readonly ICameraService? _camera;
     private readonly IWindowsStartup? _startup;
+    private readonly IAnimationService? _animation;
     private bool _previewRunning;
     private bool _loadingStartup; // lecture initiale de la case : rien à écrire
     private bool _loadingChoices = true; // choix lus au démarrage de l'écran : rien à enregistrer
@@ -127,13 +128,17 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     [ObservableProperty] private bool   _launchAtStartup;
     [ObservableProperty] private string _launchAtStartupStatusMsg = "";
 
+    // ── Animations (LAB-234) : ffmpeg (LGPL) et son encodeur H.264, contrôlés une fois puis à la demande ──
+    [ObservableProperty] private string _animationStatus = "Animations : contrôle en cours…";
+
     public AdminViewModel(IKioskStateService state, INavigationService navigation, ISyncService sync,
         IKioskService kiosk, IPrintService print, IMachineSettingsService machine,
         ICameraDetectionService cameraDetection, AppSettings settings, ISaasSwitchService saasSwitch,
         IAppRestart restart, IPolaHistory history, IPrinterDriver printerDriver, ICameraService? camera = null,
-        TimeProvider? clock = null, IWindowsStartup? startup = null)
+        TimeProvider? clock = null, IWindowsStartup? startup = null, IAnimationService? animation = null)
     {
         _startup         = startup;
+        _animation       = animation;
         _printerDriver   = printerDriver;
         _clock           = clock ?? TimeProvider.System;
         _camera          = camera;
@@ -162,6 +167,7 @@ public partial class AdminViewModel : ObservableObject, IReleasable
         LoadStorageSettings();
         LoadLaunchAtStartup();
         LoadPolaHistory();
+        _ = LoadAnimationStatusAsync(refresh: false);
         _loadingChoices = false;
     }
 
@@ -186,6 +192,21 @@ public partial class AdminViewModel : ObservableObject, IReleasable
     // Écran tactile : un choix touché est enregistré tout de suite, sans bouton « Enregistrer ».
     partial void OnSelectedPhotoSizeChanged(PhotoSizeOption? value) { if (!_loadingChoices) SavePhotoSize(); }
     partial void OnSelectedRetentionChanged(RetentionOption? value) { if (!_loadingChoices) SaveRetention(); }
+
+    /// <summary>Ligne « Animations : … » de la section Borne (le service ne lève jamais d'exception).</summary>
+    private async Task LoadAnimationStatusAsync(bool refresh)
+    {
+        if (_animation == null)
+        {
+            AnimationStatus = "Animations : indisponibles";
+            return;
+        }
+        AnimationStatus = "Animations : contrôle en cours…";
+        AnimationStatus = (await _animation.GetEncoderStatusAsync(refresh)).Label;
+    }
+
+    [RelayCommand]
+    private Task CheckAnimations() => LoadAnimationStatusAsync(refresh: true);
 
     private void LoadLaunchAtStartup()
     {

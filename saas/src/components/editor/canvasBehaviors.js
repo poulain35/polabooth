@@ -1,5 +1,5 @@
 // Comportements posés sur le canvas Fabric à sa création (effet d'initialisation de useFabricCanvas).
-import { fabric } from 'fabric';
+import { Point, StaticCanvas, util } from '../../lib/fabric.js';
 import { buttonTextFields, isKioskButton, textIndexAt } from '../../lib/kioskButton';
 import { CANVAS_OVERFLOW_PAD, CANVAS_WORKSPACE } from './canvasStyle';
 
@@ -13,7 +13,7 @@ export function installCanvasRendering(canvas, fmt, neutralPreviewRef) {
     if (!this.backgroundColor) return;
     if (this._exportMode) {
       // En mode export le canvas est redimensionné à W×H → rendu normal
-      fabric.StaticCanvas.prototype._renderBackground.call(this, ctx);
+      StaticCanvas.prototype._renderBackground.call(this, ctx);
       return;
     }
     ctx.save();
@@ -21,7 +21,7 @@ export function installCanvasRendering(canvas, fmt, neutralPreviewRef) {
     ctx.rect(P, P, fmt.canvasWidth, fmt.canvasHeight);
     ctx.clip();
     ctx.translate(P, P);
-    fabric.StaticCanvas.prototype._renderBackground.call(this, ctx);
+    StaticCanvas.prototype._renderBackground.call(this, ctx);
     ctx.restore();
   };
 
@@ -54,13 +54,13 @@ export function installCanvasRendering(canvas, fmt, neutralPreviewRef) {
     return origRenderObjects.call(this, ctx, this._kioskNeutral ? objects.filter((o) => !hiddenInPreview(o)) : objects);
   };
   const origSearchTargets = canvas._searchPossibleTargets;
-  canvas._searchPossibleTargets = function(objects, pointer) {
-    return origSearchTargets.call(this, this._kioskNeutral ? objects.filter((o) => !hiddenInPreview(o)) : objects, pointer);
+  canvas._searchPossibleTargets = function(objects, pointer, subTargets) {
+    return origSearchTargets.call(this, this._kioskNeutral ? objects.filter((o) => !hiddenInPreview(o)) : objects, pointer, subTargets);
   };
   // Sélection au lasso : sans ce filtre, elle attrape aussi les objets masqués par l'aperçu neutre.
-  const origCollectObjects = canvas._collectObjects;
-  canvas._collectObjects = function(e) {
-    const found = origCollectObjects.call(this, e);
+  const origCollectObjects = canvas.collectObjects;
+  canvas.collectObjects = function(bbox, options) {
+    const found = origCollectObjects.call(this, bbox, options);
     return this._kioskNeutral ? found.filter((o) => !hiddenInPreview(o)) : found;
   };
 }
@@ -72,14 +72,14 @@ export function attachKioskEditing(canvas, { setButtonTextFocus, setShowProperti
   canvas.on('object:added', (e) => lockSkew(e.target));
   canvas.on('selection:created', () => lockSkew(canvas.getActiveObject()));
   canvas.on('selection:updated', () => lockSkew(canvas.getActiveObject()));
-  // Fabric 5 ne sait pas éditer un texte dans un groupe, et dégrouper ferait perdre l'action :
+  // Fabric n'édite pas un texte dans un groupe, et dégrouper ferait perdre l'action :
   // le double-clic amène sur le champ du panneau qui correspond au texte touché (LAB-324).
   canvas.on('mouse:dblclick', (e) => {
     const target = e.target;
     if (!isKioskButton(target)) return;
     const fields = buttonTextFields(target);
     if (!fields.length) return;
-    const local = fabric.util.transformPoint(e.absolutePointer, fabric.util.invertTransform(target.calcTransformMatrix()));
+    const local = util.transformPoint(e.scenePoint, util.invertTransform(target.calcTransformMatrix()));
     const index = textIndexAt(target, local) ?? fields[0].index;
     setButtonTextFocus({ target, index });
     if (window.innerWidth < 768) setShowPropertiesSheet(true);
@@ -102,7 +102,7 @@ export function attachSnapping(canvas, fmt, snapGridRef, setSnapGuides) {
     const SNAP = 8;
     const cw = fmt.canvasWidth, ch = fmt.canvasHeight;
     const cp = obj.getCenterPoint();
-    const br = obj.getBoundingRect(true);
+    const br = obj.getBoundingRect();
     const halfW = br.width / 2;
     const halfH = br.height / 2;
 
@@ -129,7 +129,7 @@ export function attachSnapping(canvas, fmt, snapGridRef, setSnapGuides) {
       const others = canvas.getObjects().filter((o) => o !== obj && (obj.isPhotoZone || !o.isPhotoZone));
       for (const other of others) {
         const ocp = other.getCenterPoint();
-        const obr = other.getBoundingRect(true);
+        const obr = other.getBoundingRect();
         const oHalfW = obr.width / 2;
         const oHalfH = obr.height / 2;
 
@@ -151,7 +151,7 @@ export function attachSnapping(canvas, fmt, snapGridRef, setSnapGuides) {
       }
     }
 
-    if (snappedX || snappedY) obj.setPositionByOrigin(new fabric.Point(ncx, ncy), 'center', 'center');
+    if (snappedX || snappedY) obj.setPositionByOrigin(new Point(ncx, ncy), 'center', 'center');
     setSnapGuides(guides);
   });
   canvas.on('mouse:up', () => setSnapGuides([]));
@@ -166,7 +166,10 @@ export function createCanvasKeyHandler(canvas, { setSelectedObject, setObjectVer
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const active = canvas.getActiveObject();
       if (active && !((active.type === 'i-text' || active.type === 'textbox') && active.isEditing)) {
-        canvas.remove(active);
+        // Fabric 7 ne retire pas une sélection multiple en bloc : on retire chacun de ses objets.
+        const removed = canvas.getActiveObjects();
+        canvas.discardActiveObject();
+        canvas.remove(...removed);
         setSelectedObject(null);
         canvas.renderAll();
         saveHistorySnapshot(canvas);

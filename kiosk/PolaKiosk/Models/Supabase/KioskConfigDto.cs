@@ -206,6 +206,58 @@ public class CaptureConfig
 
     [JsonProperty("countdown_seconds")]
     public int CountdownSeconds { get; set; } = 5;
+
+    /// <summary>Séance GIF (LAB-237) : nombre de photos et intervalle entre deux, bornés comme dans le SaaS.</summary>
+    [JsonProperty("gif")]
+    [JsonConverter(typeof(GifCaptureConfigConverter))]
+    public GifCaptureConfig Gif { get; set; } = new();
+}
+
+/// <summary><c>form_config.kiosk.capture.gif</c> : <c>shots</c> de 3 à 6 (4), <c>interval_ms</c> de 500 à 3000 (1000).</summary>
+public class GifCaptureConfig
+{
+    public const int DefaultShots = 4, MinShots = 3, MaxShots = 6;
+    public const int DefaultIntervalMs = 1000, MinIntervalMs = 500, MaxIntervalMs = 3000;
+
+    [JsonProperty("shots")]
+    public int Shots { get; set; } = DefaultShots;
+
+    [JsonProperty("interval_ms")]
+    public int IntervalMs { get; set; } = DefaultIntervalMs;
+}
+
+/// <summary>
+/// Lecture tolérante de <c>capture.gif</c> : un entier hors bornes ou d'une autre forme, ou un objet
+/// absent, donnent la valeur par défaut, jamais une erreur (même règle que <c>withCaptureDefaults</c> du SaaS).
+/// </summary>
+public sealed class GifCaptureConfigConverter : JsonConverter<GifCaptureConfig>
+{
+    public override bool CanWrite => false;
+
+    public override GifCaptureConfig ReadJson(JsonReader reader, Type objectType,
+        GifCaptureConfig? existingValue, bool hasExistingValue, JsonSerializer serializer)
+    {
+        JToken token;
+        try { token = JToken.Load(reader); }
+        catch { return new GifCaptureConfig(); }
+        return Parse(token);
+    }
+
+    public override void WriteJson(JsonWriter writer, GifCaptureConfig? value, JsonSerializer serializer)
+        => throw new NotSupportedException();
+
+    public static GifCaptureConfig Parse(JToken? token)
+    {
+        if (token is not JObject obj) return new GifCaptureConfig();
+        return new GifCaptureConfig
+        {
+            Shots      = IntIn(obj["shots"], GifCaptureConfig.MinShots, GifCaptureConfig.MaxShots, GifCaptureConfig.DefaultShots),
+            IntervalMs = IntIn(obj["interval_ms"], GifCaptureConfig.MinIntervalMs, GifCaptureConfig.MaxIntervalMs, GifCaptureConfig.DefaultIntervalMs),
+        };
+    }
+
+    private static int IntIn(JToken? token, int min, int max, int fallback)
+        => token is { Type: JTokenType.Integer } t && t.Value<long>() is var v && v >= min && v <= max ? (int)v : fallback;
 }
 
 public class ResultConfig

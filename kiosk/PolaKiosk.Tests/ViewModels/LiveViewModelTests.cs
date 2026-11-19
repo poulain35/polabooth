@@ -213,8 +213,8 @@ public sealed class LiveViewModelTests : IDisposable
         _journey.PhotoConsent = Consent;
         Guid sessionId = default;
         Action<AppDbContext>? stage = null;
-        _sessions.Setup(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg", It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>()))
-                 .Callback<Guid, Guid, DateTime, string, string, Action<AppDbContext>?, Guid?>((id, _, _, _, _, a, _) => (sessionId, stage) = (id, a))
+        _sessions.Setup(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg", It.IsAny<Action<AppDbContext>?>(), It.IsAny<Guid?>(), It.IsAny<AnimationClip?>()))
+                 .Callback<Guid, Guid, DateTime, string, string, Action<AppDbContext>?, Guid?, AnimationClip?>((id, _, _, _, _, a, _, _) => (sessionId, stage) = (id, a))
                  .ReturnsAsync(() => sessionId);
 
         await _vm.StartAsync();
@@ -577,5 +577,98 @@ public sealed class LiveViewModelTests : IDisposable
         _sessions.Verify(s => s.RecordSessionAsync(It.IsAny<Guid>(), _eventId, It.IsAny<DateTime>(), "photo.jpg", "composite.jpg",
             It.IsAny<Action<PolaKiosk.Models.LocalDb.AppDbContext>?>(), strip.Id), Times.Once);
         _nav.Verify(n => n.NavigateTo<ResultView>(It.Is<object>(p => ((ResultParameters)p).PaperFormat == "2x6")), Times.Once);
+    }
+
+    // ── LAB-237 : GIF (N photos au flash, « k/N » entre deux prises) ─────
+
+    private void UseGif(int countdown, int shots, int intervalMs)
+    {
+        _journey.CaptureFormat = CaptureFormat.Gif;
+        _sync.Setup(s => s.GetCurrentEventAsync(_eventId)).ReturnsAsync(new EventEntity
+        {
+            Id = _eventId,
+            Name = "Test",
+            FormConfigJson = "{\"kiosk\":{\"capture\":{\"countdown_seconds\":" + countdown
+                + ",\"gif\":{\"shots\":" + shots + ",\"interval_ms\":" + intervalMs + "}}}}",
+        });
+    }
+
+    [Fact]
+    public async Task A_gif_takes_n_flash_photos_with_a_step_between_them()
+    {
+        UseGif(countdown: 3, shots: 4, intervalMs: 1500);
+        UseInstantDelays();
+        int shot = 0;
+        var seen = new List<string>();
+        _camera.Setup(c => c.CaptureAsync(It.IsAny<string>())).ReturnsAsync(() =>
+        {
+            seen.Add($"{_vm.CurrentPhotoNumber}/{_vm.TotalPhotoCount} flash:{_vm.IsFlashing} étape:{_vm.IsGifStep}");
+            return $"photo{++shot}.jpg";
+        });
+        var steps = new List<string>();
+        string? compositingText = null;
+        _vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(LiveViewModel.GifStepText) && _vm.GifStepText != "") steps.Add(_vm.GifStepText);
+            if (e.PropertyName == nameof(LiveViewModel.IsCompositing) && _vm.IsCompositing) compositingText = _vm.CompositingText;
+        };
+
+        await _vm.StartAsync();
+
+        _camera.Verify(c => c.CaptureAsync(It.IsAny<string>()), Times.Exactly(4));
+        seen.Should().Equal("1/4 flash:True étape:False", "2/4 flash:True étape:False",
+            "3/4 flash:True étape:False", "4/4 flash:True étape:False");
+        steps.Should().Equal("2/4", "3/4", "4/4"); // la première photo a le compte à rebours
+        _delays.Count(d => d == TimeSpan.FromSeconds(1)).Should().Be(3);
+        _delays.Count(d => d > TimeSpan.FromMilliseconds(1400) && d <= TimeSpan.FromMilliseconds(1500)).Should().Be(3);
+        _camera.Verify(c => c.StartLiveViewAsync(It.IsAny<Action<byte[]>>()), Times.Exactly(4)); // ouverture + 3 étapes
+        _vm.PhotoSlots.Should().HaveCount(4).And.OnlyContain(s => s.IsTaken);
+        _vm.IsFlashing.Should().BeFalse();
+        _vm.IsGifStep.Should().BeFalse();
+        compositingText.Should().Be(LiveViewModel.CompositingAnimationText);
+        _nav.Verify(n => n.NavigateTo<ResultView>(It.IsAny<object>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task A_failed_gif_photo_stops_the_session_and_keeps_nothing()
+    {
+        UseGif(countdown: 0, shots: 4, intervalMs: 500);
+        UseInstantDelays();
+        Directory.CreateDirectory(_dataDir);
+        var written = new List<string>();
+        _camera.Setup(c => c.CaptureAsync(It.IsAny<string>())).Returns(() =>
+        {
+            if (written.Count == 2) throw new InvalidOperationException("EDS_ERR_TAKE_PICTURE");
+            var path = Path.Combine(_dataDir, $"gif{written.Count + 1}.jpg");
+            File.WriteAllBytes(path, [1, 2, 3]);
+            written.Add(path);
+            return Task.FromResult(path);
+        });
+
+        await _vm.StartAsync();
+
+        _vm.HasError.Should().BeTrue();
+        _vm.ErrorMessage.Should().Contain("EDS_ERR_TAKE_PICTURE");
+        written.Should().HaveCount(2).And.OnlyContain(p => !File.Exists(p)); // aucune séance partielle
+        _sessions.Verify(s => s.RecordSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<Action<PolaKiosk.Models.LocalDb.AppDbContext>?>(), It.IsAny<Guid?>()), Times.Never);
+        VerifyNoResultNavigation();
+    }
+
+    [Fact]
+    public async Task A_photo_session_keeps_the_photo_text_and_one_shot()
+    {
+        UseInstantDelays();
+        _camera.Setup(c => c.CaptureAsync(It.IsAny<string>())).ReturnsAsync("photo.jpg");
+        string? compositingText = null;
+        _vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(LiveViewModel.IsCompositing) && _vm.IsCompositing) compositingText = _vm.CompositingText;
+        };
+
+        await _vm.StartAsync();
+
+        _camera.Verify(c => c.CaptureAsync(It.IsAny<string>()), Times.Once);
+        compositingText.Should().Be(LiveViewModel.CompositingPhotoText);
     }
 }

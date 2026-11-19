@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { fabric } from 'fabric';
+import { Circle, Group, Rect, Shadow, util } from './fabric.js';
 import {
   ALLOWED,
   LOCK_ZONE,
@@ -101,7 +101,7 @@ test('fond transparent', () => {
 const serialize = (o) => o.toObject(['kioskAction', 'kioskVariable', 'kioskSlot', 'personalizedOnly']);
 // Plus petite boîte en px entiers qui contient la boîte de Fabric (×2), au millionième près.
 const fabricBox = (o) => {
-  const r = o.getBoundingRect(true, true);
+  const r = o.getBoundingRect();
   const x = Math.floor(r.left * 2 + 1e-6);
   const y = Math.floor(r.top * 2 + 1e-6);
   return { x, y, w: Math.ceil((r.left + r.width) * 2 - 1e-6) - x, h: Math.ceil((r.top + r.height) * 2 - 1e-6) - y };
@@ -110,17 +110,17 @@ const buttonOf = (objects, kind = 'home') => buildScreenLayout(objects.map(seria
 
 test('boîte d’un bouton = boîte englobante de Fabric (rotation, échelle, origine, contour)', () => {
   const variants = [
-    new fabric.Rect({ left: 300, top: 200, width: 120, height: 60, kioskAction: 'start' }),
-    new fabric.Rect({ left: 300, top: 200, width: 120, height: 60, angle: 17, strokeWidth: 4, stroke: '#000', kioskAction: 'start' }),
-    new fabric.Rect({ left: 400, top: 300, width: 80, height: 40, scaleX: 1.5, scaleY: 0.8, angle: -30, originX: 'center', originY: 'center', kioskAction: 'start' }),
-    new fabric.Rect({ left: 400, top: 300, width: 80, height: 40, flipX: true, angle: 95, originX: 'right', originY: 'bottom', kioskAction: 'start' }),
-    new fabric.Circle({ left: 500, top: 100, radius: 40, strokeWidth: 3, stroke: '#000', strokeUniform: true, scaleX: 2, kioskAction: 'start' }),
+    new Rect({ left: 300, top: 200, width: 120, height: 60, kioskAction: 'start' }),
+    new Rect({ left: 300, top: 200, width: 120, height: 60, angle: 17, strokeWidth: 4, stroke: '#000', kioskAction: 'start' }),
+    new Rect({ left: 400, top: 300, width: 80, height: 40, scaleX: 1.5, scaleY: 0.8, angle: -30, originX: 'center', originY: 'center', kioskAction: 'start' }),
+    new Rect({ left: 400, top: 300, width: 80, height: 40, flipX: true, angle: 95, originX: 'right', originY: 'bottom', kioskAction: 'start' }),
+    new Circle({ left: 500, top: 100, radius: 40, strokeWidth: 3, stroke: '#000', strokeUniform: true, scaleX: 2, kioskAction: 'start' }),
   ];
   for (const o of variants) assert.deepEqual(withoutImage(buttonOf([o])), fabricBox(o));
 
-  const g = new fabric.Group([
-    new fabric.Rect({ left: 100, top: 100, width: 200, height: 60, rx: 30, strokeWidth: 0 }),
-    new fabric.Circle({ left: 110, top: 120, radius: 10, strokeWidth: 0 }),
+  const g = new Group([
+    new Rect({ left: 100, top: 100, width: 200, height: 60, rx: 30, strokeWidth: 0 }),
+    new Circle({ left: 110, top: 120, radius: 10, strokeWidth: 0 }),
   ], { kioskAction: 'start' });
   g.rotate(12);
   g.scale(1.3);
@@ -128,30 +128,30 @@ test('boîte d’un bouton = boîte englobante de Fabric (rotation, échelle, or
 });
 
 test('boîte d’un bouton avec ombre : élargie du flou et du décalage (le PNG ne la coupe pas)', () => {
-  const plain = new fabric.Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0, kioskAction: 'start' });
+  const plain = new Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0, kioskAction: 'start' });
   const base = withoutImage(buttonOf([plain]));
   assert.deepEqual(base, { x: 600, y: 400, w: 240, h: 120 });
 
   // Flou 10, décalage (4, 6), échelle 1 : gauche 6, droite 14, haut 4, bas 16 (px canvas) → ×2.
-  const shadowed = new fabric.Rect({
+  const shadowed = new Rect({
     left: 300, top: 200, width: 120, height: 60, strokeWidth: 0, kioskAction: 'start',
-    shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.3)', blur: 10, offsetX: 4, offsetY: 6 }),
+    shadow: new Shadow({ color: 'rgba(0,0,0,0.3)', blur: 10, offsetX: 4, offsetY: 6 }),
   });
   assert.deepEqual(withoutImage(buttonOf([shadowed])), { x: 588, y: 392, w: 280, h: 160 });
 
   // Échelle 2 : flou et décalage doublés ; nonScaling : non.
-  const scaled = new fabric.Rect({
+  const scaled = new Rect({
     left: 300, top: 200, width: 60, height: 30, scaleX: 2, scaleY: 2, strokeWidth: 0, kioskAction: 'start',
-    shadow: new fabric.Shadow({ color: '#000', blur: 5, offsetX: 2, offsetY: 3 }),
+    shadow: new Shadow({ color: '#000', blur: 5, offsetX: 2, offsetY: 3 }),
   });
   assert.deepEqual(withoutImage(buttonOf([scaled])), { x: 588, y: 392, w: 280, h: 160 });
   scaled.shadow.nonScaling = true;
   assert.deepEqual(withoutImage(buttonOf([scaled])), { x: 594, y: 396, w: 260, h: 140 });
 
   // Ombre d'un enfant du groupe bouton.
-  const g = new fabric.Group([
-    new fabric.Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0,
-      shadow: new fabric.Shadow({ color: '#000', blur: 8, offsetX: 0, offsetY: 0 }) }),
+  const g = new Group([
+    new Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0,
+      shadow: new Shadow({ color: '#000', blur: 8, offsetX: 0, offsetY: 0 }) }),
   ], { kioskAction: 'start' });
   assert.deepEqual(withoutImage(buttonOf([g])), { x: 584, y: 384, w: 272, h: 152 });
 });
@@ -159,10 +159,10 @@ test('boîte d’un bouton avec ombre : élargie du flou et du décalage (le PNG
 test('boîte d’un bouton arrondi à une position non entière : contient tout le contour (LAB-318)', () => {
   // Bords non entiers en px d'export : arrondis au plus proche, un bord en ,3 ou ,4 perdait son dernier pixel.
   for (const left of [300.15, 300.3, 300.45, 300.7, 300.85]) {
-    const pill = new fabric.Rect({
+    const pill = new Rect({
       left, top: 200.2, width: 120.2, height: 60.3, rx: 30, ry: 30, strokeWidth: 1, stroke: '#24412F', kioskAction: 'start',
     });
-    const r = pill.getBoundingRect(true, true);
+    const r = pill.getBoundingRect();
     const box = withoutImage(buttonOf([pill]));
     assert.ok(box.x <= r.left * 2 + 1e-6 && box.y <= r.top * 2 + 1e-6, `${left} : début ${JSON.stringify(box)}`);
     assert.ok(box.x + box.w >= (r.left + r.width) * 2 - 1e-6, `${left} : bord droit ${JSON.stringify(box)} / ${(r.left + r.width) * 2}`);
@@ -171,9 +171,9 @@ test('boîte d’un bouton arrondi à une position non entière : contient tout 
     assert.ok(box.w < r.width * 2 + 2 && box.h < r.height * 2 + 2, JSON.stringify(box));
   }
   // Bords entiers (y compris après une rotation de 90°, cos ≈ 6e-17) : aucun pixel ajouté.
-  assert.deepEqual(withoutImage(buttonOf([new fabric.Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0, kioskAction: 'start' })])),
+  assert.deepEqual(withoutImage(buttonOf([new Rect({ left: 300, top: 200, width: 120, height: 60, strokeWidth: 0, kioskAction: 'start' })])),
     { x: 600, y: 400, w: 240, h: 120 });
-  const turned = new fabric.Rect({ left: 400, top: 300, width: 120, height: 60, angle: 90, originX: 'center', originY: 'center', strokeWidth: 0, kioskAction: 'start' });
+  const turned = new Rect({ left: 400, top: 300, width: 120, height: 60, angle: 90, originX: 'center', originY: 'center', strokeWidth: 0, kioskAction: 'start' });
   assert.deepEqual(withoutImage(buttonOf([turned])), { x: 740, y: 480, w: 120, h: 240 });
 });
 
@@ -191,7 +191,7 @@ function withoutImage({ action: _a, image: _i, ...box }) {
 }
 
 test('emplacement et texte : rectangle non tourné autour du centre de Fabric + angle', () => {
-  const slot = new fabric.Rect({ left: 100, top: 60, width: 200, height: 300, angle: -4, rx: 6, strokeWidth: 0, kioskSlot: 'last_photo' });
+  const slot = new Rect({ left: 100, top: 60, width: 200, height: 300, angle: -4, rx: 6, strokeWidth: 0, kioskSlot: 'last_photo' });
   const { layout } = buildScreenLayout([serialize(slot)], 'home');
   const c = slot.getCenterPoint();
   assert.deepEqual(layout.slots, [{
@@ -473,7 +473,7 @@ test('modèles d’origine : un cercle relu deux fois par Fabric ne bouge pas (p
     ...(o.type === 'circle' ? [o] : []),
     ...circles(Array.isArray(o.objects) ? o.objects : []),
   ]);
-  const enliven = (o) => new Promise((resolve) => fabric.util.enlivenObjects([o], (list) => resolve(list[0])));
+  const enliven = async (o) => (await util.enlivenObjects([o]))[0];
   for (const kind of ['home', 'result']) {
     const found = circles(kioskScreenTemplate(kind).objects);
     assert.ok(found.length > 0, kind);
@@ -518,28 +518,28 @@ test('Editor.jsx : CUSTOM_PROPS et CLONE_PROPS gardent les 4 marques de la borne
 });
 
 test('marques de la borne : enregistrer puis relire (JSON) et cloner gardent les valeurs', async () => {
-  const shape = new fabric.Rect({ width: 120, height: 60, originX: 'center', originY: 'center' });
-  // Pas de texte : jsdom ne sait pas le mesurer. La marque se garde de la même façon sur un Textbox.
-  const caption = new fabric.Circle({ radius: 10, originX: 'center', originY: 'center' });
-  const button = new fabric.Group([shape, caption], { left: 300, top: 300 });
+  const shape = new Rect({ width: 120, height: 60, originX: 'center', originY: 'center' });
+  // Pas de texte : node n'a pas de quoi le mesurer. La marque se garde de la même façon sur un Textbox.
+  const caption = new Circle({ radius: 10, originX: 'center', originY: 'center' });
+  const button = new Group([shape, caption], { left: 300, top: 300 });
   button.kioskAction = 'gallery';
-  const live = new fabric.Rect({ width: 300, height: 40, left: 100, top: 100 });
+  const live = new Rect({ width: 300, height: 40, left: 100, top: 100 });
   live.kioskVariable = 'event_name';
   live.personalizedOnly = true;
-  const slot = new fabric.Rect({ left: 500, top: 100, width: 200, height: 150, angle: -4 });
+  const slot = new Rect({ left: 500, top: 100, width: 200, height: 150, angle: -4 });
   slot.kioskSlot = 'last_photo';
 
   const saved = JSON.parse(JSON.stringify([button, live, slot].map((o) => o.toObject(KIOSK_PROPS))));
   assert.equal(saved[0].kioskAction, 'gallery');
   assert.equal(saved[0].kioskVariable, undefined);
-  const restored = await new Promise((resolve) => fabric.util.enlivenObjects(saved, resolve));
+  const restored = await util.enlivenObjects(saved);
   assert.equal(restored[0].type, 'group');
   assert.equal(restored[0].kioskAction, 'gallery');
   assert.equal(restored[1].kioskVariable, 'event_name');
   assert.equal(restored[1].personalizedOnly, true);
   assert.equal(restored[2].kioskSlot, 'last_photo');
 
-  const copy = await new Promise((resolve) => restored[0].clone(resolve, KIOSK_PROPS));
+  const copy = await restored[0].clone(KIOSK_PROPS);
   assert.equal(copy.kioskAction, 'gallery');
   // Le doublon d'action est signalé par le plan.
   const { blocking } = buildScreenLayout([restored[0], copy], 'home');

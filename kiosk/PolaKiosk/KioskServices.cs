@@ -146,6 +146,9 @@ internal static class KioskServices
         services.AddSingleton<SupabaseService>();
         services.AddSingleton<ISupabaseService>(sp => sp.GetRequiredService<SupabaseService>());
         services.AddSingleton<ICompositeService, CompositeService>();
+        // Animations (LAB-234) : ffmpeg.exe livré à côté de l'exe, contrôlé une fois.
+        services.AddSingleton<IFfmpegRunner>(_ => new FfmpegRunner());
+        services.AddSingleton<IAnimationService, AnimationService>();
         services.AddSingleton<SessionPathService>();
         services.AddSingleton<IEventCleanupService, EventCleanupService>();
         services.AddSingleton<IPolaHistory>(_ => new PolaHistory(dataDir));

@@ -41,10 +41,20 @@ public record HomeFormatTile(CaptureFormat Format, string Title, string Subtitle
 public static class HomeScreen
 {
     /// <summary>
-    /// Formats que la borne sait réaliser. GIF, boomerang et vidéo s'ajoutent ici quand la prise
-    /// de vue les gère : l'accueil passe alors de lui-même à l'écran 1c.
+    /// Formats que la borne sait réaliser (GIF depuis LAB-237). Boomerang et vidéo s'ajoutent ici quand
+    /// la prise de vue les gère : l'accueil passe alors de lui-même à l'écran 1c.
     /// </summary>
-    public static readonly IReadOnlyList<CaptureFormat> SupportedFormats = [CaptureFormat.Photo];
+    public static readonly IReadOnlyList<CaptureFormat> SupportedFormats = [CaptureFormat.Photo, CaptureFormat.Gif];
+
+    /// <summary>Format animé (encodé en MP4 par ffmpeg) : proposé seulement si l'encodage est prêt.</summary>
+    public static bool IsAnimated(CaptureFormat format) => format is CaptureFormat.Gif or CaptureFormat.Boomerang;
+
+    /// <summary>
+    /// Formats réalisables maintenant : sans encodage prêt (ffmpeg ou encodeur H.264 absent), les formats
+    /// animés sont masqués jusqu'au redémarrage (spec LAB-207, cas limites).
+    /// </summary>
+    public static IReadOnlyList<CaptureFormat> ShootableFormats(bool animationsReady)
+        => animationsReady ? SupportedFormats : SupportedFormats.Where(f => !IsAnimated(f)).ToList();
 
     /// <summary>
     /// Écran de l'accueil, dans l'ordre : écran du client, écran de l'organisation, puis 1a / 1b / 1c.

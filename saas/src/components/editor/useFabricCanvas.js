@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { fabric } from 'fabric';
+import { Canvas } from '../../lib/fabric.js';
 import { isKioskFormat } from '../../utils/formats';
 import { ensureKioskFonts } from '../../utils/kioskFonts';
 import { fitZoom } from '../../lib/editorFit';
@@ -28,7 +28,7 @@ export function useFabricCanvas({
     // → les objets en coordonnées template (0..W, 0..H) s'affichent au centre
     // → les poignées dépassant du template restent visibles dans le gris
     const P = CANVAS_OVERFLOW_PAD;
-    const canvas = new fabric.Canvas(canvasElRef.current, {
+    const canvas = new Canvas(canvasElRef.current, {
       width:  fmt.canvasWidth  + P * 2,
       height: fmt.canvasHeight + P * 2,
       backgroundColor: tpl?.bgColor || DEFAULT_BG_COLOR,
@@ -112,7 +112,7 @@ export function useFabricCanvas({
         }
       } else {
         // Priorité 3 : canvas vierge avec zones photo
-        if (tpl?.apply) tpl.apply(canvas, fmt, fabric);
+        if (tpl?.apply) tpl.apply(canvas, fmt);
         addPhotoZones(canvas, fmt);
         canvas.renderAll();
       }
@@ -135,7 +135,8 @@ export function useFabricCanvas({
       await document.fonts.ready;
       if (active) onReady?.();
     }
-    initContent();
+    // Fabric 7 : un chargement interrompu (canvas fermé entre-temps) rejette la promesse.
+    initContent().catch((err) => { if (active) console.error('Chargement du canevas impossible :', err); });
 
     return () => {
       active = false;

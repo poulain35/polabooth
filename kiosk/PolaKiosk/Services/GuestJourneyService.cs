@@ -19,6 +19,12 @@ public interface IGuestJourneyService
     /// </summary>
     PhotoConsent? PhotoConsent { get; set; }
 
+    /// <summary>
+    /// Format choisi à l'accueil (LAB-237) : photo par défaut, GIF par sa tuile. Gardé pour tout le
+    /// parcours (« Reprendre » refait le même format).
+    /// </summary>
+    ViewModels.CaptureFormat CaptureFormat { get; set; }
+
     void Reset();
 }
 
@@ -40,11 +46,13 @@ public sealed class GuestJourneyService : IGuestJourneyService
     public bool QuestionnaireHandled { get; set; }
     public string? PrefillEmail { get; set; }
     public PhotoConsent? PhotoConsent { get; set; }
+    public ViewModels.CaptureFormat CaptureFormat { get; set; } = ViewModels.CaptureFormat.Photo;
 
     public void Reset()
     {
         QuestionnaireHandled = false;
         PrefillEmail = null;
         PhotoConsent = null;
+        CaptureFormat = ViewModels.CaptureFormat.Photo;
     }
 }

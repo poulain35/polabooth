@@ -1,4 +1,4 @@
-import { fabric } from 'fabric';
+import { Gradient, StaticCanvas } from '../lib/fabric.js';
 import { reapplyTextEffects } from './textEffects';
 import { exportAsHighResPNG, exportScreenParts } from './export';
 import { kioskFormatByKind } from './formats';
@@ -21,7 +21,7 @@ const GRADIENT_COORDS = {
 function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
   if (direction === 'radial') {
     const r = Math.max(width, height) / 2;
-    return new fabric.Gradient({
+    return new Gradient({
       type: 'radial',
       gradientUnits: 'pixels',
       coords: { r1: 0, r2: r, x1: width / 2, y1: height / 2, x2: width / 2, y2: height / 2 },
@@ -29,7 +29,7 @@ function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
     });
   }
   const c = GRADIENT_COORDS[direction] || GRADIENT_COORDS['to-b'];
-  return new fabric.Gradient({
+  return new Gradient({
     type: 'linear',
     gradientUnits: 'pixels',
     coords: { x1: c.x1 * width, y1: c.y1 * height, x2: c.x2 * width, y2: c.y2 * height },
@@ -86,31 +86,25 @@ async function withOffscreenDesign(canvasJson, format, render) {
   // pour que Fabric mesure le texte avec les bonnes métriques.
   await loadFontsOf(objects);
 
-  const canvas = new fabric.StaticCanvas(null, {
+  const canvas = new StaticCanvas(null, {
     width: format.canvasWidth,
     height: format.canvasHeight,
     enableRetinaScaling: false,
   });
 
   try {
-    await new Promise((resolve) => {
-      canvas.loadFromJSON(
-        { version: '5.3.0', objects, background: typeof state.bg === 'string' ? state.bg : '#ffffff' },
-        () => {
-          if (state.bgType === 'gradient' && state.bgGradient) {
-            canvas.setBackgroundColor(
-              buildFabricGradient({ width: format.canvasWidth, height: format.canvasHeight }, state.bgGradient),
-              () => {}
-            );
-          } else {
-            canvas.backgroundColor = state.bg || '#ffffff';
-          }
-          reapplyTextEffects(canvas);
-          canvas.renderAll();
-          resolve();
-        }
+    await canvas.loadFromJSON(
+      { version: '5.3.0', objects, background: typeof state.bg === 'string' ? state.bg : '#ffffff' },
+    );
+    if (state.bgType === 'gradient' && state.bgGradient) {
+      canvas.backgroundColor = buildFabricGradient(
+        { width: format.canvasWidth, height: format.canvasHeight }, state.bgGradient,
       );
-    });
+    } else {
+      canvas.backgroundColor = state.bg || '#ffffff';
+    }
+    reapplyTextEffects(canvas);
+    canvas.renderAll();
 
     // Second render once the browser confirms all fonts are ready.
     await document.fonts.ready;

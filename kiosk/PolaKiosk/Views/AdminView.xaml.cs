@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using PolaKiosk.ViewModels;
 
 namespace PolaKiosk.Views;
@@ -12,6 +14,8 @@ public partial class AdminView : UserControl
 
     private ListBoxItem? _pressedChoice;
     private Point _pressedAt;
+    private Slider? _pressedSlider;
+    private Point _sliderPressedAt;
 
     public AdminView(AdminViewModel viewModel)
     {
@@ -42,5 +46,40 @@ public partial class AdminView : UserControl
         if (pressed == null || !ReferenceEquals(pressed, sender)) return;
         e.Handled = true;
         if ((e.GetPosition(this) - _pressedAt).Length <= TapSlop) pressed.IsSelected = true;
+    }
+
+    // Curseurs des réglages de l'appareil photo : au doigt, la piste suit l'appui tout de suite et
+    // chaque valeur part vers l'appareil, ce qui gêne le défilement de la liste. Un appui au doigt
+    // hors de la poignée ne choisit donc la valeur touchée qu'au relâcher, si le doigt est resté en
+    // place ; la poignée se tire normalement. À la souris, rien ne change.
+    private void OnSliderPressed(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider slider || e.StylusDevice == null || IsInThumb(e.OriginalSource as DependencyObject))
+            return;
+        _pressedSlider = slider;
+        _sliderPressedAt = e.GetPosition(this);
+        e.Handled = true;
+    }
+
+    private void OnSliderReleased(object sender, MouseButtonEventArgs e)
+    {
+        var slider = _pressedSlider;
+        _pressedSlider = null;
+        if (slider == null || !ReferenceEquals(slider, sender)) return;
+        e.Handled = true;
+        if (!slider.IsEnabled || (e.GetPosition(this) - _sliderPressedAt).Length > TapSlop) return;
+        if (slider.Template.FindName("PART_Track", slider) is not Track track) return;
+        var value = Math.Round(track.ValueFromPoint(e.GetPosition(track)));
+        slider.Value = Math.Clamp(value, slider.Minimum, slider.Maximum);
+    }
+
+    private static bool IsInThumb(DependencyObject? element)
+    {
+        for (var current = element; current is Visual; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is Thumb) return true;
+            if (current is Slider) return false;
+        }
+        return false;
     }
 }

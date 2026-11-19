@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using PolaKiosk.Models.LocalDb;
@@ -10,9 +11,13 @@ namespace PolaKiosk.Services;
 /// </summary>
 public class SessionService : ISessionService
 {
-    // Un seul envoi à la fois dans tout le processus : l'écran résultat et la reprise en
-    // arrière-plan ne doivent jamais envoyer la même séance en parallèle (doublon en galerie).
-    private static readonly SemaphoreSlim UploadLock = new(1, 1);
+    // Un seul envoi à la fois par séance : l'écran résultat et la reprise en arrière-plan ne doivent
+    // jamais envoyer la même séance en parallèle (doublon en galerie). Verrou par séance (LAB-237) :
+    // un clip envoyé en fond sur une 4G faible ne retient pas le QR de l'invité suivant. Quelques
+    // centaines de séances par lancement au plus : les verrous ne sont pas retirés.
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> UploadLocks = new();
+
+    private static SemaphoreSlim LockFor(Guid sessionId) => UploadLocks.GetOrAdd(sessionId, _ => new SemaphoreSlim(1, 1));
 
     private readonly AppDbContext       _db;
     private readonly ISupabaseService   _supabase;
@@ -29,9 +34,9 @@ public class SessionService : ISessionService
 
     public async Task<Guid> RecordSessionAsync(Guid sessionId, Guid eventId, DateTime capturedAtUtc,
         string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
-        Guid? templateId = null)
+        Guid? templateId = null, AnimationClip? animation = null)
     {
-        _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, photoPath, compositePath, templateId));
+        _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, photoPath, compositePath, templateId, animation));
         stageInSameTransaction?.Invoke(_db);
         await _db.SaveChangesAsync();
 
@@ -44,12 +49,17 @@ public class SessionService : ISessionService
 
     public async Task<string> CommitPendingSessionAsync(Guid sessionId, Guid eventId, string eventName,
         DateTime capturedAtUtc, string photoPath, string compositePath, Action<AppDbContext>? stageInSameTransaction = null,
-        Guid? templateId = null)
+        Guid? templateId = null, AnimationClip? animation = null)
     {
         var pendingDir     = _paths.GetPendingDirectory(sessionId);
         var eventDir       = _paths.GetEventDirectory(eventName, eventId);
         var finalPhoto     = MapToEventDirectory(photoPath, pendingDir, eventDir);
         var finalComposite = MapToEventDirectory(compositePath, pendingDir, eventDir);
+        var finalAnimation = animation == null ? null : animation with
+        {
+            VideoPath  = MapToEventDirectory(animation.VideoPath, pendingDir, eventDir),
+            PosterPath = MapToEventDirectory(animation.PosterPath, pendingDir, eventDir),
+        };
 
         // 1. Une seule transaction : la séance (chemins définitifs) et ce que l'appelant y ajoute
         //    (réponse au questionnaire, LAB-225). Tant que les fichiers ne sont pas déplacés, la
@@ -57,7 +67,7 @@ public class SessionService : ISessionService
         var recorded = false;
         try
         {
-            _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, finalPhoto, finalComposite, templateId));
+            _db.Sessions.Add(NewSession(sessionId, eventId, capturedAtUtc, finalPhoto, finalComposite, templateId, finalAnimation));
             stageInSameTransaction?.Invoke(_db);
             await _db.SaveChangesAsync();
             recorded = true;
@@ -186,7 +196,7 @@ public class SessionService : ISessionService
     }
 
     private static SessionEntity NewSession(Guid sessionId, Guid eventId, DateTime capturedAtUtc,
-        string photoPath, string compositePath, Guid? templateId) => new()
+        string photoPath, string compositePath, Guid? templateId, AnimationClip? animation) => new()
     {
         Id            = sessionId,
         TemplateId    = templateId,
@@ -195,11 +205,18 @@ public class SessionService : ISessionService
         PhotoPath     = photoPath,
         CompositePath = compositePath,
         Uploaded      = false,
+        MediaType     = animation == null ? SessionMediaType.Photo : SessionMediaType.Gif,
+        VideoPath     = animation?.VideoPath,
+        PosterPath    = animation?.PosterPath,
+        DurationMs    = animation is { DurationMs: > 0 } ? animation.DurationMs : null,
+        Width         = animation is { Width: > 0, Height: > 0 } ? animation.Width : null,
+        Height        = animation is { Width: > 0, Height: > 0 } ? animation.Height : null,
     };
 
     public async Task AttachCompositeAsync(Guid sessionId, Guid eventId, string compositePath)
     {
-        await UploadLock.WaitAsync();
+        var uploadLock = LockFor(sessionId);
+        await uploadLock.WaitAsync();
         try
         {
             var info    = ShareInfoFile.Read(compositePath);
@@ -230,12 +247,13 @@ public class SessionService : ISessionService
             if (info?.SessionId != sessionId)
                 await TryWriteSessionIdAsync(compositePath, sessionId);
         }
-        finally { UploadLock.Release(); }
+        finally { uploadLock.Release(); }
     }
 
     public async Task<(string PublicUrl, Guid PhotoId)> UploadSessionAsync(Guid sessionId)
     {
-        await UploadLock.WaitAsync();
+        var uploadLock = LockFor(sessionId);
+        await uploadLock.WaitAsync();
         try
         {
             var session = await _db.Sessions.AsNoTracking().FirstOrDefaultAsync(s => s.Id == sessionId)
@@ -251,8 +269,27 @@ public class SessionService : ISessionService
                 return (info.Url!, info.PhotoId);
             }
 
-            var (url, photoId) = await _supabase.UploadPhotoAsync(session.Id, session.EventId, session.CompositePath,
-                session.CapturedAt);
+            // Refusée une fois par le serveur : jamais renvoyée (galerie, écran résultat rouvert).
+            if (session.UploadRejected)
+                throw new MediaRecordRejectedException(MediaRecordRejectedException.InvalidDataCode);
+
+            string url;
+            Guid photoId;
+            try
+            {
+                (url, photoId) = AnimationToSend(session) is { } clip
+                    ? await _supabase.UploadAnimationAsync(session.Id, session.EventId, clip, session.CapturedAt)
+                    : await _supabase.UploadPhotoAsync(session.Id, session.EventId, session.CompositePath, session.CapturedAt);
+            }
+            catch (MediaRecordRejectedException ex)
+            {
+                // Refus définitif (donnée invalide, LAB-230) : sortie de la file, fichiers gardés sur la borne.
+                await _db.Sessions.Where(s => s.Id == sessionId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.UploadRejected, true));
+                await _log.LogWarningAsync("photo_upload",
+                    $"Séance ({session.MediaType}) refusée par le serveur (code {ex.Code}) : retirée de la file d'envoi, fichiers gardés sur la borne.");
+                throw;
+            }
 
             // Fichier écrit avant de marquer la séance : en cas de coupure entre les deux,
             // la reprise relit l'URL au lieu de renvoyer la photo.
@@ -265,22 +302,36 @@ public class SessionService : ISessionService
             await MarkUploadedAsync(sessionId);
             return (url, photoId);
         }
-        finally { UploadLock.Release(); }
+        finally { uploadLock.Release(); }
     }
 
     /// <summary>
-    /// Séances à envoyer, de la plus ancienne à la plus récente : non envoyées et dont le montage est
-    /// sur le disque. Montage supprimé : rien à envoyer (ni échec journalisé à chaque cycle, ni envoi
-    /// compté en attente dans le battement de cœur).
+    /// Clip et affiche à envoyer pour une séance animée, s'ils sont sur le disque. Sinon (séance photo,
+    /// fichiers supprimés) : null, le montage des photos part à la place.
+    /// </summary>
+    internal static AnimationClip? AnimationToSend(SessionEntity session)
+        => session.MediaType != SessionMediaType.Photo
+           && session.VideoPath is { } video && File.Exists(video)
+           && session.PosterPath is { } poster && File.Exists(poster)
+            ? new AnimationClip(video, poster, session.DurationMs ?? 0, session.Width ?? 0, session.Height ?? 0)
+            : null;
+
+    /// <summary>
+    /// Séances à envoyer : non envoyées, non refusées, dont le montage est sur le disque ; les photos
+    /// d'abord, puis les animations (plus lourdes, LAB-237), chacune de la plus ancienne à la plus
+    /// récente. Montage supprimé : rien à envoyer (ni échec journalisé à chaque cycle, ni envoi compté
+    /// en attente dans le battement de cœur).
     /// </summary>
     internal static async Task<List<Guid>> LoadPendingIdsAsync(AppDbContext db)
     {
         var rows = await db.Sessions.AsNoTracking()
-            .Where(s => !s.Uploaded && s.CompositePath != null)
+            .Where(s => !s.Uploaded && !s.UploadRejected && s.CompositePath != null)
             .OrderBy(s => s.CapturedAt)
-            .Select(s => new { s.Id, s.CompositePath })
+            .Select(s => new { s.Id, s.CompositePath, s.MediaType })
             .ToListAsync();
-        return rows.Where(r => File.Exists(r.CompositePath)).Select(r => r.Id).ToList();
+        return rows.Where(r => File.Exists(r.CompositePath))
+                   .OrderBy(r => r.MediaType == SessionMediaType.Photo ? 0 : 1) // tri stable : heure gardée
+                   .Select(r => r.Id).ToList();
     }
 
     public async Task<int> UploadPendingSessionsAsync()
@@ -302,6 +353,7 @@ public class SessionService : ISessionService
                 await UploadSessionAsync(id);
                 sent++;
             }
+            catch (MediaRecordRejectedException) { /* journalisée, retirée de la file */ }
             catch (Exception ex)
             {
                 failed++;

@@ -60,6 +60,7 @@ public sealed class ServiceRegistrationTests : IDisposable
     [InlineData(typeof(ICameraHealthService))]
     [InlineData(typeof(ICameraSettingsSync))]
     [InlineData(typeof(IPrinterDriver))]
+    [InlineData(typeof(IAnimationService))]
     public void Service_resolves(Type type)
     {
         object? resolved = null;

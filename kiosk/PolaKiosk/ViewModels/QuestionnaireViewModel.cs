@@ -298,7 +298,7 @@ public partial class QuestionnaireViewModel : ObservableObject, IParameterReceiv
                     _responses.Stage(db, submission);
                     stageConsent?.Invoke(db);
                 },
-                result.TemplateId);
+                result.TemplateId, result.Animation);
             result = result.WithCompositePath(displayed);
 
             // Envoi anticipé seulement après la validation, et sans choix d'effet.

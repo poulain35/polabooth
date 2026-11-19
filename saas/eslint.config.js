@@ -4,6 +4,12 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
+// Fabric 7 (LAB-435) : tout passe par src/lib/fabric.js, qui force les défauts de Fabric 5.
+const FABRIC_IMPORT = {
+  name: 'fabric',
+  message: 'Importez Fabric depuis src/lib/fabric.js (défauts de Fabric 5 forcés, LAB-435).',
+}
+
 export default defineConfig([
   globalIgnores(['dist']),
   {
@@ -45,6 +51,7 @@ export default defineConfig([
     ignores: ['src/modules/**'],
     rules: {
       'no-restricted-imports': ['error', {
+        paths: [FABRIC_IMPORT],
         patterns: [{
           group: ['**/modules/*/**', '**/modules/*', '!**/modules/index.js', '!**/modules/brand.js', '!**/modules/catalog.js'],
           message: 'Module privé : passez par le registre (src/features/modules.js, <ModuleSlot>, moduleHook).',
@@ -54,6 +61,13 @@ export default defineConfig([
         selector: 'ImportExpression[source.value=/(^|\\x2F)modules\\x2F[^\\x2F]+\\x2F/]',
         message: 'Module privé : passez par le registre (src/features/modules.js, <ModuleSlot>, moduleHook).',
       }],
+    },
+  },
+  // Les modules privés aussi importent Fabric depuis src/lib/fabric.js.
+  {
+    files: ['src/modules/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [FABRIC_IMPORT] }],
     },
   },
 ])

@@ -24,6 +24,19 @@ public interface ICompositeService
         int? dpi = null);
 
     /// <summary>
+    /// Images d'une animation (GIF, LAB-237) : une par photo, qui remplit toutes les zones du cadre,
+    /// décor par-dessus, à la taille du montage réduite à <paramref name="maxLongSide"/> (jamais
+    /// agrandie). Sans décor (<paramref name="templatePngPath"/> null) ni zone : photo en plein cadre.
+    /// Les images sont libérées par l'appelant.
+    /// </summary>
+    Task<IReadOnlyList<SkiaSharp.SKBitmap>> CreateAnimationFramesAsync(
+        IReadOnlyList<string> photoPaths,
+        string? templatePngPath,
+        IReadOnlyList<PhotoZone> zones,
+        string format,
+        int maxLongSide);
+
+    /// <summary>
     /// Finalise une photo brute (sans template) dans le dossier composites : redimensionne
     /// si nécessaire (côté le plus long borné) et ré-encode en JPEG compressé.
     /// Retourne le chemin du composite généré.

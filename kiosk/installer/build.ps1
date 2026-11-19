@@ -6,6 +6,7 @@
 # Résultat : installer\Output\setup-polakiosk.exe. Signature : si KIOSK_SIGN_CERT_THUMBPRINT,
 # KIOSK_SIGN_CERT_FILE ou KIOSK_SIGN_COMMAND est défini (voir sign.ps1), PolaKiosk.exe, PolaKiosk.dll,
 # l'installeur et son désinstalleur sont signés ; sinon l'installeur est le même qu'avant.
+# ffmpeg.exe (animations) : scripts\fetch-ffmpeg.ps1 le récupère avant la publication s'il manque.
 # -NoPublish : la publication est déjà faite (script de l'installeur public, qui la contrôle avant).
 # Inno Setup : variable ISCC, sinon installation pour tous ou pour l'utilisateur courant.
 param([switch]$NoPublish)
@@ -25,6 +26,9 @@ if (-not $iscc) { throw 'ISCC introuvable : installez Inno Setup 6.1+ ou défini
 Push-Location $kiosk
 try {
     if (-not $NoPublish) {
+        # ffmpeg.exe (animations, LAB-234) : récupéré et vérifié s'il manque, puis copié par la publication.
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $kiosk 'scripts\fetch-ffmpeg.ps1')
+        if ($LASTEXITCODE -ne 0) { throw "Récupération de ffmpeg.exe impossible (code $LASTEXITCODE)." }
         & dotnet publish PolaKiosk\PolaKiosk.csproj -c Release -r win-x64 --self-contained true --nologo
         if ($LASTEXITCODE -ne 0) { throw "dotnet publish a échoué (code $LASTEXITCODE)." }
     }

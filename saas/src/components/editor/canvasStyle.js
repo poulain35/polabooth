@@ -1,14 +1,12 @@
 // Réglages de Fabric pour l'éditeur, couleurs du canevas et zones photo (jamais exportées).
-import { fabric } from 'fabric';
+import { InteractiveFabricObject, Rect } from '../../lib/fabric.js';
 import { BLANK_TEMPLATE } from '../../templates/index';
 
-// Fabric sérialise left/top/scaleX/scaleY avec NUM_FRACTION_DIGITS décimales (défaut 2).
-// Avec 2 décimales, scaleX=1.0018 devient 1.00 → décalage de 1-3 px à la relecture.
-// 6 décimales donnent une précision < 0.01 px canvas, largement suffisant.
-fabric.Object.NUM_FRACTION_DIGITS = 6;
+// Précision du JSON (NUM_FRACTION_DIGITS = 6) et défauts de Fabric 5 : réglés dans lib/fabric.js.
 
-// ─── Global Fabric.js control style ──────────────────────────────────────────
-Object.assign(fabric.Object.prototype, {
+// ─── Style des poignées de sélection ─────────────────────────────────────────
+// Fabric 7 copie ces défauts sur chaque objet à sa création (plus de prototype partagé).
+Object.assign(InteractiveFabricObject.ownDefaults, {
   borderColor:        '#D97706',
   borderScaleFactor:  1.5,
   cornerColor:        '#D97706',
@@ -44,8 +42,9 @@ export const CLIENT_DEFAULT_GRADIENT = { direction: 'to-b', color1: '#6A4128', c
 
 export function setCanvasAccent(palette) {
   canvasAccent = palette;
-  fabric.Object.prototype.borderColor = palette.accent;
-  fabric.Object.prototype.cornerColor = palette.accent;
+  // Objets créés ensuite (le changement a lieu avant le chargement du canevas, useLayoutEffect).
+  InteractiveFabricObject.ownDefaults.borderColor = palette.accent;
+  InteractiveFabricObject.ownDefaults.cornerColor = palette.accent;
 }
 
 // ─── Fabric.js helpers ────────────────────────────────────────────────────────
@@ -105,7 +104,7 @@ export function applyPhotoZoneStyle(rect) {
 }
 
 export function createPhotoZoneRect(zone) {
-  const rect = new fabric.Rect({
+  const rect = new Rect({
     left: zone.x, top: zone.y, width: zone.w, height: zone.h,
     isPhotoZone: true,
     locked: true,
@@ -127,6 +126,6 @@ export function addPhotoZones(canvas, format) {
   format.photoZones.forEach((zone) => {
     const rect = createPhotoZoneRect(zone);
     canvas.add(rect);
-    canvas.sendToBack(rect);
+    canvas.sendObjectToBack(rect);
   });
 }

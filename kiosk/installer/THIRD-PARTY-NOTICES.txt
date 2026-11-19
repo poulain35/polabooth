@@ -22,3 +22,37 @@ Independent JPEG Group
 
 Le kit Canon EDSDK est basé en partie sur le travail de l'Independent JPEG Group.
 This software is based in part on the work of the Independent JPEG Group.
+
+FFmpeg
+------
+
+ffmpeg.exe sert à créer les animations (vidéo MP4 H.264) de PolaKiosk. Il est lancé comme un
+programme séparé et n'est pas modifié. FFmpeg est distribué sous la licence GNU LGPL version 3 ou
+ultérieure (build LGPL, sans --enable-gpl ni --enable-nonfree). Textes des licences :
+licenses\ffmpeg\COPYING.LGPLv3.txt et licenses\ffmpeg\COPYING.GPLv3.txt (la LGPL v3 complète la
+GPL v3). FFmpeg n'est pas couvert par la licence de Polabooth (LICENSE.md).
+
+ffmpeg.exe is used to create PolaKiosk animations (H.264 MP4 video). It is run as a separate,
+unmodified program. FFmpeg is licensed under the GNU LGPL version 3 or later (LGPL build, without
+--enable-gpl or --enable-nonfree). License texts: licenses\ffmpeg\COPYING.LGPLv3.txt and
+licenses\ffmpeg\COPYING.GPLv3.txt (the LGPL v3 supplements the GPL v3). FFmpeg is not covered by
+the Polabooth license (LICENSE.md).
+
+Version : n9.0.2-39-g7adfbe40dc (build win64-lgpl-9.0 de BtbN/FFmpeg-Builds, autobuild-2026-10-31-12-59)
+Binaire / binary :
+  https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-31-12-59/ffmpeg-n9.0.2-39-g7adfbe40dc-win64-lgpl-9.0.zip
+Code source de FFmpeg / FFmpeg source code (commit 7adfbe40dcde598f93a6963d2f7b22cd75202ccc) :
+  https://github.com/FFmpeg/FFmpeg/tree/7adfbe40dcde598f93a6963d2f7b22cd75202ccc
+Scripts de construction et sources des bibliothèques incluses / build scripts and bundled library sources :
+  https://github.com/BtbN/FFmpeg-Builds/tree/autobuild-2026-10-31-12-59
+Site / website : https://ffmpeg.org
+
+Ce ffmpeg.exe est lié statiquement à des bibliothèques libres (par exemple OpenH264, dav1d, libvpx,
+libaom, LAME, Opus, libwebp, zlib), chacune sous sa propre licence (LGPL, BSD, MIT ou équivalente,
+compatible avec la LGPL v3). Les versions et adresses exactes de leurs sources sont fixées dans les
+scripts de construction ci-dessus. Sur demande, les sources correspondantes sont fournies.
+
+This ffmpeg.exe is statically linked with free libraries (for example OpenH264, dav1d, libvpx,
+libaom, LAME, Opus, libwebp, zlib), each under its own license (LGPL, BSD, MIT or equivalent,
+compatible with the LGPL v3). The exact versions and source locations are pinned in the build
+scripts above. The corresponding source code is available on request.

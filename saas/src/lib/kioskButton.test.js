@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fabric } from 'fabric';
+import './fabricTestEnv.js';
+import { FabricText, Group, Rect, util } from './fabric.js';
 import {
   applyButtonShapeChange,
   applyButtonTextChange,
@@ -13,19 +14,8 @@ import {
 import { boundingBox, buildScreenLayout, ownMatrix } from './kioskScreenLayout.js';
 import { kioskScreenTemplate } from './kioskScreenTemplates.js';
 
-// jsdom n'a pas de canvas 2D : mesure factice, largeur d'un caractère = 0,5 × taille.
-fabric._measuringContext = {
-  font: '',
-  textBaseline: 'alphabetic',
-  measureText(s) {
-    const size = Number(/(\d+(?:\.\d+)?)px/.exec(this.font)?.[1] ?? 16);
-    return { width: s.length * size * 0.5 };
-  },
-  save() {}, restore() {}, scale() {}, translate() {}, setTransform() {},
-};
-
 const close = (a, b, eps = 0.02) => Math.abs(a - b) <= eps;
-const enliven = (o) => new Promise((resolve) => fabric.util.enlivenObjects([o], (list) => resolve(list[0])));
+const enliven = async (o) => (await util.enlivenObjects([o]))[0];
 const templateButtons = async (kind) => Promise.all(
   kioskScreenTemplate(kind).objects.filter((o) => o.type === 'group' && o.kioskAction).map((o) => enliven(o)),
 );
@@ -41,16 +31,16 @@ function assertShapeInsideGroup(g, where) {
 }
 
 function toolButton(label = 'Photos') {
-  const caption = new fabric.Text(label, {
+  const caption = new FabricText(label, {
     fontFamily: 'DM Sans', fontWeight: '600', fontSize: 14, fill: '#F7F1E7',
     originX: 'center', originY: 'center', left: 0, top: 0,
   });
   const w = Math.max(110, Math.ceil(caption.width) + 48);
-  const shape = new fabric.Rect({
+  const shape = new Rect({
     width: w, height: 52, rx: 26, ry: 26, fill: '#24412F', strokeWidth: 0,
     originX: 'center', originY: 'center', left: 0, top: 0,
   });
-  const g = new fabric.Group([shape, caption], { left: 480, top: 270, originX: 'center', originY: 'center' });
+  const g = new Group([shape, caption], { left: 480, top: 270, originX: 'center', originY: 'center' });
   g.kioskAction = 'gallery';
   return g;
 }
@@ -85,7 +75,7 @@ test('forme réglée : la plus grande du groupe (pilule de l’accueil, pas la p
   assert.equal(shapeOf(start).fill, '#24412F');
   const minus = (await templateButtons('result')).find((g) => g.kioskAction === 'copies_minus');
   assert.equal(shapeOf(minus).type, 'circle');
-  assert.equal(buttonShape(new fabric.Group([new fabric.Text('x')])), null);
+  assert.equal(buttonShape(new Group([new FabricText('x')])), null);
 });
 
 test('texte modifié sur chaque bouton des modèles : action, centre et contour gardés', async () => {

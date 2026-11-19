@@ -87,17 +87,7 @@ public class CompositeService : ICompositeService
                         decoded[photoPath] = photo;
                     }
 
-                    var destRect = new SKRect(
-                        zone.Left * scale,
-                        zone.Top * scale,
-                        (zone.Left + zone.Width) * scale,
-                        (zone.Top + zone.Height) * scale);
-
-                    var (l, t, r, b) = CoverSourceRect(photo.Width, photo.Height, destRect.Width, destRect.Height);
-                    cvs.Save();
-                    cvs.RotateDegrees(zone.Angle, destRect.MidX, destRect.MidY);
-                    cvs.DrawImage(photo, new SKRect(l, t, r, b), destRect, HighQuality);
-                    cvs.Restore();
+                    DrawPhoto(cvs, photo, zone, scale);
                 }
             }
             finally
@@ -136,39 +126,146 @@ public class CompositeService : ICompositeService
         });
     }
 
+    public Task<IReadOnlyList<SKBitmap>> CreateAnimationFramesAsync(
+        IReadOnlyList<string> photoPaths,
+        string? templatePngPath,
+        IReadOnlyList<PhotoZone> zones,
+        string format,
+        int maxLongSide)
+    {
+        return Task.Run<IReadOnlyList<SKBitmap>>(() =>
+        {
+            if (photoPaths.Count == 0)
+                throw new ArgumentException("Aucune photo à animer.", nameof(photoPaths));
+
+            var (w, h) = AnimationFrameSize(format, maxLongSide);
+            float scale = w / (float)PrintFormats.Get(format).CanvasWidth;
+            bool fullFrame = zones.Count == 0;
+            IReadOnlyList<PhotoZone> drawZones = fullFrame ? [FullFrameZone(format)] : zones;
+
+            // Décor décodé et mis à la taille des images une seule fois pour toute l'animation.
+            using var decor = templatePngPath == null ? null : LoadDecor(templatePngPath, w, h, fullFrame);
+
+            var frames = new List<SKBitmap>(photoPaths.Count);
+            try
+            {
+                foreach (var path in photoPaths)
+                {
+                    // Photo décodée réduite (JPEG : 1/2, 1/4…) si elle reste assez grande pour l'image.
+                    using var photo = DecodeImage(path, minShortSide: Math.Max(w, h));
+                    var frame = new SKBitmap(w, h);
+                    frames.Add(frame);
+                    using var cvs = new SKCanvas(frame);
+                    cvs.Clear(SKColors.White);
+                    foreach (var zone in drawZones) DrawPhoto(cvs, photo, zone, scale);
+                    if (decor != null) cvs.DrawBitmap(decor, 0, 0);
+                }
+                return frames;
+            }
+            catch
+            {
+                foreach (var frame in frames) frame.Dispose();
+                throw;
+            }
+        });
+    }
+
+    /// <summary>Taille des images de l'animation : celle du montage réduite à <paramref name="maxLongSide"/>, jamais agrandie.</summary>
+    internal static (int W, int H) AnimationFrameSize(string format, int maxLongSide)
+    {
+        var (w, h) = ExportPixelSize(format);
+        double f = maxLongSide > 0 ? Math.Min(1.0, maxLongSide / (double)Math.Max(w, h)) : 1.0;
+        return (Math.Max(1, (int)Math.Round(w * f)), Math.Max(1, (int)Math.Round(h * f)));
+    }
+
+    // Photo recadrée en « cover » dans sa zone (coordonnées du canvas SaaS × scale), tournée avec elle.
+    private static void DrawPhoto(SKCanvas cvs, SKImage photo, PhotoZone zone, float scale)
+    {
+        var destRect = new SKRect(
+            zone.Left * scale,
+            zone.Top * scale,
+            (zone.Left + zone.Width) * scale,
+            (zone.Top + zone.Height) * scale);
+
+        var (l, t, r, b) = CoverSourceRect(photo.Width, photo.Height, destRect.Width, destRect.Height);
+        cvs.Save();
+        cvs.RotateDegrees(zone.Angle, destRect.MidX, destRect.MidY);
+        cvs.DrawImage(photo, new SKRect(l, t, r, b), destRect, HighQuality);
+        cvs.Restore();
+    }
+
     private void DrawTemplate(SKCanvas cvs, string templatePngPath, int printW, int printH, bool fullFrame)
     {
-        if (!File.Exists(templatePngPath)) return;
+        using var decor = LoadDecor(templatePngPath, printW, printH, fullFrame);
+        if (decor != null) cvs.DrawBitmap(decor, 0, 0);
+    }
 
-        using var template = SKBitmap.Decode(templatePngPath);
-        if (template == null)
+    /// <summary>
+    /// Décor à la taille <paramref name="width"/> × <paramref name="height"/>, ou null s'il manque, est
+    /// illisible, ou masquerait une photo en plein cadre (décor opaque). Libéré par l'appelant.
+    /// </summary>
+    private SKBitmap? LoadDecor(string templatePngPath, int width, int height, bool fullFrame)
+    {
+        if (!File.Exists(templatePngPath)) return null;
+
+        var decor = SKBitmap.Decode(templatePngPath);
+        if (decor == null)
         {
             _ = _log?.LogWarningAsync("composite", $"Décor illisible, montage sans décor : {templatePngPath}");
-            return;
+            return null;
         }
 
         // Cadre déjà à la taille du montage (cas normal) : dessiné tel quel, sans perte.
-        bool sameSize = template.Width == printW && template.Height == printH;
-        using var scaled = sameSize ? null : template.Resize(new SKImageInfo(printW, printH), HighQuality);
-        var decor = sameSize ? template : scaled;
-        if (decor == null)
+        if (decor.Width != width || decor.Height != height)
         {
-            _ = _log?.LogWarningAsync("composite", $"Redimensionnement du décor impossible : {templatePngPath}");
-            return;
+            var scaled = decor.Resize(new SKImageInfo(width, height), HighQuality);
+            decor.Dispose();
+            if (scaled == null)
+            {
+                _ = _log?.LogWarningAsync("composite", $"Redimensionnement du décor impossible : {templatePngPath}");
+                return null;
+            }
+            decor = scaled;
         }
 
         // Photo en plein cadre : un décor sans partie transparente la masquerait entièrement.
         if (fullFrame && !HasTransparentArea(decor))
         {
             _ = _log?.LogWarningAsync("composite", "Décor opaque sans zone photo : photo imprimée sans le décor.");
-            return;
+            decor.Dispose();
+            return null;
         }
-
-        cvs.DrawBitmap(decor, 0, 0);
+        return decor;
     }
 
-    private static SKImage DecodeImage(string path)
+    /// <summary>
+    /// Photo décodée. <paramref name="minShortSide"/> &gt; 0 : décodage réduit par le codec (JPEG : 1/2,
+    /// 1/4, 1/8) tant que le petit côté reste au moins à cette taille, sinon pleine taille.
+    /// </summary>
+    private static SKImage DecodeImage(string path, int minShortSide = 0)
     {
+        if (minShortSide > 0)
+        {
+            using var codec = SKCodec.Create(path);
+            if (codec != null)
+            {
+                var info = codec.Info;
+                int shortSide = Math.Min(info.Width, info.Height);
+                if (shortSide > minShortSide)
+                {
+                    var dims = codec.GetScaledDimensions(minShortSide / (float)shortSide);
+                    if (Math.Min(dims.Width, dims.Height) >= minShortSide && dims.Width < info.Width)
+                    {
+                        var scaledInfo = new SKImageInfo(dims.Width, dims.Height, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
+                        using var scaled = new SKBitmap(scaledInfo);
+                        var result = codec.GetPixels(scaledInfo, scaled.GetPixels());
+                        if (result == SKCodecResult.Success)
+                            return SKImage.FromBitmap(scaled);
+                    }
+                }
+            }
+        }
+
         using var bitmap = SKBitmap.Decode(path)
             ?? throw new InvalidOperationException($"Impossible de lire la photo : {path}");
         return SKImage.FromBitmap(bitmap);

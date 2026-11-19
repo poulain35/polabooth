@@ -29,10 +29,16 @@ public partial class GalleryPhoto : ObservableObject
     /// </summary>
     [ObservableProperty] private double _imageHeight = GalleryViewModel.DisplayWidth * 1.5;
 
-    public GalleryPhoto(string path, Func<string, BitmapSource?> load)
+    /// <summary>Animation de la séance (GIF, LAB-237) : vignette = son affiche, badge lecture.</summary>
+    public AnimationClip? Animation { get; }
+
+    public bool HasAnimation => Animation != null;
+
+    public GalleryPhoto(string path, Func<string, BitmapSource?> load, AnimationClip? animation = null)
     {
         Path  = path;
         _load = load;
+        Animation = animation;
     }
 
     public async Task AddViewerAsync()
@@ -42,7 +48,8 @@ public partial class GalleryPhoto : ObservableObject
         // Une carte sortie puis revenue pendant le décodage ne doit pas recevoir l'ancien résultat.
         var generation = ++_generation;
         BitmapSource? thumb;
-        try { thumb = await Task.Run(() => _load(Path)); }
+        var source = Animation?.PosterPath ?? Path;
+        try { thumb = await Task.Run(() => _load(source)); }
         catch { thumb = null; }
         if (generation != _generation) return;
         Thumb = thumb;
@@ -111,9 +118,13 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
 
         // Liste des fichiers seulement : les vignettes se chargent à l'affichage de chaque carte.
         var eventName = _eventName;
-        var files = await Task.Run(() => _sessionPaths.GetCompositeFiles(eventName, eventId));
+        // Animation de chaque montage (GIF) retrouvée par son .share.json, hors du fil d'affichage.
+        var files = await Task.Run(() => _sessionPaths.GetCompositeFiles(eventName, eventId)
+            .Select(file => (File: file, Animation: SessionAnimation.FindForComposite(file))).ToList());
 
-        _photos = files.Select(file => new GalleryPhoto(file, LoadThumb)).ToList();
+        _photos = files.Select(f => f.Animation == null
+                ? new GalleryPhoto(f.File, LoadThumb)
+                : new GalleryPhoto(f.File, LoadPoster, f.Animation)).ToList();
         Rows    = new ObservableCollection<GalleryRow>(ToRows(_photos, _columns));
         IsEmpty = _photos.Count == 0;
     }
@@ -133,6 +144,10 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
     /// <summary>Vignette de <c>composites\thumbs\</c> (créée si elle manque), sinon le montage lui-même.</summary>
     internal static BitmapImage? LoadThumb(string compositePath)
         => ImageLoader.LoadThumbnail(CompositeThumbnail.Ensure(compositePath) ?? compositePath, DisplayWidth);
+
+    /// <summary>Affiche d'une animation (JPEG de 1080 px au plus), décodée à la taille de la vignette.</summary>
+    internal static BitmapImage? LoadPoster(string posterPath)
+        => ImageLoader.LoadThumbnail(posterPath, DisplayWidth);
 
     public void Release()
     {
@@ -186,7 +201,8 @@ public partial class GalleryViewModel : ObservableObject, IReleasable
             PaperFormat:       paperFormat,
             EmailConfig:       emailCfg,
             ResultCfg:         resultCfg,
-            FromGallery:       true
+            FromGallery:       true,
+            VideoPath:         (photo.Animation ?? SessionAnimation.Find(photo.Path, sessionId))?.VideoPath
         ));
     }
 }

@@ -14,7 +14,7 @@ namespace PolaKiosk.Tests.Services;
 /// LAB-213 : envoi du montage sur R2 (URL présignée de get-kiosk-upload-url) puis enregistrement par
 /// kiosk_record_photo. SupabaseService réel, réponses HTTP simulées.
 /// </summary>
-public class PhotoUploadR2Tests : IDisposable
+public partial class PhotoUploadR2Tests : IDisposable
 {
     private const string SupabaseUrl = "https://projet.supabase.co";
     private const string AnonKey = "anon-key";

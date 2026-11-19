@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { fabric } from 'fabric';
+import { Group, Rect } from './fabric.js';
 import { IN_PUBLIC_REPO } from '../../scripts/private-history.mjs';
 import {
   DEFAULT_PREVIEW_SCREEN,
@@ -135,8 +135,7 @@ function fakeEditorCanvas(objects, { failOnExport = false } = {}) {
     backgroundImage: null,
     _exportMode: false,
     getObjects: () => objects,
-    setWidth(w) { this.width = w; },
-    setHeight(h) { this.height = h; },
+    setDimensions({ width, height }) { this.width = width; this.height = height; },
     setViewportTransform(vt) { this.viewportTransform = vt; },
     renderAll() {},
     toDataURL() {
@@ -182,8 +181,8 @@ async function withFakeBrowser(fn) {
   }
 }
 
-const zone = (o) => new fabric.Rect({ strokeWidth: 0, fill: 'transparent', isPhotoZone: true, ...o });
-const deco = (o) => new fabric.Rect({ fill: 'red', ...o });
+const zone = (o) => new Rect({ strokeWidth: 0, fill: 'transparent', isPhotoZone: true, ...o });
+const deco = (o) => new Rect({ fill: 'red', ...o });
 
 test('la préparation du modèle photo laisse le design intact (ni événement, ni changement)', async () => {
   const objects = [
@@ -266,7 +265,7 @@ test("écran composé : un plan que la borne refuserait arrête l'aperçu", () =
 // ── Design déjà envoyé (fiche de l'événement, LAB-308) ──
 
 test('zones d\'un canvas_json enregistré : mêmes rectangles que le design vivant, groupes compris', async () => {
-  const group = new fabric.Group([
+  const group = new Group([
     zone({ left: 40, top: 60, width: 160, height: 120 }),
     deco({ left: 220, top: 100, width: 100, height: 50 }),
   ]);

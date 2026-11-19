@@ -44,6 +44,49 @@ public sealed class GalleryViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task An_animated_session_shows_its_poster_and_reopens_with_its_clip()
+    {
+        // Séance GIF (LAB-237) : montage + .share.json + animations\{séance}\ (clip, affiche).
+        var settings = new AppSettings();
+        settings.Kiosk.DataDirectory = _dir.Path;
+        var paths = new SessionPathService(settings);
+        var composites = paths.GetCompositesDirectory("Événement", EventId);
+        Directory.CreateDirectory(composites);
+        var gif = Path.Combine(composites, "gif.jpg");
+        var photo = Path.Combine(composites, "photo.jpg");
+        File.WriteAllText(gif, "jpg");
+        File.WriteAllText(photo, "jpg");
+        ShareInfoFile.Write(gif, new ShareInfo(SessionId, null, Guid.Empty));
+        var animDir = SessionAnimation.DirectoryFor(composites, SessionId);
+        Directory.CreateDirectory(animDir);
+        File.WriteAllText(Path.Combine(animDir, AnimationService.VideoFileName), "mp4");
+        File.WriteAllText(Path.Combine(animDir, AnimationService.PosterFileName), "jpg");
+
+        var state = new Mock<IKioskStateService>();
+        state.SetupGet(s => s.ActiveEventId).Returns(EventId);
+        var sync = new Mock<ISyncService>();
+        sync.Setup(s => s.GetTemplatesAsync(EventId)).ReturnsAsync([Main]);
+        _sessions.Setup(s => s.ResolveSessionIdAsync(gif)).ReturnsAsync(SessionId);
+        var vm = new GalleryViewModel(_nav.Object, state.Object, sync.Object, settings, paths, _sessions.Object);
+
+        await vm.InitializeAsync();
+
+        var cards = vm.Rows.SelectMany(r => r.Photos).ToList();
+        cards.Should().HaveCount(2);
+        var animated = cards.Single(c => c.Path == gif);
+        animated.HasAnimation.Should().BeTrue();
+        animated.Animation!.PosterPath.Should().Be(Path.Combine(animDir, AnimationService.PosterFileName));
+        cards.Single(c => c.Path == photo).HasAnimation.Should().BeFalse();
+
+        await vm.OpenPhotoCommand.ExecuteAsync(animated);
+
+        var call = _nav.Invocations.Should().ContainSingle(i => i.Method.Name == nameof(INavigationService.NavigateTo)).Subject;
+        var p = (ResultParameters)call.Arguments[0]!;
+        p.CompositePath.Should().Be(gif, "la réimpression reste le montage des photos");
+        p.VideoPath.Should().Be(Path.Combine(animDir, AnimationService.VideoFileName));
+    }
+
+    [Fact]
     public async Task A_strip_photo_is_reprinted_on_strip_paper()
         => (await ReopenAsync(Strip.Id)).PaperFormat.Should().Be("2x6");
 

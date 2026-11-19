@@ -36,6 +36,8 @@ public partial class LiveViewModel : ObservableObject, IReleasable
     internal Func<string, BitmapSource?> LoadSlotPhoto { get; set; } = path => ImageLoader.LoadThumbnail(path, SlotPhotoWidth);
 
     private static readonly TimeSpan MinFlashDuration = TimeSpan.FromMilliseconds(700);
+    internal const string CompositingPhotoText     = "Assemblage de votre photo…";
+    internal const string CompositingAnimationText = "Préparation de votre animation…";
     private const int SlotPhotoWidth = 240; // case de 112 px, écran à 200 %
 
     private string _activeTemplateFormat = "portrait";
@@ -77,6 +79,11 @@ public partial class LiveViewModel : ObservableObject, IReleasable
     public ObservableCollection<LivePhotoSlot> PhotoSlots { get; } = new();
     [ObservableProperty] private bool _isFlashing = false;
     [ObservableProperty] private bool _isCompositing = false;
+    /// <summary>Texte de l'attente après la prise de vue : photo ou animation (LAB-237).</summary>
+    [ObservableProperty] private string _compositingText = CompositingPhotoText;
+    /// <summary>GIF (LAB-237) : « k/N » affiché entre deux prises, pendant gif.interval_ms.</summary>
+    [ObservableProperty] private bool _isGifStep = false;
+    [ObservableProperty] private string _gifStepText = "";
     [ObservableProperty] private int _countdownValue = 5;
     [ObservableProperty] private bool _hasError = false;
     [ObservableProperty] private string _errorMessage = "";
@@ -95,7 +102,8 @@ public partial class LiveViewModel : ObservableObject, IReleasable
         IGuestJourneyService journey,
         ICameraHealthService? cameraHealth = null,
         IFrameSelection? frameSelection = null,
-        IKioskLogContext? logContext = null)
+        IKioskLogContext? logContext = null,
+        IAnimationService? animation = null)
     {
         _cameraHealth   = cameraHealth;
         _frameSelection = frameSelection;
@@ -110,7 +118,7 @@ public partial class LiveViewModel : ObservableObject, IReleasable
         _sessionPaths = sessionPaths;
         _sessions     = sessions;
         _journey      = journey;
-        _finisher     = new CaptureFinisher(sync, composite, kioskLog, sessions, network, frameSelection);
+        _finisher     = new CaptureFinisher(sync, composite, kioskLog, sessions, network, frameSelection, animation);
     }
 
     public async Task StartAsync()
@@ -121,6 +129,9 @@ public partial class LiveViewModel : ObservableObject, IReleasable
         IsCountingDown    = false;
         IsFlashing        = false;
         IsCompositing     = false;
+        CompositingText   = CompositingPhotoText;
+        IsGifStep         = false;
+        GifStepText       = "";
         HasError          = false;
         ErrorMessage      = "";
         LiveFrame         = null;

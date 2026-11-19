@@ -30,7 +30,7 @@ export default function FloatingObjectToolbar({ obj, version, cssZoom, canvasDiv
     // Sa BCR donne le coin haut-gauche en coordonnées viewport après le scale
     const cr = canvasDivRef.current.getBoundingClientRect();
 
-    const br = obj.getBoundingRect(true); // coordonnées canvas (Fabric zoom = 1)
+    const br = obj.getBoundingRect(); // coordonnées canvas (Fabric zoom = 1)
 
     const centerX = cr.left + (br.left + br.width  / 2) * cssZoom;
     const topY    = cr.top  +  br.top                   * cssZoom;

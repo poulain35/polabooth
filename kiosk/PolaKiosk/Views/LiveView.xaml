@@ -253,6 +253,23 @@
             </Border>
         </StackPanel>
 
+        <!-- ⑤ bis GIF (LAB-237) : « 2/4 », « 3/4 »… entre deux prises, pendant capture.gif.interval_ms -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,58"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding IsGifStep, Converter={StaticResource BoolToVisibility}}">
+            <Grid Width="360" Height="360">
+                <Ellipse Fill="{StaticResource LiveRingDiscBrush}"/>
+                <Ellipse Width="340" Height="340" Stroke="{StaticResource KioskBlushBrush}" StrokeThickness="12"/>
+                <TextBlock Text="{Binding GifStepText}"
+                           FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold" FontSize="120"
+                           Foreground="{StaticResource KioskOnDarkBrush}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Style="{StaticResource LivePill}" Margin="0,28,0,0">
+                <TextBlock Text="Changez de pose !" FontSize="26" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </Border>
+        </StackPanel>
+
         <!-- ⑥ Flash blanc, maintenu pendant la prise de vue, avec « Souriez ! » (LAB-248).
              Blanc pur volontaire (il éclaire les visages) ; texte vert forêt pas trop grand :
              l'écran reste presque entièrement blanc. -->
@@ -278,7 +295,7 @@
                 Visibility="{Binding IsCompositing, Converter={StaticResource BoolToVisibility}}">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Path Style="{StaticResource LiveSpinner}" Margin="0,0,0,24"/>
-                <TextBlock Text="Assemblage de votre photo…"
+                <TextBlock Text="{Binding CompositingText}"
                            FontFamily="{StaticResource KioskTitleFont}" FontWeight="SemiBold" FontSize="32"
                            HorizontalAlignment="Center"/>
             </StackPanel>

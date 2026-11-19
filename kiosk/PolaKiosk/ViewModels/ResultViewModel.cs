@@ -50,6 +50,22 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
     public bool IsEmailSentScreen => Screen == ResultScreen.EmailSent;
 
     [ObservableProperty] private BitmapImage? _compositeImage;
+
+    /// <summary>
+    /// Clip de l'animation (GIF, LAB-237), joué en boucle et muet à la place de l'aperçu ; null pour
+    /// une photo, ou si le clip ne se lit pas (l'aperçu du montage revient).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnimation))]
+    private Uri? _animationSource;
+
+    public bool HasAnimation => AnimationSource != null;
+
+    /// <summary>GIF sans animation (encodage raté) : l'invité garde le montage photo.</summary>
+    [ObservableProperty] private string _animationNotice = "";
+
+    internal const string AnimationUnavailableText = "Animation indisponible : voici vos photos.";
+
     [ObservableProperty] private BitmapSource? _qrCodeImage;
     [ObservableProperty] private string _eventName = "";
     [ObservableProperty] private string _paperFormat = "4x6";
@@ -147,8 +163,10 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
         ApplyConfig(p);
         GalleryLink = ShareLinks.BuildGalleryLink(_settings.Kiosk.SaasUrl, p.AccessCode);
 
-        CompositeImage = await Task.Run(() => ImageLoader.LoadForScreen(p.CompositePath, fill: false));
-        DesignedShare  = await DesignedShareLoader.LoadAsync(_sync, _kioskLog);
+        AnimationNotice = p.AnimationUnavailable ? AnimationUnavailableText : "";
+        AnimationSource = p.VideoPath is { Length: > 0 } video && File.Exists(video) ? new Uri(video) : null;
+        CompositeImage  = await Task.Run(() => ImageLoader.LoadForScreen(p.CompositePath, fill: false));
+        DesignedShare   = await DesignedShareLoader.LoadAsync(_sync, _kioskLog);
 
         try { await RefreshPrintStatusAsync(); }
         catch (Exception ex) { await _kioskLog.LogErrorAsync("print", ex.Message, ex.StackTrace); }
@@ -295,9 +313,19 @@ public partial class ResultViewModel : ObservableObject, IParameterReceiver, IRe
     public void Release()
     {
         StopCountdown();
-        CompositeImage = null;
-        QrCodeImage    = null;
-        DesignedShare  = null;
+        CompositeImage  = null;
+        AnimationSource = null;
+        QrCodeImage     = null;
+        DesignedShare   = null;
+    }
+
+    /// <summary>Clip illisible par le lecteur Windows : l'aperçu du montage le remplace, erreur journalisée.</summary>
+    public void OnAnimationFailed(string? error)
+    {
+        if (AnimationSource == null) return;
+        AnimationSource = null;
+        _ = _kioskLog.LogWarningAsync(AnimationService.LogContext,
+            $"Lecture de l'animation impossible sur l'écran résultat : {error ?? "erreur inconnue"}");
     }
 
     // ── Envoi de la photo et QR code ──────────────────────────────────────

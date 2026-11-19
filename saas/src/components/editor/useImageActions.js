@@ -1,4 +1,4 @@
-import { fabric } from 'fabric';
+import { FabricImage } from '../../lib/fabric.js';
 import { svgToBitmap, tintElement, tintGroup } from './imageTools';
 
 // Stickers (ajout et teinte) et suppression de l'arrière-plan d'une image. `removeBackground` : détourage
@@ -17,16 +17,7 @@ export function useImageActions({
       && !/\.svg(\?|$)/i.test(srcOrSvg);
 
     if (isPng) {
-      fabric.Image.fromURL(srcOrSvg, (img) => {
-        if (!img) return;
-        const maxDim = Math.max(img.width || 80, img.height || 80);
-        const scale  = Math.min(80, currentFormat.canvasWidth * 0.25) / maxDim;
-        img.scale(scale);
-        img.set({ left: currentFormat.canvasWidth / 2, top: currentFormat.canvasHeight / 2, originX: 'center', originY: 'center' });
-        img.isSticker = true;
-        img.setCoords();
-        addObjectToCanvas(img);
-      }, { crossOrigin: 'anonymous' });
+      addStickerImage(srcOrSvg, { crossOrigin: 'anonymous' });
       return;
     }
 
@@ -46,19 +37,26 @@ export function useImageActions({
 
     // Rasteriser à la résolution d'export pour conserver la netteté à l'agrandissement
     const exportRes = Math.max(currentFormat.exportWidth, currentFormat.exportHeight);
-    svgToBitmap(svgString, exportRes).then((dataUrl) => {
-      if (!dataUrl) return;
-      fabric.Image.fromURL(dataUrl, (img) => {
-        if (!img) return;
-        const maxDim = Math.max(img.width || 80, img.height || 80);
-        const scale  = Math.min(80, currentFormat.canvasWidth * 0.25) / maxDim;
-        img.scale(scale);
-        img.set({ left: currentFormat.canvasWidth / 2, top: currentFormat.canvasHeight / 2, originX: 'center', originY: 'center' });
-        img.isSticker = true;
-        img.setCoords();
-        addObjectToCanvas(img);
-      });
-    });
+    const dataUrl = await svgToBitmap(svgString, exportRes);
+    if (dataUrl) await addStickerImage(dataUrl);
+  }
+
+  // Image du sticker centrée, 80 px au plus. Fabric 7 rejette si l'image ne se charge pas.
+  async function addStickerImage(url, options) {
+    let img;
+    try {
+      img = await FabricImage.fromURL(url, options);
+    } catch (err) {
+      console.warn('Sticker introuvable :', err);
+      return;
+    }
+    const maxDim = Math.max(img.width || 80, img.height || 80);
+    const scale  = Math.min(80, currentFormat.canvasWidth * 0.25) / maxDim;
+    img.scale(scale);
+    img.set({ left: currentFormat.canvasWidth / 2, top: currentFormat.canvasHeight / 2, originX: 'center', originY: 'center' });
+    img.isSticker = true;
+    img.setCoords();
+    addObjectToCanvas(img);
   }
 
   // ── Couleur de sticker ───────────────────────────────────────────────────────
@@ -91,12 +89,12 @@ export function useImageActions({
 
       // crossOrigin : le src d'origine peut être une adresse du stockage (LAB-348) ; sans lui,
       // l'image rechargée « salirait » le canvas et l'export PNG échouerait.
-      targetObj.setSrc(srcToApply, () => {
+      targetObj.setSrc(srcToApply, { crossOrigin: 'anonymous' }).then(() => {
         targetObj.stickerTintColor = isTransparent ? null : color;
         canvas.renderAll();
         handleObjectChange();
-      }, { crossOrigin: 'anonymous' });
-      return; // handleObjectChange appelé dans le callback
+      }, (err) => console.warn('Teinte du sticker impossible :', err));
+      return; // handleObjectChange appelé une fois l'image rechargée
     } else if (targetObj.type === 'group') {
       tintGroup(targetObj, color, isTransparent);
     } else {

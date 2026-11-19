@@ -1,5 +1,5 @@
 // État du canvas : sérialisation (historique, sauvegarde, envoi), relecture et fonds en dégradé.
-import { fabric } from 'fabric';
+import { Gradient } from '../../lib/fabric.js';
 import { isKioskFormat } from '../../utils/formats';
 import { isTransparentBackground } from '../../lib/kioskScreenLayout';
 import { loadLiveFont } from '../../utils/kioskFonts';
@@ -33,7 +33,7 @@ const GRADIENT_COORDS = {
 function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
   if (direction === 'radial') {
     const r = Math.max(width, height) / 2;
-    return new fabric.Gradient({
+    return new Gradient({
       type: 'radial',
       gradientUnits: 'pixels',
       coords: {
@@ -51,7 +51,7 @@ function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
     });
   }
   const c = GRADIENT_COORDS[direction] || GRADIENT_COORDS['to-b'];
-  return new fabric.Gradient({
+  return new Gradient({
     type: 'linear',
     gradientUnits: 'pixels',
     coords: {
@@ -69,7 +69,8 @@ function buildFabricGradient({ width, height }, { direction, color1, color2 }) {
 
 export function applyGradientToCanvas(canvas, grad, dims) {
   const fabricGrad = buildFabricGradient(dims, grad);
-  canvas.setBackgroundColor(fabricGrad, () => canvas.renderAll());
+  canvas.backgroundColor = fabricGrad;
+  canvas.renderAll();
 }
 
 export function serializeState(canvas, bgMeta) {
@@ -107,28 +108,24 @@ export async function restoreFromJSON(canvas, format, jsonStr) {
   const keepTransparent = isKioskFormat(format) && isTransparentBackground(state.bg);
   const bg = keepTransparent ? '' : (state.bg || DEFAULT_BG_COLOR);
 
-  return new Promise((resolve) => {
-    canvas.loadFromJSON(
-      { version: '5.3.0', objects, background: keepTransparent ? '' : (typeof state.bg === 'string' ? state.bg : DEFAULT_BG_COLOR) },
-      () => {
-        if (state.bgType === 'gradient' && state.bgGradient) {
-          applyGradientToCanvas(canvas, state.bgGradient, { width: format.canvasWidth, height: format.canvasHeight });
-        } else {
-          canvas.backgroundColor = bg;
-        }
-        // Zones rangées dans un groupe comprises : sinon les zones par défaut seraient rajoutées en double.
-        const zones = findPhotoZones(canvas.getObjects());
-        if (zones.length === 0) addPhotoZones(canvas, format);
-        else zones.forEach((o) => applyPhotoZoneStyle(o));
-        reapplyTextEffects(canvas);
-        canvas.renderAll();
-        // Second render once the browser confirms ALL fonts are ready —
-        // catches any font that was still in-flight when the first render ran.
-        document.fonts.ready.then(() => {
-          try { canvas.renderAll(); } catch (_) { /* canvas already disposed */ }
-        });
-        resolve({ bgType: state.bgType ?? 'solid', bgGradient: state.bgGradient ?? null, bgColor: keepTransparent ? 'transparent' : (state.bg || DEFAULT_BG_COLOR) });
-      }
-    );
+  await canvas.loadFromJSON(
+    { version: '5.3.0', objects, background: keepTransparent ? '' : (typeof state.bg === 'string' ? state.bg : DEFAULT_BG_COLOR) },
+  );
+  if (state.bgType === 'gradient' && state.bgGradient) {
+    applyGradientToCanvas(canvas, state.bgGradient, { width: format.canvasWidth, height: format.canvasHeight });
+  } else {
+    canvas.backgroundColor = bg;
+  }
+  // Zones rangées dans un groupe comprises : sinon les zones par défaut seraient rajoutées en double.
+  const zones = findPhotoZones(canvas.getObjects());
+  if (zones.length === 0) addPhotoZones(canvas, format);
+  else zones.forEach((o) => applyPhotoZoneStyle(o));
+  reapplyTextEffects(canvas);
+  canvas.renderAll();
+  // Second render once the browser confirms ALL fonts are ready —
+  // catches any font that was still in-flight when the first render ran.
+  document.fonts.ready.then(() => {
+    try { canvas.renderAll(); } catch (_) { /* canvas already disposed */ }
   });
+  return { bgType: state.bgType ?? 'solid', bgGradient: state.bgGradient ?? null, bgColor: keepTransparent ? 'transparent' : (state.bg || DEFAULT_BG_COLOR) };
 }

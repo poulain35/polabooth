@@ -89,6 +89,64 @@
 
         <Geometry x:Key="IconCheck">M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</Geometry>
 
+        <!-- Curseur d'un réglage de l'appareil photo : piste épaisse et grosse poignée. Au doigt, un appui
+             sans glisser choisit la valeur touchée (au relâcher) ; un glissement fait défiler la liste
+             (OnSliderPressed / OnSliderReleased). À la souris, il se tire comme d'habitude. -->
+        <Style x:Key="AdminSliderTrackButton" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <!-- Zone de toucher haute et transparente, piste dessinée au milieu -->
+                        <Grid Background="Transparent">
+                            <Border Height="12" CornerRadius="6" VerticalAlignment="Center" Background="{TemplateBinding Background}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="AdminSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="TickFrequency" Value="1"/>
+            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="IsMoveToPointEnabled" Value="True"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="MinHeight" Value="64"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Track x:Name="PART_Track" Height="64">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource AdminSliderTrackButton}"
+                                              Background="{StaticResource KioskMintBrush}"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource AdminSliderTrackButton}"
+                                              Background="{StaticResource KioskOnDarkLineBrush}"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Width="48" Height="48">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Ellipse Fill="{StaticResource KioskCreamBrush}" Stroke="{StaticResource KioskMintBrush}" StrokeThickness="4"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="OnSliderPressed"/>
+            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnSliderReleased"/>
+        </Style>
+
         <!-- ── Boutons ── -->
         <!-- Action d'une carte : vert d'eau, 64 px de haut au moins -->
         <Style x:Key="AdminButton" TargetType="Button" BasedOn="{StaticResource KioskSecondaryButton}">
@@ -704,6 +762,19 @@
                     </Border>
                 </Grid>
 
+                <!-- Animations (LAB-234) : ffmpeg (LGPL) et son encodeur H.264 -->
+                <Border Style="{StaticResource AdminCard}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Command="{Binding CheckAnimationsCommand}" Style="{StaticResource AdminOutlineButton}"
+                                VerticalAlignment="Center" Margin="20,0,0,0" Content="Vérifier"/>
+                        <StackPanel>
+                            <TextBlock Text="{Binding AnimationStatus}" Style="{StaticResource AdminCardTitle}"/>
+                            <TextBlock Text="Vidéos des animations créées par ffmpeg (licence LGPL v3, non modifié). Version, adresse des sources et licences : THIRD-PARTY-NOTICES.txt et dossier licenses du dossier d'installation."
+                                       Style="{StaticResource AdminHint}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
                 <!-- Zone sensible : chaque action demande une confirmation -->
                 <Border Style="{StaticResource AdminCard}" BorderBrush="{StaticResource KioskErrorOnDarkBrush}" BorderThickness="2">
                     <StackPanel>
@@ -842,7 +913,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" PanningMode="VerticalOnly">
+                    <ScrollViewer Grid.Column="2" Style="{StaticResource AdminScroll}">
                         <ItemsControl ItemsSource="{Binding ExposureSettings}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -866,8 +937,7 @@
                                                         Style="{StaticResource AdminButton}" Width="80" Height="80"
                                                         Padding="0" FontSize="32" Content="−"/>
                                                 <Slider Grid.Column="1" Margin="16,0" VerticalAlignment="Center"
-                                                        Minimum="0" Maximum="{Binding MaxIndex}" TickFrequency="1"
-                                                        IsSnapToTickEnabled="True" IsMoveToPointEnabled="True"
+                                                        Style="{StaticResource AdminSlider}" Maximum="{Binding MaxIndex}"
                                                         IsEnabled="{Binding IsEnabled}"
                                                         Value="{Binding SelectedIndex, Mode=TwoWay}"/>
                                                 <Button Grid.Column="2" Command="{Binding IncrementCommand}"

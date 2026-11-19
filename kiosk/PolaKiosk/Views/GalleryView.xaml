@@ -73,8 +73,17 @@
                                                     Padding="6" SnapsToDevicePixels="True"
                                                     Effect="{StaticResource KioskSoftShadow}">
                                                 <Border CornerRadius="9" ClipToBounds="True">
-                                                    <Image Source="{Binding Thumb}" Width="240"
-                                                           Height="{Binding ImageHeight}" Stretch="Uniform"/>
+                                                    <Grid>
+                                                        <Image Source="{Binding Thumb}" Width="240"
+                                                               Height="{Binding ImageHeight}" Stretch="Uniform"/>
+                                                        <!-- Séance animée (GIF, LAB-237) : affiche + pastille lecture -->
+                                                        <Grid Width="72" Height="72" HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center" IsHitTestVisible="False"
+                                                              Visibility="{Binding HasAnimation, Converter={StaticResource BoolToVisibility}}">
+                                                            <Ellipse Fill="#99000000" Stroke="White" StrokeThickness="3"/>
+                                                            <Path Data="M28,20 L54,36 L28,52 Z" Fill="White"/>
+                                                        </Grid>
+                                                    </Grid>
                                                 </Border>
                                             </Border>
                                             <ControlTemplate.Triggers>

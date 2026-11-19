@@ -23,9 +23,14 @@ public class SupabaseService : ISupabaseService
     private readonly IKioskCredentials _credentials;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    // Sans les en-têtes Supabase (apikey, Bearer) : envoi vers R2 par URL présignée (LAB-213, la
-    // signature suffit) et téléchargement d'un fichier hébergé ailleurs que sur Supabase (LAB-394).
+    // Sans les en-têtes Supabase (apikey, Bearer) : téléchargement d'un fichier hébergé ailleurs que sur
+    // Supabase (LAB-394).
     private readonly HttpClient _external;
+
+    // Envois sur R2 par URL présignée, sans en-têtes Supabase non plus (la signature suffit, LAB-213).
+    // Délai par requête selon la taille du fichier (UploadTimeout, LAB-237), pas les
+    // 100 s par défaut du HttpClient, trop courtes pour un clip sur une 4G faible.
+    private readonly HttpClient _upload;
 
     public SupabaseService(AppSettings settings, IKioskCredentials credentials, IServiceScopeFactory scopeFactory)
         : this(settings, credentials, scopeFactory, new HttpClientHandler()) { }
@@ -45,6 +50,7 @@ public class SupabaseService : ISupabaseService
             new AuthenticationHeaderValue("Bearer", _anonKey);
 
         _external = new HttpClient(handler, disposeHandler: false);
+        _upload   = new HttpClient(handler, disposeHandler: false) { Timeout = Timeout.InfiniteTimeSpan };
     }
 
     /// <summary>Taille maximale d'un fichier téléchargé (fond, logo, image ou police d'un écran, cadre).</summary>
@@ -128,7 +134,7 @@ public class SupabaseService : ISupabaseService
     /// <summary>
     /// Envoie le montage sur Cloudflare R2 puis l'enregistre dans la table photos (LAB-213) :
     /// 1. URL PUT présignée demandée à get-kiosk-upload-url (licence + code d'accès vérifiés) ;
-    /// 2. PUT du fichier sur R2 ;
+    /// 2. PUT du fichier sur R2, en flux ;
     /// 3. enregistrement par kiosk_record_photo avec le chemin R2 et l'heure de début de la séance.
     /// Chaque étape fait partie de l'envoi : un échec lève une exception et la séance reste en attente.
     /// Le chemin R2 dépend de la séance : un renvoi écrase le même objet et retrouve la même ligne photos.
@@ -141,41 +147,116 @@ public class SupabaseService : ISupabaseService
             throw new FileNotFoundException("Composite introuvable.", compositePath);
 
         var accessCode = await GetLocalAccessCodeAsync(eventId);
-        var fileBytes = await File.ReadAllBytesAsync(compositePath);
+        var length = new FileInfo(compositePath).Length;
 
         // 1. URL d'envoi R2
-        var target = await RequestUploadUrlAsync(accessCode, eventId, sessionId, Path.GetFileName(compositePath), fileBytes.Length);
+        var target = await RequestUploadUrlAsync(accessCode, eventId, sessionId, Path.GetFileName(compositePath), length);
 
         // 2. Envoi du fichier (type et taille liés à la signature)
-        using (var content = new ByteArrayContent(fileBytes))
-        {
-            content.Headers.ContentType = new MediaTypeHeaderValue(target.ContentType);
-            using var putResponse = await _external.PutAsync(target.PresignedUrl, content);
-            await EnsureSuccessOrThrowAsync(putResponse, "Envoi R2 photo");
-        }
+        await PutFileAsync(target, compositePath, length, video: false, "Envoi R2 photo");
 
         // 3. Enregistrement dans la table photos : sans lui, la photo n'apparaît ni dans la galerie
         //    ni via le QR. Un échec laisse la séance en attente, elle sera renvoyée.
         var photoId = await CallRpcAsync("kiosk_record_photo", BuildRecordPhotoBody(
                 accessCode, eventId, target.StoragePath, target.PublicUrl, capturedAtUtc, _credentials.MachineId, _credentials.Secret),
-            "Enregistrement photo", ParsePhotoIdRpcResponse, CancellationToken.None);
+            "Enregistrement photo", ParsePhotoIdRpcResponse, CancellationToken.None, MediaRefusal);
 
         return (target.PublicUrl, photoId);
     }
 
-    private async Task<UploadTarget> RequestUploadUrlAsync(string accessCode, Guid eventId, Guid sessionId, string fileName, long length)
+    /// <summary>
+    /// Envoie l'animation d'une séance GIF (LAB-237) : affiche (<c>kind = poster</c>, toujours
+    /// <c>{séance}/poster.jpg</c>), puis clip MP4 (<c>kind = media</c>), chacun en flux par son URL
+    /// présignée, puis une seule ligne photos (<c>media_type = gif</c>, affiche, durée, taille). Même
+    /// séance = mêmes chemins R2 et même ligne au renvoi.
+    /// </summary>
+    public async Task<(string PublicUrl, Guid PhotoId)> UploadAnimationAsync(Guid sessionId, Guid eventId, AnimationClip clip,
+        DateTime capturedAtUtc)
     {
-        var body = JsonConvert.SerializeObject(new
+        if (!File.Exists(clip.VideoPath))  throw new FileNotFoundException("Clip introuvable.", clip.VideoPath);
+        if (!File.Exists(clip.PosterPath)) throw new FileNotFoundException("Affiche introuvable.", clip.PosterPath);
+
+        var accessCode   = await GetLocalAccessCodeAsync(eventId);
+        var posterLength = new FileInfo(clip.PosterPath).Length;
+        var videoLength  = new FileInfo(clip.VideoPath).Length;
+
+        var poster = await RequestUploadUrlAsync(accessCode, eventId, sessionId, AnimationService.PosterFileName,
+            posterLength, UploadKindPoster);
+        await PutFileAsync(poster, clip.PosterPath, posterLength, video: false, "Envoi R2 affiche");
+
+        var video = await RequestUploadUrlAsync(accessCode, eventId, sessionId, AnimationService.VideoFileName,
+            videoLength, UploadKindMedia);
+        await PutFileAsync(video, clip.VideoPath, videoLength, video: true, "Envoi R2 animation");
+
+        var sized = clip is { Width: > 0, Height: > 0 };
+        var media = new RecordedMedia(SessionMediaType.Gif, poster.StoragePath,
+            clip.DurationMs > 0 ? clip.DurationMs : null,
+            sized ? clip.Width : null,
+            sized ? clip.Height : null);
+        var photoId = await CallRpcAsync("kiosk_record_photo", BuildRecordPhotoBody(
+                accessCode, eventId, video.StoragePath, video.PublicUrl, capturedAtUtc, _credentials.MachineId,
+                _credentials.Secret, media),
+            "Enregistrement animation", ParsePhotoIdRpcResponse, CancellationToken.None, MediaRefusal);
+
+        return (video.PublicUrl, photoId);
+    }
+
+    internal const string UploadKindMedia  = "media";
+    internal const string UploadKindPoster = "poster";
+
+    // 22023 : donnée refusée, définitif. Licence ou événement (P0001), réseau : la séance reste en attente.
+    private static Exception? MediaRefusal(HttpStatusCode status, string body)
+        => ParseRpcErrorCode(status, body) == MediaRecordRejectedException.InvalidDataCode
+            ? new MediaRecordRejectedException(MediaRecordRejectedException.InvalidDataCode) : null;
+
+    /// <summary>
+    /// Délai d'un envoi sur R2 selon la taille (LAB-237) : 32 Ko/s au moins (4G faible), jamais moins de
+    /// 100 s pour une image (ancien délai du HttpClient) ni de 10 min pour un clip, une heure au plus.
+    /// </summary>
+    internal static TimeSpan UploadTimeout(long bytes, bool video)
+    {
+        var minimum  = video ? TimeSpan.FromMinutes(10) : TimeSpan.FromSeconds(100);
+        var bySize   = TimeSpan.FromSeconds(Math.Max(0, bytes) / (32.0 * 1024));
+        var duration = bySize > minimum ? bySize : minimum;
+        return duration > TimeSpan.FromHours(1) ? TimeSpan.FromHours(1) : duration;
+    }
+
+    // PUT en flux (jamais le fichier entier en mémoire), taille annoncée = taille signée.
+    private async Task PutFileAsync(UploadTarget target, string path, long length, bool video, string context)
+    {
+        var delay = UploadTimeout(length, video);
+        using var timeout = new CancellationTokenSource(delay);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+        using var content = new StreamContent(stream, 81920);
+        content.Headers.ContentType   = new MediaTypeHeaderValue(target.ContentType);
+        content.Headers.ContentLength = length;
+        try
         {
-            access_code    = accessCode,
-            event_id       = eventId,
-            machine_id     = _credentials.MachineId,
-            secret         = _credentials.Secret,
-            session_id     = sessionId,
-            filename       = fileName,
-            content_length = length,
-        });
-        using var response = await PostFunctionAsync("get-kiosk-upload-url", body);
+            using var putResponse = await _upload.PutAsync(target.PresignedUrl, content, timeout.Token);
+            await EnsureSuccessOrThrowAsync(putResponse, context);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            throw new TimeoutException($"{context} : délai de {delay.TotalSeconds:0} s dépassé.");
+        }
+    }
+
+    private async Task<UploadTarget> RequestUploadUrlAsync(string accessCode, Guid eventId, Guid sessionId, string fileName,
+        long length, string? kind = null)
+    {
+        // Sans kind (photo) : corps identique à avant LAB-237.
+        var request = new JObject
+        {
+            ["access_code"]    = accessCode,
+            ["event_id"]       = eventId,
+            ["machine_id"]     = _credentials.MachineId,
+            ["secret"]         = _credentials.Secret,
+            ["session_id"]     = sessionId,
+            ["filename"]       = fileName,
+            ["content_length"] = length,
+        };
+        if (kind != null) request["kind"] = kind;
+        using var response = await PostFunctionAsync("get-kiosk-upload-url", request.ToString(Formatting.None));
         await EnsureSuccessOrThrowAsync(response, "URL d'envoi photo");
         return ParseUploadTarget(await response.Content.ReadAsStringAsync());
     }
