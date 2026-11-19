@@ -11,6 +11,8 @@ Polabooth est une suite logicielle pour les loueurs de photobooth. Elle a deux p
 Vous installez tout chez vous : votre base de données, votre stockage, votre messagerie. Aucun
 service central n'est nécessaire.
 
+![Polabooth en 30 secondes : créer un événement, le cadre photo créé par le client, le partage sur la borne, le bilan de la soirée et le suivi des bornes](docs/polabooth-presentation.gif)
+
 > **In English.** Polabooth is a photo booth software suite for photo booth rental businesses: a
 > web app (events, clients, photo designs, online galleries, kiosk fleet) and a Windows kiosk app
 > (Canon or webcam capture, printing, QR code and email sharing, offline mode). You host
