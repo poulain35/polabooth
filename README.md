@@ -71,6 +71,8 @@ Fonctionnalités avec un lien pour en parler.
 ## Installer
 
 Commencez par [docs/installation.md](docs/installation.md) : composants, coûts, ordre des étapes.
+Jamais utilisé GitHub ni un terminal ? [docs/premiers-pas.md](docs/premiers-pas.md) répond aux
+premières questions : pas besoin de compte GitHub, récupérer le code, lancer et mettre à jour.
 
 **Le plus simple :** ouvrez [docs/guide-installation.html](docs/guide-installation.html) par un double-clic
 (dans le dossier téléchargé). Ce guide pas à pas fonctionne hors ligne, prépare le fichier de

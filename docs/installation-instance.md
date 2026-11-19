@@ -6,7 +6,7 @@ Ce guide installe le SaaS de Polabooth sur **votre** projet Supabase, avec **vot
 Un script fait l'essentiel. Comptez une heure la première fois.
 
 Vous n'avez pas besoin d'être développeur. Il faut savoir ouvrir un terminal, copier une commande et
-modifier un fichier texte.
+modifier un fichier texte. Jamais fait ? Commencez par [premiers-pas.md](premiers-pas.md).
 
 ---
 
@@ -277,7 +277,13 @@ Vercel est gardé dans `saas/.instance/` (la construction vide `dist/`), celui d
 `saas/.netlify/`, et chaque outil garde la connexion à votre compte : rien n'est redemandé les fois
 suivantes. Ces dossiers sont ignorés par Git. Le script d'installation vérifie déjà `HOSTING` et `HOSTING_PROJECT`.
 
-Vous construisez le site vous-même (par exemple sur Vercel depuis Git) ? Ajoutez la variable
+> **Ne reliez pas l'hébergeur à GitHub** (import du dépôt, déploiement à chaque changement) : il
+> ne reconstruirait que le site, sans la base ni les fonctions, et une nouvelle version pourrait
+> casser les pages. Mettez à jour avec `npm run update-instance` (section 10), qui fait tout dans
+> l'ordre. Détails : [premiers-pas.md](premiers-pas.md#brancher-vercel-netlify-ou-cloudflare-sur-github--non).
+
+Vous construisez quand même le site vous-même, avec votre propre chaîne ? Lancez d'abord les
+migrations et les fonctions (`npm run install-instance`), puis ajoutez la variable
 `KIOSK_SUPABASE_ANON_KEY` (clé anon au format `eyJ…`, voir étape 2) aux variables du build. Sinon,
 le fichier n'est pas créé et un avertissement s'affiche pendant la construction.
 

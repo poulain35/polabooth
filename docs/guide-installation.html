@@ -234,6 +234,7 @@ body[data-os="linux"] [data-os]:not([data-os~="linux"]) { display: none !importa
         </div>
       </div>
       <p>Ordinateur choisi : <strong id="os-name">Windows</strong> (modifiable en haut de la page). Les commandes s'adaptent.</p>
+      <p class="hint">Jamais utilisé GitHub ni un terminal ? Lisez d'abord <a href="premiers-pas.md">premiers-pas.md</a> : pas besoin de compte GitHub, et ce que fait vraiment l'installation.</p>
       <p class="hint">Guides détaillés : <a href="installation.md">installation.md</a> (vue d'ensemble et coûts),
         <a href="installation-instance.md">installation-instance.md</a> (le SaaS),
         <a href="installation-borne.md">installation-borne.md</a> (la borne).</p>
@@ -602,6 +603,7 @@ npm run install-instance</pre></div></div>
         <p>Le site est le dossier <code>dist</code>, créé par le script dans le dossier <code>saas</code>. Mettez-le en ligne à l'adresse de votre SaaS (<code data-fill>{APP_URL}</code>).
           Tout est prêt dedans : les règles de redirection pour Netlify et Cloudflare Pages (<code>_redirects</code>) et pour Vercel (<code>vercel.json</code>).</p>
         <div class="cmd"><pre data-fill data-os="windows">{SAAS_DIR}\dist</pre><pre data-fill data-os="mac linux">{SAAS_DIR}/dist</pre></div>
+        <div class="notice warn"><p><strong>Ne reliez pas l'hébergeur à GitHub</strong> (« Import Git repository », déploiement à chaque changement) : il ne mettrait à jour que le site, sans la base ni les fonctions. Déposez le dossier <code>dist</code>, puis mettez à jour avec la commande de « Plus tard ».</p></div>
         <p>Cette première mise en ligne se fait à la main, chez l'hébergeur de votre choix ci-dessous. Si vous avez choisi un hébergeur à l'étape 6 (<code>HOSTING</code>),
           les mises à jour suivantes le remettront en ligne toutes seules (voir « Plus tard »).</p>
 

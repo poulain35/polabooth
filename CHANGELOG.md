@@ -38,6 +38,22 @@ chaque version le dit.
 
 ---
 
+## 1.4.2 (19 novembre 2026)
+
+### À faire
+
+Rien.
+
+### Documentation
+
+- Nouveau guide [docs/premiers-pas.md](docs/premiers-pas.md) pour qui n'a jamais utilisé GitHub
+  ni un terminal : pas besoin de compte GitHub, Git ou ZIP, récupérer le code, ce que fait
+  vraiment l'installation, mettre à jour.
+- Les guides le disent maintenant : ne reliez pas votre hébergeur à GitHub. Il ne mettrait à jour
+  que le site, sans la base ni les fonctions ; `npm run update-instance` fait tout dans l'ordre.
+
+---
+
 ## 1.4.1 (19 novembre 2026)
 
 ### À faire

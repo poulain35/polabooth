@@ -1,6 +1,9 @@
 # Installer Polabooth : vue d'ensemble
 
 > Guide pas à pas, avec formulaire de configuration : ouvrez [guide-installation.html](guide-installation.html) par un double-clic.
+>
+> Jamais utilisé GitHub ni un terminal ? Lisez d'abord [premiers-pas.md](premiers-pas.md) : compte GitHub
+> (inutile), récupérer le code, ce que veut dire « lancer » le projet, mettre à jour.
 
 Polabooth est une suite logicielle pour les loueurs de photobooth. Elle a deux parties :
 
