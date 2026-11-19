@@ -42,7 +42,7 @@ chaque version le dit.
    `SUPABASE_ACCESS_TOKEN=sbp_…`. Créez-le sur https://supabase.com/dashboard/account/tokens
    (« Generate new token ») et copiez-le tout de suite, il n'est affiché qu'une fois. Le script en
    a besoin à chaque mise à jour. Le modèle `saas/instance.env.example` l'explique.
-2. Mettez à jour le SaaS (voir plus haut). Quinze nouvelles migrations sont appliquées.
+2. Mettez à jour le SaaS (voir plus haut). Dix-sept nouvelles migrations sont appliquées.
 3. Installez la borne **1.0.22** sur chaque PC, puis enregistrez le réglage « Bandes coupées » de
    l'imprimante dans l'Admin de la borne (voir plus bas).
 4. Facultatif : dans Supabase (Edge Functions), supprimez les fonctions `generate-background`,
@@ -85,12 +85,17 @@ script la télécharge la première fois.
 - Réglages de l'appareil photo par borne (Bornes, fiche de la borne) : vitesse, ouverture, ISO,
   balance des blancs et température, lus sur l'appareil et appliqués par la borne quand personne ne
   fait de photo. Appareils Canon seulement.
+- Bornes > Versions : « Télécharger » et « Copier le lien » pour chaque version, et l'adresse
+  courte `/installer-borne` de votre SaaS, qui télécharge toujours la dernière version publiée
+  (pratique sur le PC d'une nouvelle borne).
 - Ménage quotidien des images des modèles qui ne servent plus.
 - Croix pour retirer une notification de la cloche.
 - Page d'aide (`/aide`) aux couleurs des pages client.
 - Sécurité renforcée : la liste des comptes et les alertes des bornes ne sont plus lisibles sans
   connexion, fichiers des buckets ni listables ni hors des types et des tailles prévus, types de
   fichiers vérifiés à l'envoi des photos des invités.
+- Dépendances du SaaS mises à jour (react-router, vite, postcss, ws, tar…). Il reste une alerte
+  sur fabric (export SVG, que l'éditeur n'utilise pas) : sa correction demande fabric 7.
 - Le secret de chaque borne n'est plus gardé en clair dans la base, seulement son empreinte : une
   copie de la base ne permet plus de se faire passer pour une borne. Les bornes déjà associées
   continuent de marcher, sans nouvelle association.
